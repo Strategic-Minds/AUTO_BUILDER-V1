@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/autobuilder/validate",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/autobuilder/audit",
+      "schedule": "15 13 * * *"
+    }
+  ]
+}
