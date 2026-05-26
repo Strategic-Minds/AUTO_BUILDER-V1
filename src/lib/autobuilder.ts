@@ -51,20 +51,33 @@ export const workflow = [
   "improve"
 ] as const;
 
+export const factorySurfaces = [
+  "/api/factory/readiness",
+  "/api/factory/router",
+  "/api/factory/build-packet",
+  "/api/factory/capability-test",
+  "/api/factory/reverse-engineering",
+  "/api/cron/factory-readiness",
+  "/api/cron/reverse-engineering-passive"
+] as const;
+
 export const readiness = {
-  status: "cutover-required",
+  status: "factory-install-required",
   solved: [
     "3 prompt entry contract exists",
     "3 repo operating model exists",
     "frontend promotion model exists",
     "validation and audit endpoints exist",
-    "GPT alignment docs exist"
+    "GPT alignment docs exist",
+    "one-hour build factory runtime surfaces now exist",
+    "passive reverse-engineering and capability test routes now exist"
   ],
   nextActions: [
     "Add production environment variables in Vercel",
     "Connect Supabase persistence",
     "Connect the GPT project actions to the published routes",
-    "Promote the frontend app into the FRONTEND deployment"
+    "Promote the frontend app into the FRONTEND deployment",
+    "Install the canonical factory schema, queues, templates, and workers into the live repo"
   ]
 } as const;
 
@@ -74,7 +87,9 @@ export const audit = {
     "workflow system",
     "template system",
     "shopify operating surface",
-    "frontend delivery surface"
+    "frontend delivery surface",
+    "one-hour build factory",
+    "passive reverse-engineering system"
   ],
-  status: "local-ready"
+  status: "factory-scaffold-ready"
 } as const;
