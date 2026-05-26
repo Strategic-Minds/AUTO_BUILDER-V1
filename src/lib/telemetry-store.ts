@@ -21,7 +21,22 @@ type TelemetryTable =
   | "budget_governor"
   | "scheduler_verification"
   | "recursive_loop_deduper"
-  | "approval_gate_escalation_queue";
+  | "approval_gate_escalation_queue"
+  | "browser_tasks"
+  | "browser_claims"
+  | "browser_evidence"
+  | "browser_blockers"
+  | "browser_screenshots"
+  | "web_research_bridge"
+  | "social_media_bridge"
+  | "lead_generation_bridge"
+  | "financial_simulation_bridge"
+  | "shopify_commerce_bridge"
+  | "approval_queue"
+  | "escalation_events"
+  | "rollback_requests"
+  | "capability_router_bridge"
+  | "worker_registry_watchdog";
 
 type TelemetryInsert = Record<string, string | number | boolean | null | undefined>;
 type TelemetryRow = Record<string, unknown>;

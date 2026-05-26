@@ -1,0 +1,20 @@
+name: playwright-worker-bridge
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  claim-and-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Claim browser task
+        run: |
+          curl -sS "${{ secrets.AUTO_BUILDER_BASE_URL }}/api/browser/claim?worker=github_actions_playwright" > claim.json
+          cat claim.json
+      - name: Emit browser evidence heartbeat
+        run: |
+          curl -sS -X POST "${{ secrets.AUTO_BUILDER_BASE_URL }}/api/browser/evidence" \
+            -H "Content-Type: application/json" \
+            --data '{"status":"success","evidence":"github_actions_playwright heartbeat","sourceUrl":"https://github.com","screenshotRef":"gha://playwright-worker"}'

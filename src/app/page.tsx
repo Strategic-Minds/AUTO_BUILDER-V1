@@ -1,4 +1,5 @@
 import { BlockerMonitorPanel } from "@/components/blocker-monitor-panel";
+import { CapabilityBridgePanel } from "@/components/capability-bridge-panel";
 import { RecursiveIntelligencePanel } from "@/components/recursive-intelligence-panel";
 import { RuntimeTelemetryPanel } from "@/components/runtime-telemetry-panel";
 import { audit, entryPrompts, factorySurfaces, repoRoles, workflow } from "@/lib/autobuilder";
@@ -39,6 +40,7 @@ export default function HomePage() {
       <BlockerMonitorPanel />
       <RuntimeTelemetryPanel />
       <RecursiveIntelligencePanel />
+      <CapabilityBridgePanel />
 
       <section
         style={{
