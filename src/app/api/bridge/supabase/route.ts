@@ -11,7 +11,77 @@ const PROJECT_ID = "prhppuuwcnmfdhwsagug";
 const BRIDGE_SOURCE = "supabase-live-bridge";
 const TASK_TYPE = "supabase_connector_action";
 const CONNECTOR = "supabase";
-const SAFE_OPERATIONS = new Set(["execute_sql", "apply_migration", "deploy_edge_function", "insert_telemetry", "upsert_bridge_state", "status_check"]);
+const FUNCTION_NAME = "autobuilder-gpt-bridge";
+const SAFE_OPERATIONS = new Set(["execute_sql", "apply_migration", "deploy_edge_function", "insert_telemetry", "upsert_bridge_state", "status_check", "create_connector_action"]);
+
+function edgeBridgeConfig() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const bridgeKey = process.env.AUTOBUILDER_BRIDGE_KEY || "";
+
+  return {
+    supabaseUrl,
+    serviceRoleKey,
+    bridgeKey,
+    bridgeKeyConfigured: Boolean(bridgeKey),
+    authMode: bridgeKey ? "bridge_key" : serviceRoleKey ? "service_role_fallback" : "unconfigured"
+  } as const;
+}
+
+async function invokeEdgeBridge(operation: string, requestedBy: string) {
+  const config = edgeBridgeConfig();
+  if (!config.supabaseUrl || (!config.bridgeKey && !config.serviceRoleKey)) {
+    return {
+      ok: false,
+      reason: "Edge bridge credentials are not configured in Vercel.",
+      config
+    };
+  }
+
+  const payload = {
+    action: "create_connector_action",
+    projectRef: PROJECT_ID,
+    connector: CONNECTOR,
+    operation,
+    actionStatus: "completed",
+    targetRef: FUNCTION_NAME,
+    requestPayload: {
+      verification: "live_edge_function_invoke",
+      operation,
+      projectRef: PROJECT_ID,
+      source: BRIDGE_SOURCE
+    },
+    resultPayload: {
+      verification: "invoked_via_live_vercel_runtime",
+      requestedBy
+    },
+    requestedBy,
+    approved: true,
+    safe: true,
+    completedAt: new Date().toISOString()
+  };
+
+  const response = await fetch(`${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-bridge-key": config.bridgeKey || config.serviceRoleKey,
+      authorization: `Bearer ${config.bridgeKey || config.serviceRoleKey}`
+    },
+    body: JSON.stringify(payload),
+    cache: "no-store"
+  });
+
+  const text = await response.text();
+  return {
+    ok: response.ok,
+    status: response.status,
+    authMode: config.authMode,
+    bridgeKeyConfigured: config.bridgeKeyConfigured,
+    payload,
+    response: text ? JSON.parse(text) : null
+  };
+}
 
 async function upsertBridgeState(operation: string, requestPayload: Record<string, unknown>, status: string) {
   const scope = "connector";
@@ -52,7 +122,14 @@ async function upsertBridgeState(operation: string, requestPayload: Record<strin
   });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const shouldInvoke = searchParams.get("invoke") === "function-test";
+  const operation = searchParams.get("operation")?.trim() || "create_connector_action";
+  const requestedBy = searchParams.get("requestedBy")?.trim() || "vercel-live-function-test";
+
+  const invocation = shouldInvoke ? await invokeEdgeBridge(operation, requestedBy) : null;
+
   const [stateRows, connectorActions, taskRows, blockerRows] = await Promise.all([
     readTelemetryByQuery("autobuilder_bridge_state", {
       select: "*",
@@ -86,6 +163,8 @@ export async function GET() {
     projectId: PROJECT_ID,
     source: BRIDGE_SOURCE,
     store: telemetryStoreStatus(),
+    edgeBridge: edgeBridgeConfig(),
+    invocation,
     openBlockers,
     stateRows,
     connectorActions,
@@ -180,6 +259,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     projectId: PROJECT_ID,
     source: BRIDGE_SOURCE,
+    edgeBridge: edgeBridgeConfig(),
     connectorAction,
     taskInsert,
     bridgeState,
