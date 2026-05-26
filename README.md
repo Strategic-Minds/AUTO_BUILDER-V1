@@ -25,6 +25,13 @@ The core governance layer for this repo is:
 
 These files define what is authoritative, what can run automatically, how profitability is prioritized, and how the system should upgrade itself over time.
 
+## Installed Runtime Layers
+- Universal bridge brain
+- One-hour build factory scaffold
+- Capability test system
+- Passive reverse-engineering scaffold
+- Health, validation, audit, and readiness surfaces
+
 ## Core Entry Prompts
 - `CREATE A SYSTEM`
 - `CREATE A WORKFLOW`
@@ -52,6 +59,18 @@ These files define what is authoritative, what can run automatically, how profit
 - `/api/autobuilder/audit`
 - `/api/autobuilder/readiness`
 - `/api/autobuilder/repos`
+- `/api/factory/readiness`
+- `/api/factory/router`
+- `/api/factory/build-packet`
+- `/api/factory/capability-test`
+- `/api/factory/reverse-engineering`
+- `/api/cron/factory-readiness`
+- `/api/cron/reverse-engineering-passive`
+
+## Factory Docs
+- `docs/ONE_HOUR_BUILD_FACTORY.md`
+- `docs/CAPABILITY_TEST_SYSTEM.md`
+- `docs/PASSIVE_REVERSE_ENGINEERING_SYSTEM.md`
 
 ## Deployment Contract
 - Framework: Next.js
