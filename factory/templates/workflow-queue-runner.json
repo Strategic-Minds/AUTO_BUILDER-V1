@@ -1,0 +1,9 @@
+{
+  "id": "TPL-005",
+  "name": "Workflow Queue Runner",
+  "frontendModules": ["queue-monitor", "dead-letter-view", "receipt-view"],
+  "backendModules": ["queues", "jobs", "tool_receipts"],
+  "queueModules": ["build_router_queue", "template_pull_queue", "repo_patch_queue", "hardening_queue"],
+  "hardening": ["job replay", "dead-letter handling", "idempotency"],
+  "runbook": "docs/CAPABILITY_TEST_SYSTEM.md"
+}
