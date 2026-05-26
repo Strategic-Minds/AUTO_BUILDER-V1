@@ -18,6 +18,7 @@ Deployment and live operation must follow:
 - `docs/ONE_HOUR_BUILD_FACTORY.md`
 - `docs/CAPABILITY_TEST_SYSTEM.md`
 - `docs/PASSIVE_REVERSE_ENGINEERING_SYSTEM.md`
+- `docs/FINANCIAL_PREDICTION_SIMULATION_SYSTEM.md`
 
 ## Stability Rules
 - Do not set `outputDirectory` for this repo.
@@ -37,12 +38,14 @@ Run these after every production deploy:
 - `GET /api/health`
 - `GET /api/factory/readiness`
 - `GET /api/factory/capability-test`
+- `GET /api/factory/financial-simulation`
 
 Expected results:
 - `/` returns the AUTO BUILDER Bridge homepage
 - `/api/health` returns JSON with `status`, `app`, `deployment`, `repos`, `providers`, and `factory`
 - `/api/factory/readiness` returns the one-hour factory readiness object
 - `/api/factory/capability-test` returns the capability and hardening matrix
+- `/api/factory/financial-simulation` returns assumptions, scenarios, and command-center simulation data
 
 ## Health Contract
 The health endpoint should expose:
@@ -60,7 +63,7 @@ The health endpoint should expose:
 - Repo root `vercel.json`
 - `src/app/api/health/route.ts`
 - the four-file governance architecture
-- the factory and passive-system docs listed above
+- the factory and financial-system docs listed above
 
 ## Common Failure Modes
 1. Framework preset changed away from `Next.js`
@@ -72,6 +75,7 @@ The health endpoint should expose:
 7. System drift away from maximum controlled autonomy or profitability priorities
 8. Factory routes exist but the connector readiness state is still overstated
 9. Passive reverse-engineering is treated as hidden certainty instead of grounded public or connected-source evidence
+10. Financial simulations are treated as autonomous commitments instead of governed decision support
 
 ## Release Checklist
 1. Confirm `main` contains the intended commit
@@ -81,5 +85,6 @@ The health endpoint should expose:
 5. Check `/api/health`
 6. Check `/api/factory/readiness`
 7. Check `/api/factory/capability-test`
-8. If provider changes were included, verify the affected secret names exist in Vercel settings
-9. Confirm the release did not weaken capability, governance, or profitability posture
+8. Check `/api/factory/financial-simulation`
+9. If provider changes were included, verify the affected secret names exist in Vercel settings
+10. Confirm the release did not weaken capability, governance, profitability, or financial safety posture
