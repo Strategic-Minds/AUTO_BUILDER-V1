@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { classifyIdea } from "@/lib/factory";
+import { buildFinanceSimulationPacket, isFinancialSimulationIdea } from "@/lib/finance-sim";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { idea?: string };
@@ -7,6 +8,14 @@ export async function POST(request: NextRequest) {
 
   if (!idea) {
     return NextResponse.json({ error: "Missing idea" }, { status: 400 });
+  }
+
+  if (isFinancialSimulationIdea(idea)) {
+    return NextResponse.json({
+      status: "ok",
+      idea,
+      routing: buildFinanceSimulationPacket(idea).classification
+    });
   }
 
   return NextResponse.json({
