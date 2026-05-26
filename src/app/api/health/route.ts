@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NextResponse } from "next/server";
-import { providers, repoRoles } from "@/lib/autobuilder";
+import { providers, repoRoles, factorySurfaces } from "@/lib/autobuilder";
+import { factoryReadiness } from "@/lib/factory";
 
 type PackageJson = {
   name?: string;
@@ -34,6 +35,10 @@ export async function GET() {
       deploymentUrl: process.env.VERCEL_URL ?? "unknown"
     },
     repos: repoRoles,
-    providers
+    providers,
+    factory: {
+      readiness: factoryReadiness,
+      surfaces: factorySurfaces
+    }
   });
 }
