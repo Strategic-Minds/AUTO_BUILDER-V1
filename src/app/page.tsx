@@ -1,3 +1,4 @@
+import { BlockerMonitorPanel } from "@/components/blocker-monitor-panel";
 import { audit, entryPrompts, factorySurfaces, repoRoles, workflow } from "@/lib/autobuilder";
 import { connectorOps, factoryReadiness, fastPathRoutes, templateLibrary } from "@/lib/factory";
 
@@ -28,10 +29,12 @@ export default function HomePage() {
         </h1>
         <p style={{ margin: 0, maxWidth: 900, color: "#5d5a53", fontSize: 18, lineHeight: 1.5 }}>
           This repo is the orchestration brain for the full build-promote-validate loop. It now includes the
-          one-hour build factory, capability test system, and passive reverse-engineering scaffold needed for
-          high-frequency universal system creation.
+          one-hour build factory, capability test system, passive reverse-engineering scaffold, and live blocker
+          autonomy monitor needed for high-frequency universal system creation.
         </p>
       </section>
+
+      <BlockerMonitorPanel />
 
       <section
         style={{
