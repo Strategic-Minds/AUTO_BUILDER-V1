@@ -103,6 +103,22 @@ export const factorySchema: FactorySchemaEntry[] = [
     priority: 1
   },
   {
+    object: "blockers",
+    purpose: "Captured runtime blockers from UI, queues, and hardening lanes",
+    keyFields: ["id", "source", "queue", "code", "summary", "severity", "status"],
+    governance: "owner or admin",
+    queueLink: "blocker_remediation_queue",
+    priority: 1
+  },
+  {
+    object: "remediation_runs",
+    purpose: "Auto-fix plans, fallback actions, and governed holds",
+    keyFields: ["id", "blocker_id", "next_queue", "auto_dispatch", "hard_gate", "created_at"],
+    governance: "owner or admin",
+    queueLink: "connector_recovery_queue",
+    priority: 1
+  },
+  {
     object: "tool_receipts",
     purpose: "Connector action receipts",
     keyFields: ["id", "job_id", "connector", "action", "response_hash"],
@@ -150,7 +166,7 @@ export const queueAgentMap: QueueAgentEntry[] = [
     input: "route plus module needs",
     output: "template bundle",
     retryPolicy: "2 tries",
-    deadLetterRule: "missing template to generic scaffold",
+    deadLetterRule: "missing template to blocker remediation",
     approvalRequirement: "None",
     slaTarget: "5 min"
   },
@@ -161,7 +177,7 @@ export const queueAgentMap: QueueAgentEntry[] = [
     input: "files plus instructions",
     output: "branch or patch",
     retryPolicy: "2 tries",
-    deadLetterRule: "patch conflict to manual patch",
+    deadLetterRule: "patch conflict to blocker remediation",
     approvalRequirement: "Live repo write",
     slaTarget: "15 min"
   },
@@ -172,7 +188,7 @@ export const queueAgentMap: QueueAgentEntry[] = [
     input: "SQL migration",
     output: "sandbox migration",
     retryPolicy: "2 tries",
-    deadLetterRule: "migration failure to rollback",
+    deadLetterRule: "migration failure to blocker remediation",
     approvalRequirement: "Service role",
     slaTarget: "10 min"
   },
@@ -183,7 +199,7 @@ export const queueAgentMap: QueueAgentEntry[] = [
     input: "branch and env",
     output: "preview URL",
     retryPolicy: "2 tries",
-    deadLetterRule: "deploy fail to block",
+    deadLetterRule: "deploy fail to blocker remediation",
     approvalRequirement: "Production deploy",
     slaTarget: "10 min"
   },
@@ -194,9 +210,42 @@ export const queueAgentMap: QueueAgentEntry[] = [
     input: "URL, schema, jobs",
     output: "eval results",
     retryPolicy: "3 tries",
-    deadLetterRule: "fail to block release",
+    deadLetterRule: "fail to blocker remediation",
     approvalRequirement: "None",
     slaTarget: "15 min"
+  },
+  {
+    queue: "blocker_remediation_queue",
+    trigger: "UI blocker card, failed queue, or hardening failure",
+    agentOwner: "Remediation Agent",
+    input: "blocker event plus evidence",
+    output: "repair plan, next queue, and hard gate state",
+    retryPolicy: "2 tries",
+    deadLetterRule: "governed review when remediation itself exhausts",
+    approvalRequirement: "Only when protected surfaces are touched",
+    slaTarget: "2 min"
+  },
+  {
+    queue: "connector_recovery_queue",
+    trigger: "Blocked mutation surface or connector outage",
+    agentOwner: "Connector Recovery Agent",
+    input: "connector blocker and fallback mode",
+    output: "bridge path, receipt path, or restored queue handoff",
+    retryPolicy: "2 tries",
+    deadLetterRule: "release hold if no safe bridge exists",
+    approvalRequirement: "Production-impacting or protected writes",
+    slaTarget: "5 min"
+  },
+  {
+    queue: "workaround_queue",
+    trigger: "Template gap, patch conflict, or unknown blocker",
+    agentOwner: "Workaround Agent",
+    input: "blocker plus surviving build path",
+    output: "generic scaffold, fallback plan, and hardening handoff",
+    retryPolicy: "2 tries",
+    deadLetterRule: "governed review if no safe workaround exists",
+    approvalRequirement: "Only for protected live actions",
+    slaTarget: "5 min"
   },
   {
     queue: "asset_factory_queue",
