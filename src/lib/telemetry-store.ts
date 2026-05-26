@@ -12,6 +12,7 @@ type TelemetryTable =
   | "bridge_evidence"
   | "bridge_blockers"
   | "bridge_next_prompts"
+  | "bridge_connector_actions"
   | "capability_gap_registry"
   | "profit_score_registry"
   | "recursive_memory_compression"
@@ -39,9 +40,11 @@ type TelemetryTable =
   | "worker_registry_watchdog"
   | "notification_bridge"
   | "queue_control_events"
-  | "worker_heartbeats";
+  | "worker_heartbeats"
+  | "autobuilder_bridge_state";
 
-type TelemetryInsert = Record<string, string | number | boolean | null | undefined>;
+type TelemetryValue = string | number | boolean | null | undefined | Record<string, unknown> | unknown[];
+type TelemetryInsert = Record<string, TelemetryValue>;
 type TelemetryRow = Record<string, unknown>;
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
