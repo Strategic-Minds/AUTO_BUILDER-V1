@@ -60,6 +60,27 @@ export const defaultFinanceScenarios: FinanceScenario[] = [
   }
 ];
 
+export const chrisFinanceBaseline = {
+  owner: "Chris",
+  profile: "mentor-boss-finance-command-center",
+  source: "AUTO_BUILDER Financial Prediction Simulation workbook",
+  mode: "seeded-assumption-model",
+  liveDataStatus: "pending-live-source-sync",
+  databaseStatus: "pending-finance-schema-activation"
+};
+
+export const defaultMonteCarloSummary = {
+  seed: 42,
+  runs: 1000,
+  months: 36,
+  meanNpv: 3454663.61,
+  medianNpv: 1766971.06,
+  p10Npv: -744085.84,
+  p90Npv: 9578908.96,
+  lossProbability: 0.23,
+  interpretation: "Uploaded workbook assumptions support a high-upside but still risky model. Downside protection and approval gates remain mandatory."
+};
+
 export function isFinancialSimulationIdea(idea: string) {
   const normalized = idea.toLowerCase();
   return [
@@ -180,8 +201,10 @@ export function buildFinanceCommandCenter() {
   const finalMonth = forecast[forecast.length - 1];
 
   return {
+    sourceProfile: chrisFinanceBaseline,
     assumptions: defaultFinanceAssumptions,
     scenarios: defaultFinanceScenarios,
+    monteCarlo: defaultMonteCarloSummary,
     forecast,
     summary: {
       month: finalMonth.month,
