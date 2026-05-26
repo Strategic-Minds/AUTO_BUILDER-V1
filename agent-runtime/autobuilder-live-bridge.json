@@ -1,0 +1,28 @@
+{
+  "updatedAt": "2026-05-26T17:00:00Z",
+  "system": "AUTO BUILDER Workflow Control Plane",
+  "status": "partially-live",
+  "connections": {
+    "github": {
+      "repository": "Strategic-Minds/AUTO_BUILDER",
+      "defaultBranch": "main"
+    },
+    "vercel": {
+      "project": "auto-builder",
+      "projectUrl": "https://auto-builder-strategic-minds-advisory.vercel.app"
+    },
+    "supabase": {
+      "projectId": "prhppuuwcnmfdhwsagug",
+      "apiUrl": "https://prhppuuwcnmfdhwsagug.supabase.co",
+      "bridgeTarget": "autobuilder-gpt-bridge"
+    },
+    "googleDrive": {
+      "primaryWorkbookUrl": "https://docs.google.com/spreadsheets/d/1QTk4nlq6bOtcV8vagvdadvLCxwApWaOEIdQmDbp9BlI"
+    }
+  },
+  "notes": [
+    "GitHub connector write succeeded from agent runtime.",
+    "Supabase connector read actions are available, but write actions are unavailable in this authenticated session.",
+    "Vercel deployment should be used as the live app surface once redeployed."
+  ]
+}
