@@ -1,0 +1,9 @@
+{
+  "id": "TPL-004",
+  "name": "AI Agent Console",
+  "frontendModules": ["agent-cards", "run-log-table", "eval-tabs", "tool-surface-list"],
+  "backendModules": ["agents", "agent_runs", "tool_receipts"],
+  "queueModules": ["agent_run_queue", "approval_queue"],
+  "hardening": ["tool permission eval", "route smoke", "log integrity"],
+  "runbook": "docs/CAPABILITY_TEST_SYSTEM.md"
+}
