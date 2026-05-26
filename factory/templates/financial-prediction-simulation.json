@@ -1,0 +1,9 @@
+{
+  "id": "TPL-011",
+  "name": "Financial Prediction & Simulation",
+  "frontendModules": ["scenario-control", "forecast-table", "decision-signal", "governance-panel"],
+  "backendModules": ["forecasts", "simulation_runs", "decisions", "sales", "spend", "cohorts"],
+  "queueModules": ["forecast_queue", "hardening_queue", "approval_queue"],
+  "hardening": ["formula scan", "seed reproducibility", "data freshness checks", "approval gate"],
+  "runbook": "docs/FINANCIAL_PREDICTION_SIMULATION_SYSTEM.md"
+}
