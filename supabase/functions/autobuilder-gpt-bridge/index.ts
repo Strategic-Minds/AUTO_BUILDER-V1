@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+declare const Deno: {
+  env: {
+    get(name: string): string | undefined;
+  };
+};
+
 type Json = Record<string, unknown>;
 type BridgeAction =
   | "status"
