@@ -1,4 +1,6 @@
 import { BlockerMonitorPanel } from "@/components/blocker-monitor-panel";
+import { RecursiveIntelligencePanel } from "@/components/recursive-intelligence-panel";
+import { RuntimeTelemetryPanel } from "@/components/runtime-telemetry-panel";
 import { audit, entryPrompts, factorySurfaces, repoRoles, workflow } from "@/lib/autobuilder";
 import { connectorOps, factoryReadiness, fastPathRoutes, templateLibrary } from "@/lib/factory";
 
@@ -35,6 +37,8 @@ export default function HomePage() {
       </section>
 
       <BlockerMonitorPanel />
+      <RuntimeTelemetryPanel />
+      <RecursiveIntelligencePanel />
 
       <section
         style={{

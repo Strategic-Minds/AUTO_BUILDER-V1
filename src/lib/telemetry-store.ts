@@ -11,7 +11,17 @@ type TelemetryTable =
   | "bridge_claims"
   | "bridge_evidence"
   | "bridge_blockers"
-  | "bridge_next_prompts";
+  | "bridge_next_prompts"
+  | "capability_gap_registry"
+  | "profit_score_registry"
+  | "recursive_memory_compression"
+  | "blocker_classifier"
+  | "next_task_ranker"
+  | "worker_watchdog"
+  | "budget_governor"
+  | "scheduler_verification"
+  | "recursive_loop_deduper"
+  | "approval_gate_escalation_queue";
 
 type TelemetryInsert = Record<string, string | number | boolean | null | undefined>;
 type TelemetryRow = Record<string, unknown>;
