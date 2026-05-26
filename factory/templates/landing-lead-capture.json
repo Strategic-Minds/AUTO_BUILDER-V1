@@ -1,0 +1,9 @@
+{
+  "id": "TPL-001",
+  "name": "Landing + Lead Capture",
+  "frontendModules": ["hero", "cta", "proof", "faq", "lead-form", "thank-you"],
+  "backendModules": ["ideas", "build_cards", "attribution_events"],
+  "queueModules": ["idea_intake_queue", "lead_enrichment_queue"],
+  "hardening": ["form smoke", "route smoke", "attribution event"],
+  "runbook": "docs/ONE_HOUR_BUILD_FACTORY.md"
+}
