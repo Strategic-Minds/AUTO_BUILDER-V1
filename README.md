@@ -30,6 +30,7 @@ These files define what is authoritative, what can run automatically, how profit
 - One-hour build factory scaffold
 - Capability test system
 - Passive reverse-engineering scaffold
+- Financial prediction and simulation system scaffold
 - Health, validation, audit, and readiness surfaces
 
 ## Core Entry Prompts
@@ -64,6 +65,7 @@ These files define what is authoritative, what can run automatically, how profit
 - `/api/factory/build-packet`
 - `/api/factory/capability-test`
 - `/api/factory/reverse-engineering`
+- `/api/factory/financial-simulation`
 - `/api/cron/factory-readiness`
 - `/api/cron/reverse-engineering-passive`
 
@@ -71,6 +73,7 @@ These files define what is authoritative, what can run automatically, how profit
 - `docs/ONE_HOUR_BUILD_FACTORY.md`
 - `docs/CAPABILITY_TEST_SYSTEM.md`
 - `docs/PASSIVE_REVERSE_ENGINEERING_SYSTEM.md`
+- `docs/FINANCIAL_PREDICTION_SIMULATION_SYSTEM.md`
 
 ## Deployment Contract
 - Framework: Next.js
