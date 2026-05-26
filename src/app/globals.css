@@ -1,12 +1,12 @@
 :root {
-  color-scheme: light;
-  --bg: #f5f1e8;
-  --ink: #111111;
-  --muted: #5d5a53;
-  --panel: #fffaf2;
-  --line: #d8ccba;
-  --accent: #0f766e;
-  --accent-2: #b45309;
+  color-scheme: dark;
+  --bg: #090b11;
+  --ink: #f3f5f8;
+  --muted: #b7bfcc;
+  --panel: #12151d;
+  --line: #3c4354;
+  --accent: #d4af37;
+  --accent-2: #c0c8d8;
 }
 
 * {
@@ -18,10 +18,11 @@ body {
   margin: 0;
   padding: 0;
   background:
-    radial-gradient(circle at top left, rgba(180, 83, 9, 0.12), transparent 30%),
-    linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+    radial-gradient(circle at top left, rgba(212, 175, 55, 0.24), transparent 35%),
+    radial-gradient(circle at right, rgba(192, 200, 216, 0.2), transparent 45%),
+    linear-gradient(180deg, #06080d 0%, var(--bg) 100%);
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Segoe UI", Arial, sans-serif;
 }
 
 body {
