@@ -1,0 +1,62 @@
+openapi: 3.1.0
+info:
+  title: AUTO BUILDER Bridge Brain
+  version: 0.1.0
+  description: GPT action surface for the AUTO BUILDER project folder.
+servers:
+  - url: https://auto-builder-strategic-minds-advisory.vercel.app
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: Health summary
+  /api/providers:
+    get:
+      operationId: listProviders
+      responses:
+        "200":
+          description: Provider catalog
+  /api/autobuilder/prompts:
+    get:
+      operationId: listAutobuilderPrompts
+      responses:
+        "200":
+          description: GPT starter prompts
+  /api/autobuilder/workflow:
+    get:
+      operationId: getAutobuilderWorkflow
+      responses:
+        "200":
+          description: Repo roles and repeatable workflow
+  /api/autobuilder/loop:
+    get:
+      operationId: getAutobuilderLoop
+      responses:
+        "200":
+          description: Live loop contract
+  /api/autobuilder/validate:
+    get:
+      operationId: validateAutobuilder
+      responses:
+        "200":
+          description: Validation and readiness
+  /api/autobuilder/audit:
+    get:
+      operationId: auditAutobuilder
+      responses:
+        "200":
+          description: Audit surfaces
+  /api/autobuilder/readiness:
+    get:
+      operationId: getAutobuilderReadiness
+      responses:
+        "200":
+          description: Cutover readiness
+  /api/autobuilder/repos:
+    get:
+      operationId: getAutobuilderRepos
+      responses:
+        "200":
+          description: Repo role map
