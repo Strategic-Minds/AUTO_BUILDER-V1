@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/reverse-engineering-passive",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/recursive-control",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
