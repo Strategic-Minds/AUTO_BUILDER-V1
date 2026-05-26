@@ -1,10 +1,4 @@
-import { BlockerMonitorPanel } from "@/components/blocker-monitor-panel";
-import { CapabilityBridgePanel } from "@/components/capability-bridge-panel";
-import { NativeControlPanel } from "@/components/native-control-panel";
-import { OperationsConsolePanel } from "@/components/operations-console-panel";
-import { QueueTimelinePanel } from "@/components/queue-timeline-panel";
-import { RecursiveIntelligencePanel } from "@/components/recursive-intelligence-panel";
-import { RuntimeTelemetryPanel } from "@/components/runtime-telemetry-panel";
+import { SettingsFunctionsPanel } from "@/components/settings-functions-panel";
 
 export default function HomePage() {
   return (
@@ -30,16 +24,10 @@ export default function HomePage() {
             GPT remains the orchestration brain. Cloud workers and bridges execute recurring operations. Codex is reserved for implementation runtime tasks.
           </p>
         </section>
-        <OperationsConsolePanel />
-        <QueueTimelinePanel />
-        <BlockerMonitorPanel />
-        <RuntimeTelemetryPanel />
-        <RecursiveIntelligencePanel />
+        <SettingsFunctionsPanel />
       </section>
 
       <section className="shell-right" style={{ borderLeft: "1px solid var(--line)", padding: 16, background: "#0b0f16", display: "grid", gap: 14 }}>
-        <NativeControlPanel />
-        <CapabilityBridgePanel />
         <section style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
           <div style={{ color: "var(--accent)", fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Mode</div>
           <div style={{ marginTop: 6, color: "var(--ink)" }}>Dark Primary · Light Optional</div>
