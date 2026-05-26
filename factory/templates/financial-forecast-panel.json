@@ -1,0 +1,9 @@
+{
+  "id": "TPL-010",
+  "name": "Financial Forecast Panel",
+  "frontendModules": ["forecast-table", "scenario-cards", "profit-summary"],
+  "backendModules": ["finance_snapshots", "assumptions", "portfolio_loops"],
+  "queueModules": ["forecast_queue", "portfolio_control_queue"],
+  "hardening": ["formula scan", "assumption audit", "route smoke"],
+  "runbook": "docs/ONE_HOUR_BUILD_FACTORY.md"
+}
