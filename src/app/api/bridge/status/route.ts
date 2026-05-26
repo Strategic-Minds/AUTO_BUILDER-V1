@@ -14,6 +14,14 @@ export async function GET() {
   const openBlockers = blockers.ok
     ? blockers.rows.filter((row: unknown) => (row as Record<string, unknown>).state === "open").length
     : 0;
+  const schemaReady = tasks.ok && claims.ok && evidence.ok && blockers.ok && nextPrompts.ok;
+  const schemaBlockers = [
+    tasks.ok ? null : "bridge_tasks missing or inaccessible",
+    claims.ok ? null : "bridge_claims missing or inaccessible",
+    evidence.ok ? null : "bridge_evidence missing or inaccessible",
+    blockers.ok ? null : "bridge_blockers missing or inaccessible",
+    nextPrompts.ok ? null : "bridge_next_prompts missing or inaccessible"
+  ].filter(Boolean);
 
   return NextResponse.json({
     ok: true,
@@ -25,6 +33,8 @@ export async function GET() {
       validator: "playwright"
     },
     store,
+    schemaReady,
+    schemaBlockers,
     openBlockers,
     lastNextBestPrompt: nextPrompts.ok ? nextPrompts.rows[0] ?? null : null,
     tasks,
