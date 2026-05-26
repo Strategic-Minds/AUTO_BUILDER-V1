@@ -1,0 +1,9 @@
+{
+  "id": "TPL-002",
+  "name": "Auth Dashboard",
+  "frontendModules": ["auth-shell", "kpi-cards", "table-grid", "exports"],
+  "backendModules": ["users_profiles", "audit_logs", "approval_requests"],
+  "queueModules": ["approval_queue"],
+  "hardening": ["auth smoke", "RLS audit", "route smoke"],
+  "runbook": "docs/ONE_HOUR_BUILD_FACTORY.md"
+}
