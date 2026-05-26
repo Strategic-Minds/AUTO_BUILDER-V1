@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildPacketFromIdea, classifyIdea } from "@/lib/factory";
+import { buildFinanceSimulationPacket, isFinancialSimulationIdea } from "@/lib/finance-sim";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as {
@@ -14,6 +15,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing idea" }, { status: 400 });
   }
 
+  const finance = isFinancialSimulationIdea(idea);
+
   return NextResponse.json({
     status: "ok",
     intake: {
@@ -21,7 +24,7 @@ export async function POST(request: NextRequest) {
       user: body.user ?? "operator",
       idea
     },
-    classification: classifyIdea(idea),
-    starterBuildPacket: buildPacketFromIdea(idea)
+    classification: finance ? buildFinanceSimulationPacket(idea).classification : classifyIdea(idea),
+    starterBuildPacket: finance ? buildFinanceSimulationPacket(idea) : buildPacketFromIdea(idea)
   });
 }
