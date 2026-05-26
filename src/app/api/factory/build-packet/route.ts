@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildPacketFromIdea } from "@/lib/factory";
+import { buildFinanceSimulationPacket, isFinancialSimulationIdea } from "@/lib/finance-sim";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { idea?: string };
@@ -11,6 +12,8 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     status: "ok",
-    buildPacket: buildPacketFromIdea(idea)
+    buildPacket: isFinancialSimulationIdea(idea)
+      ? buildFinanceSimulationPacket(idea)
+      : buildPacketFromIdea(idea)
   });
 }
