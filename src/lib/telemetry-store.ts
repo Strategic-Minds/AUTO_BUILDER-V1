@@ -36,7 +36,10 @@ type TelemetryTable =
   | "escalation_events"
   | "rollback_requests"
   | "capability_router_bridge"
-  | "worker_registry_watchdog";
+  | "worker_registry_watchdog"
+  | "notification_bridge"
+  | "queue_control_events"
+  | "worker_heartbeats";
 
 type TelemetryInsert = Record<string, string | number | boolean | null | undefined>;
 type TelemetryRow = Record<string, unknown>;
