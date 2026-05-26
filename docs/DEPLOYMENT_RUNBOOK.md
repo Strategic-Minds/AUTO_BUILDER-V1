@@ -15,6 +15,9 @@ Deployment and live operation must follow:
 - `AUTONOMY_AND_APPROVAL_MATRIX.md`
 - `FINANCIAL_OPERATING_RULES.md`
 - `PROFIT_OPTIMIZATION_PLAYBOOK.md`
+- `docs/ONE_HOUR_BUILD_FACTORY.md`
+- `docs/CAPABILITY_TEST_SYSTEM.md`
+- `docs/PASSIVE_REVERSE_ENGINEERING_SYSTEM.md`
 
 ## Stability Rules
 - Do not set `outputDirectory` for this repo.
@@ -32,10 +35,14 @@ Deployment and live operation must follow:
 Run these after every production deploy:
 - `GET /`
 - `GET /api/health`
+- `GET /api/factory/readiness`
+- `GET /api/factory/capability-test`
 
 Expected results:
 - `/` returns the AUTO BUILDER Bridge homepage
-- `/api/health` returns JSON with `status`, `app`, `deployment`, `repos`, and `providers`
+- `/api/health` returns JSON with `status`, `app`, `deployment`, `repos`, `providers`, and `factory`
+- `/api/factory/readiness` returns the one-hour factory readiness object
+- `/api/factory/capability-test` returns the capability and hardening matrix
 
 ## Health Contract
 The health endpoint should expose:
@@ -45,13 +52,15 @@ The health endpoint should expose:
 - commit ref
 - environment
 - deployment URL
+- factory readiness
+- installed factory surfaces
 
 ## Deployment Sources of Truth
 - Repo root `package.json`
 - Repo root `vercel.json`
-- `next.config.js`
 - `src/app/api/health/route.ts`
-- the four-file governance architecture listed above
+- the four-file governance architecture
+- the factory and passive-system docs listed above
 
 ## Common Failure Modes
 1. Framework preset changed away from `Next.js`
@@ -61,6 +70,8 @@ The health endpoint should expose:
 5. Required provider secrets missing in Vercel project settings
 6. Cron routes changed without matching runtime auth or handler validation
 7. System drift away from maximum controlled autonomy or profitability priorities
+8. Factory routes exist but the connector readiness state is still overstated
+9. Passive reverse-engineering is treated as hidden certainty instead of grounded public or connected-source evidence
 
 ## Release Checklist
 1. Confirm `main` contains the intended commit
@@ -68,5 +79,7 @@ The health endpoint should expose:
 3. Verify the latest production deployment is `READY`
 4. Check `/`
 5. Check `/api/health`
-6. If provider changes were included, verify the affected secret names exist in Vercel settings
-7. Confirm the release did not weaken capability, governance, or profitability posture
+6. Check `/api/factory/readiness`
+7. Check `/api/factory/capability-test`
+8. If provider changes were included, verify the affected secret names exist in Vercel settings
+9. Confirm the release did not weaken capability, governance, or profitability posture
