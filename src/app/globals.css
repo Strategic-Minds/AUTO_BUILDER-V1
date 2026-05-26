@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f1e8;
+  --ink: #111111;
+  --muted: #5d5a53;
+  --panel: #fffaf2;
+  --line: #d8ccba;
+  --accent: #0f766e;
+  --accent-2: #b45309;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background:
+    radial-gradient(circle at top left, rgba(180, 83, 9, 0.12), transparent 30%),
+    linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
