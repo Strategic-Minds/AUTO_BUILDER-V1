@@ -48,6 +48,26 @@ const toneBySeverity: Record<string, { border: string; bg: string; label: string
   critical: { border: "#7f1d1d", bg: "#fef2f2", label: "Critical" }
 };
 
+function describeLane(remediation: RemediationResponse) {
+  if (remediation.hardGate || remediation.status === "release_hold") {
+    return "Approval hold";
+  }
+
+  if (remediation.nextQueue === "connector_recovery_queue") {
+    return "Connector recovery";
+  }
+
+  if (remediation.nextQueue === "workaround_queue") {
+    return "Workaround lane";
+  }
+
+  if (remediation.nextQueue === "approval_queue") {
+    return "Approval queue";
+  }
+
+  return "Auto remediation";
+}
+
 export function BlockerMonitorPanel() {
   const [state, setState] = useState<MonitorState>({
     blockers: [],
@@ -115,6 +135,7 @@ export function BlockerMonitorPanel() {
 
         setState((current) => ({
           ...current,
+          loading: false,
           remediationById: Object.fromEntries(remediationEntries)
         }));
       } catch (error) {
@@ -131,9 +152,13 @@ export function BlockerMonitorPanel() {
     }
 
     void load();
+    const timer = window.setInterval(() => {
+      void load();
+    }, 30000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -174,8 +199,14 @@ export function BlockerMonitorPanel() {
         <div style={{ color: "#78716c", fontSize: 13 }}>Last refresh: {new Date(state.generatedAt).toLocaleString()}</div>
       ) : null}
 
-      {state.loading ? <div style={{ color: "#5d5a53" }}>Loading blockers and auto-fix outcomes...</div> : null}
+      {state.loading ? <div style={{ color: "#5d5a53" }}>Refreshing blockers and auto-fix outcomes...</div> : null}
       {state.error ? <div style={{ color: "#991b1b" }}>Monitor error: {state.error}</div> : null}
+
+      {!state.loading && !state.error && state.blockers.length === 0 ? (
+        <div style={{ border: "1px solid #d8ccba", borderRadius: 8, padding: 16, background: "#f8fafc", color: "#334155" }}>
+          No active blockers are currently being surfaced by the monitor.
+        </div>
+      ) : null}
 
       <div style={{ display: "grid", gap: 12 }}>
         {state.blockers.map((blocker) => {
@@ -232,6 +263,10 @@ export function BlockerMonitorPanel() {
                       <div style={{ fontSize: 12, textTransform: "uppercase", color: "#0f766e" }}>Auto Dispatch</div>
                       <div style={{ marginTop: 6 }}>{remediation.autoDispatch ? "enabled" : "held"}</div>
                     </div>
+                    <div style={{ border: "1px solid #e7dcc8", borderRadius: 8, padding: 12, background: "#fff" }}>
+                      <div style={{ fontSize: 12, textTransform: "uppercase", color: "#0f766e" }}>Recovery Mode</div>
+                      <div style={{ marginTop: 6 }}>{describeLane(remediation)}</div>
+                    </div>
                   </div>
 
                   <div style={{ border: "1px solid #e7dcc8", borderRadius: 8, padding: 12, background: "#fff" }}>
@@ -244,7 +279,8 @@ export function BlockerMonitorPanel() {
                     <ul style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.7 }}>
                       {remediation.actions.map((action) => (
                         <li key={action.id}>
-                          {action.type} -> {action.target}
+                          <strong>{action.type}</strong> to {action.target}
+                          <div style={{ color: "#57534e" }}>{action.description}</div>
                         </li>
                       ))}
                     </ul>
