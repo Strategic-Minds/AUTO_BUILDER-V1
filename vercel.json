@@ -8,6 +8,14 @@
     {
       "path": "/api/autobuilder/audit",
       "schedule": "15 13 * * *"
+    },
+    {
+      "path": "/api/cron/factory-readiness",
+      "schedule": "30 * * * *"
+    },
+    {
+      "path": "/api/cron/reverse-engineering-passive",
+      "schedule": "0 2 * * *"
     }
   ]
 }
