@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildCapabilityTestMatrix, factoryReadiness, templateLibrary, fastPathRoutes, connectorOps, hardeningPipeline } from "@/lib/factory";
 import { assetFactory, buildPacketContract, factorySchema, queueAgentMap } from "@/lib/factory-registry";
+import { blockerAutonomyPolicy } from "@/lib/blocker-remediation";
 import { buildFinanceCommandCenter, defaultFinanceScenarios } from "@/lib/finance-sim";
 
 export async function GET() {
@@ -12,6 +13,7 @@ export async function GET() {
     connectors: connectorOps,
     schema: factorySchema,
     queueAgentMap,
+    blockerAutonomy: blockerAutonomyPolicy,
     hardeningPipeline,
     assetFactory,
     buildPacketContract,
