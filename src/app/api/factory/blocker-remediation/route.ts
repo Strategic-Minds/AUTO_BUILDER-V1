@@ -1,7 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { blockerAutonomyPolicy, buildBlockerRemediationPlan } from "@/lib/blocker-remediation";
 
-export async function GET() {
+function parseBoolean(value: string | null) {
+  return value === "true";
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const queue = searchParams.get("queue");
+  const summary = searchParams.get("summary");
+
+  if (queue || summary) {
+    const remediation = buildBlockerRemediationPlan({
+      blockerCode: searchParams.get("blockerCode") ?? undefined,
+      queue: queue ?? undefined,
+      connector: searchParams.get("connector") ?? undefined,
+      uiSurface: searchParams.get("uiSurface") ?? "factory-control-center",
+      summary: summary ?? undefined,
+      attempts: Number(searchParams.get("attempts") ?? "0"),
+      approvalRequired: parseBoolean(searchParams.get("approvalRequired")),
+      riskClass: searchParams.get("riskClass") ?? undefined,
+      evidence: searchParams.getAll("evidence")
+    });
+
+    return NextResponse.json({
+      status: "ok",
+      system: "AUTO BUILDER blocker remediation",
+      testMode: true,
+      remediation
+    });
+  }
+
   return NextResponse.json({
     status: "ok",
     system: "AUTO BUILDER blocker remediation",
