@@ -14,7 +14,10 @@ const CONNECTOR = "supabase";
 const FUNCTION_NAME = "autobuilder-gpt-bridge";
 const SAFE_OPERATIONS = new Set(["execute_sql", "apply_migration", "deploy_edge_function", "insert_telemetry", "upsert_bridge_state", "status_check", "create_connector_action"]);
 
-function edgeBridgeConfig() {
+type BridgeAuthMode = "bridge_key" | "service_role_fallback" | "unconfigured";
+type RequestedBridgeAuthMode = "auto" | "bridge_key" | "service_role_fallback";
+
+function edgeBridgeRuntime() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const bridgeKey = process.env.AUTOBUILDER_BRIDGE_KEY || "";
@@ -24,17 +27,59 @@ function edgeBridgeConfig() {
     serviceRoleKey,
     bridgeKey,
     bridgeKeyConfigured: Boolean(bridgeKey),
+    serviceRoleConfigured: Boolean(serviceRoleKey),
     authMode: bridgeKey ? "bridge_key" : serviceRoleKey ? "service_role_fallback" : "unconfigured"
   } as const;
 }
 
-async function invokeEdgeBridge(operation: string, requestedBy: string) {
-  const config = edgeBridgeConfig();
-  if (!config.supabaseUrl || (!config.bridgeKey && !config.serviceRoleKey)) {
+function edgeBridgeConfig() {
+  const runtime = edgeBridgeRuntime();
+  return {
+    supabaseUrlConfigured: Boolean(runtime.supabaseUrl),
+    bridgeKeyConfigured: runtime.bridgeKeyConfigured,
+    serviceRoleConfigured: runtime.serviceRoleConfigured,
+    authMode: runtime.authMode
+  };
+}
+
+function resolveRequestedAuthMode(rawValue: string | null): RequestedBridgeAuthMode {
+  if (rawValue === "bridge_key" || rawValue === "service_role_fallback") {
+    return rawValue;
+  }
+  return "auto";
+}
+
+async function invokeEdgeBridge(operation: string, requestedBy: string, requestedAuthMode: RequestedBridgeAuthMode) {
+  const runtime = edgeBridgeRuntime();
+  if (!runtime.supabaseUrl || (!runtime.bridgeKey && !runtime.serviceRoleKey)) {
     return {
       ok: false,
       reason: "Edge bridge credentials are not configured in Vercel.",
-      config
+      authModeRequested: requestedAuthMode,
+      edgeBridge: edgeBridgeConfig()
+    };
+  }
+
+  const authToken = requestedAuthMode === "service_role_fallback"
+    ? runtime.serviceRoleKey
+    : requestedAuthMode === "bridge_key"
+      ? runtime.bridgeKey
+      : runtime.bridgeKey || runtime.serviceRoleKey;
+  const authModeUsed = requestedAuthMode === "auto"
+    ? runtime.bridgeKey
+      ? "bridge_key"
+      : runtime.serviceRoleKey
+        ? "service_role_fallback"
+        : "unconfigured"
+    : requestedAuthMode;
+
+  if (!authToken) {
+    return {
+      ok: false,
+      reason: `Requested auth mode ${requestedAuthMode} is not configured in Vercel.`,
+      authModeRequested: requestedAuthMode,
+      authModeUsed,
+      edgeBridge: edgeBridgeConfig()
     };
   }
 
@@ -49,11 +94,13 @@ async function invokeEdgeBridge(operation: string, requestedBy: string) {
       verification: "live_edge_function_invoke",
       operation,
       projectRef: PROJECT_ID,
-      source: BRIDGE_SOURCE
+      source: BRIDGE_SOURCE,
+      authModeUsed
     },
     resultPayload: {
       verification: "invoked_via_live_vercel_runtime",
-      requestedBy
+      requestedBy,
+      authModeUsed
     },
     requestedBy,
     approved: true,
@@ -61,12 +108,12 @@ async function invokeEdgeBridge(operation: string, requestedBy: string) {
     completedAt: new Date().toISOString()
   };
 
-  const response = await fetch(`${config.supabaseUrl}/functions/v1/${FUNCTION_NAME}`, {
+  const response = await fetch(`${runtime.supabaseUrl}/functions/v1/${FUNCTION_NAME}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-bridge-key": config.bridgeKey || config.serviceRoleKey,
-      authorization: `Bearer ${config.bridgeKey || config.serviceRoleKey}`
+      "x-bridge-key": authToken,
+      authorization: `Bearer ${authToken}`
     },
     body: JSON.stringify(payload),
     cache: "no-store"
@@ -76,8 +123,10 @@ async function invokeEdgeBridge(operation: string, requestedBy: string) {
   return {
     ok: response.ok,
     status: response.status,
-    authMode: config.authMode,
-    bridgeKeyConfigured: config.bridgeKeyConfigured,
+    authModeRequested: requestedAuthMode,
+    authModeUsed,
+    bridgeKeyConfigured: runtime.bridgeKeyConfigured,
+    serviceRoleConfigured: runtime.serviceRoleConfigured,
     payload,
     response: text ? JSON.parse(text) : null
   };
@@ -127,8 +176,9 @@ export async function GET(request: NextRequest) {
   const shouldInvoke = searchParams.get("invoke") === "function-test";
   const operation = searchParams.get("operation")?.trim() || "create_connector_action";
   const requestedBy = searchParams.get("requestedBy")?.trim() || "vercel-live-function-test";
+  const requestedAuthMode = resolveRequestedAuthMode(searchParams.get("auth"));
 
-  const invocation = shouldInvoke ? await invokeEdgeBridge(operation, requestedBy) : null;
+  const invocation = shouldInvoke ? await invokeEdgeBridge(operation, requestedBy, requestedAuthMode) : null;
 
   const [stateRows, connectorActions, taskRows, blockerRows] = await Promise.all([
     readTelemetryByQuery("autobuilder_bridge_state", {
