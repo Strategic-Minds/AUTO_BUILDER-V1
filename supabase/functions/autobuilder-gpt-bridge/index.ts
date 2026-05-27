@@ -17,7 +17,7 @@ type BridgeAction =
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const bridgeKey = Deno.env.get("AUTOBUILDER_BRIDGE_KEY") || serviceRoleKey;
+const bridgeKey = Deno.env.get("AUTOBUILDER_BRIDGE_KEY") ?? "";
 const projectRef = Deno.env.get("SUPABASE_PROJECT_REF") || "prhppuuwcnmfdhwsagug";
 
 const TELEMETRY_TABLES = new Set([
@@ -34,7 +34,8 @@ const TELEMETRY_TABLES = new Set([
   "financial_simulation_bridge",
   "shopify_commerce_bridge",
   "queue_control_events",
-  "autobuilder_bridge_state"
+  "autobuilder_bridge_state",
+  "runtime_telemetry_events"
 ]);
 
 function json(body: Json, status = 200) {
@@ -57,7 +58,7 @@ function restHeaders() {
 }
 
 function isAuthorized(req: Request) {
-  const xBridgeKey = req.headers.get("x-bridge-key");
+  const xBridgeKey = req.headers.get("x-autobuilder-bridge-key") ?? req.headers.get("x-bridge-key");
   const authHeader = req.headers.get("authorization");
   const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   return Boolean(bridgeKey) && (xBridgeKey === bridgeKey || bearer === bridgeKey);
@@ -97,6 +98,28 @@ async function restPatch(path: string, payload: unknown, searchParams: Record<st
   return { ok: response.ok, status: response.status, data: text ? JSON.parse(text) : null };
 }
 
+async function logReceipt(args: {
+  action: BridgeAction;
+  connector?: string;
+  requestPayload: Json;
+  responsePayload: Json;
+  receiptStatus: "accepted" | "rejected" | "failed";
+}) {
+  try {
+    await restInsert("connector_receipts", {
+      connector_name: args.connector ?? "bridge",
+      runtime_action: args.action,
+      receipt_status: args.receiptStatus,
+      request_payload: args.requestPayload,
+      response_payload: args.responsePayload,
+      receipt_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    });
+  } catch {
+    return;
+  }
+}
+
 async function getStatus() {
   const [actions, tasks, stateRows] = await Promise.all([
     restSelect("bridge_connector_actions", {
@@ -127,12 +150,29 @@ async function getStatus() {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "GET") {
-    return json(await getStatus());
+  if (req.method !== "GET" && req.method !== "POST") {
+    return json({ ok: false, error: "Method not allowed" }, 405);
   }
 
   if (!isAuthorized(req)) {
+    await logReceipt({
+      action: "status",
+      requestPayload: {},
+      responsePayload: { ok: false, error: "Unauthorized" },
+      receiptStatus: "rejected"
+    });
     return json({ ok: false, error: "Unauthorized" }, 401);
+  }
+
+  if (req.method === "GET") {
+    const status = await getStatus();
+    await logReceipt({
+      action: "status",
+      requestPayload: {},
+      responsePayload: status as Json,
+      receiptStatus: status.ok ? "accepted" : "failed"
+    });
+    return json(status);
   }
 
   const body = (await req.json().catch(() => ({}))) as Json;
@@ -140,7 +180,14 @@ Deno.serve(async (req: Request) => {
   const now = new Date().toISOString();
 
   if (action === "status") {
-    return json(await getStatus());
+    const status = await getStatus();
+    await logReceipt({
+      action,
+      requestPayload: body,
+      responsePayload: status as Json,
+      receiptStatus: status.ok ? "accepted" : "failed"
+    });
+    return json(status);
   }
 
   if (action === "create_connector_action") {
@@ -161,6 +208,13 @@ Deno.serve(async (req: Request) => {
       completed_at: body.completedAt == null ? null : String(body.completedAt),
       created_at: String(body.createdAt ?? now),
       updated_at: String(body.updatedAt ?? now)
+    });
+    await logReceipt({
+      action,
+      connector: String(body.connector ?? "supabase"),
+      requestPayload: body,
+      responsePayload: { ok: result.ok, result } as Json,
+      receiptStatus: result.ok ? "accepted" : "failed"
     });
     return json({ ok: result.ok, action, result }, result.ok ? 200 : 400);
   }
@@ -201,9 +255,23 @@ Deno.serve(async (req: Request) => {
         },
         { id: `eq.${rowId}` }
       );
+      await logReceipt({
+        action,
+        connector: "bridge",
+        requestPayload: body,
+        responsePayload: { ok: update.ok, result: update } as Json,
+        receiptStatus: update.ok ? "accepted" : "failed"
+      });
       return json({ ok: update.ok, action, result: update }, update.ok ? 200 : 400);
     }
 
+    await logReceipt({
+      action,
+      connector: "bridge",
+      requestPayload: body,
+      responsePayload: { ok: true, result } as Json,
+      receiptStatus: "accepted"
+    });
     return json({ ok: true, action, result }, 200);
   }
 
@@ -213,6 +281,13 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, error: "Unsupported telemetry table", table }, 400);
     }
     const result = await restInsert(table, typeof body.payload === "object" && body.payload ? body.payload : {});
+    await logReceipt({
+      action,
+      connector: table,
+      requestPayload: body,
+      responsePayload: { ok: result.ok, result } as Json,
+      receiptStatus: result.ok ? "accepted" : "failed"
+    });
     return json({ ok: result.ok, action, result }, result.ok ? 200 : 400);
   }
 
@@ -223,6 +298,13 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, error: "Unsupported telemetry update request", table, id }, 400);
     }
     const result = await restPatch(table, typeof body.payload === "object" && body.payload ? body.payload : {}, { id: `eq.${id}` });
+    await logReceipt({
+      action,
+      connector: table,
+      requestPayload: body,
+      responsePayload: { ok: result.ok, result } as Json,
+      receiptStatus: result.ok ? "accepted" : "failed"
+    });
     return json({ ok: result.ok, action, result }, result.ok ? 200 : 400);
   }
 
