@@ -9,10 +9,9 @@ export async function GET() {
     name_for_model: 'auto_builder',
     description_for_human: 'Governed recursive orchestration system for Strategic Minds Advisory.',
     description_for_model:
-      'Use AUTO BUILDER to inspect stack status, run governance preflight, create repurpose task packets, and continue recursive prompt-chain execution while preserving governance locks.',
+      'Use AUTO BUILDER to inspect stack status and verify governed action registration. Preserve governance locks and recursive continuation rules.',
     auth: {
-      type: 'service_http',
-      authorization_type: 'bearer',
+      type: 'none',
     },
     api: {
       type: 'openapi',
