@@ -1,3 +1,3 @@
 [functions.autobuilder-gpt-bridge]
-verify_jwt = false
+verify_jwt = true
 entrypoint = "./functions/autobuilder-gpt-bridge/index.ts"
