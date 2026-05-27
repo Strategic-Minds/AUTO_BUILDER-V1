@@ -1,262 +1,333 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { createMcpHandler } from "mcp-handler";
+import { z } from "zod";
 
-type JsonRpcRequest = {
-  jsonrpc?: '2.0';
-  id?: string | number | null;
-  method?: string;
-  params?: Record<string, unknown>;
+export const runtime = "nodejs";
+
+const repoFiles: Record<string, string> = {
+  "README.md": `# AUTO BUILDER Bridge
+
+GPT remains the orchestration brain. Cloud workers and bridges execute recurring operations. Codex is reserved for implementation runtime tasks.
+`,
+  "docs/handoffs/dev-handoff.md": `# Dev Handoff
+
+## Current objective
+Transform xps-ai-factory into a top-ceiling autonomous platform that can:
+- build frontend/backend systems rapidly
+- onboard connectors quickly
+- validate browser/API flows
+- deploy to Railway
+- support XPS Intelligence and Contractor OS
+`,
+  "docs/prompts/repo-discovery.prompt.md": `Inspect this repository completely before making changes.
+Treat GitHub remote as source of truth, Docker local as runtime truth, and Railway as deploy target.
+Use repo-local skills where relevant.
+Produce:
+1. repo map
+2. stack detection
+3. env/config contract
+4. validation plan
+5. top implementation priorities
+Do not implement yet.
+`,
+  "apps/control-plane/package.json": JSON.stringify(
+    {
+      name: "@xps-ai-factory/control-plane",
+      private: true,
+      version: "0.1.0",
+      scripts: {
+        dev: "node server.js",
+        start: "node server.js",
+        lint: "echo lint placeholder",
+        test: "echo test placeholder"
+      }
+    },
+    null,
+    2
+  )
 };
 
-type ToolCallParams = {
-  name?: string;
-  arguments?: Record<string, unknown>;
-};
-
-const SERVER_INFO = {
-  name: 'auto-builder-mcp-bridge',
-  version: '0.2.0',
-};
-
-const TOOL_DEFINITIONS = [
+const resources = [
   {
-    name: 'autobuilder_stack_status',
-    title: 'AUTO BUILDER Stack Status',
-    description:
-      'Returns the locked AUTO BUILDER stack, governance posture, and active bridge surfaces.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      additionalProperties: false,
-    },
+    uri: "xps://README.md",
+    name: "Repo README",
+    description: "Top-level repository overview and MCP usage notes.",
+    mimeType: "text/markdown",
+    path: "README.md"
   },
   {
-    name: 'create_repurpose_task_packet',
-    title: 'Create Repurpose Task Packet',
-    description:
-      'Creates a governed task packet for video repurposing through Repurpose.io, Drive handoff, Xyla/Facebook publishing, and Shopify attribution. This does not publish or mutate external systems.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        sourceVideoUrl: { type: 'string', description: 'Drive URL, public URL, or source identifier for the video.' },
-        campaignName: { type: 'string', description: 'Campaign or product campaign name.' },
-        shopifyProductHandle: { type: 'string', description: 'Optional Shopify product handle or product identifier.' },
-        targetPlatforms: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Target platforms such as Facebook, Instagram, TikTok, YouTube, LinkedIn, Reddit.',
-        },
-        postsPerDay: { type: 'number', description: 'Desired posting cadence.' },
-      },
-      required: ['sourceVideoUrl', 'campaignName'],
-      additionalProperties: true,
-    },
+    uri: "xps://docs/handoffs/dev-handoff.md",
+    name: "Dev Handoff",
+    description: "Project handoff notes and operating assumptions.",
+    mimeType: "text/markdown",
+    path: "docs/handoffs/dev-handoff.md"
   },
   {
-    name: 'governance_preflight',
-    title: 'Governance Preflight',
-    description:
-      'Classifies a requested action as read-only, safe planned work, or protected mutation requiring Jeremy approval.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        action: { type: 'string' },
-        targetSystem: { type: 'string' },
-        mutationRequested: { type: 'boolean' },
-        currentSessionExplicitCommand: { type: 'boolean' },
-      },
-      required: ['action'],
-      additionalProperties: true,
-    },
+    uri: "xps://docs/prompts/repo-discovery.prompt.md",
+    name: "Repo Discovery Prompt",
+    description: "Prompt used to orient discovery inside this repo.",
+    mimeType: "text/markdown",
+    path: "docs/prompts/repo-discovery.prompt.md"
   },
   {
-    name: 'recursive_prompt_chain_next',
-    title: 'Recursive Prompt Chain Next',
-    description:
-      'Extracts or creates the next executable GPT instruction from the prior response final block. This preserves recursive AUTO BUILDER progression without authorizing protected mutation.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        lastResponse: { type: 'string', description: 'The full prior GPT response, including the final executive block if available.' },
-        currentPhaseStep: { type: 'string', description: 'Current PHASE-X / STEP-Y marker.' },
-        objective: { type: 'string', description: 'Optional objective if fallback generation is needed.' },
-        humanNeeded: { type: 'boolean', description: 'Whether the last response required human intervention.' },
-      },
-      required: ['lastResponse'],
-      additionalProperties: true,
-    },
-  },
-];
+    uri: "xps://apps/control-plane/package.json",
+    name: "Control Plane Package",
+    description: "Package metadata for the control-plane app.",
+    mimeType: "application/json",
+    path: "apps/control-plane/package.json"
+  }
+] as const;
 
-function jsonRpcResult(id: JsonRpcRequest['id'], result: unknown) {
-  return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, result });
-}
+const visibleRepoPaths = [
+  ".",
+  "README.md",
+  "docs",
+  "docs/handoffs",
+  "docs/handoffs/dev-handoff.md",
+  "docs/prompts",
+  "docs/prompts/repo-discovery.prompt.md",
+  "apps",
+  "apps/control-plane",
+  "apps/control-plane/package.json"
+] as const;
 
-function jsonRpcError(id: JsonRpcRequest['id'], code: number, message: string, data?: unknown) {
-  return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, error: { code, message, data } }, { status: 200 });
-}
-
-function asText(content: unknown) {
-  return [{ type: 'text', text: typeof content === 'string' ? content : JSON.stringify(content, null, 2) }];
-}
-
-function requireBridgeToken(req: NextRequest) {
-  const configured = process.env.AUTO_BUILDER_MCP_TOKEN;
-  if (!configured) return true;
-  const auth = req.headers.get('authorization') || '';
-  return auth === `Bearer ${configured}`;
-}
-
-function stackStatus() {
+function buildRepoSummary() {
   return {
-    phase: 'PHASE-10 / STEP-12',
-    stack: [
-      'Google Workspace',
-      'Google Drive',
-      'Google Sheets',
-      'Shopify',
-      'Stripe',
-      'Repurpose.io',
-      'Xyla',
-      'Facebook',
-      'GitHub',
-      'Vercel',
-      'Supabase',
-      'OpenAI',
-      'MCP Bridge Layer',
-    ],
-    primaryCanon: {
-      drive: 'https://drive.google.com/drive/folders/1UbkNznxlUcdeJi8NGgMIIGXbuA6BcDu-',
-      opsSheet: 'https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOryfao',
+    repoRoot: "remote-bundled-content",
+    rootPackageName: "auto-builder-bridge",
+    rootScripts: {
+      dev: "next dev",
+      build: "next build",
+      start: "next start",
+      "validate:factory": "node scripts/validate-factory.mjs"
     },
-    connectedByUser: {
-      stripe: 'Connected with read/write access under strategicmindsadvisory@gmail.com; MCP defaults to read-only financial inspection unless exact current-session command authorizes mutation.',
-      repurpose: 'Repurpose.io connected under strategicmindsadvisory@gmail.com with Facebook connection complete by user report.',
+    controlPlanePackageName: "@xps-ai-factory/control-plane",
+    controlPlaneScripts: {
+      dev: "node server.js",
+      start: "node server.js",
+      lint: "echo lint placeholder",
+      test: "echo test placeholder"
     },
-    governance: {
-      defaultMode: 'read-only inspection, planning, task packet creation, validation, and continuity logging',
-      protectedMutationRule:
-        'No workflow, governance, source-truth, billing, deployment, database, Shopify, Stripe money movement, Vercel env, Supabase schema, Drive canon, Sheets canon, or authority-file mutation without Jeremy explicit current-session command.',
-    },
-    closedLoopTarget:
-      'GPT -> MCP bridge -> Drive/Repurpose.io -> finished clips -> Xyla/Facebook -> Shopify/Stripe attribution -> Supabase telemetry -> recursive optimization',
+    keyPaths: {
+      readme: "README.md",
+      controlPlanePackage: "apps/control-plane/package.json",
+      devHandoff: "docs/handoffs/dev-handoff.md",
+      repoDiscoveryPrompt: "docs/prompts/repo-discovery.prompt.md"
+    }
   };
 }
 
-function createRepurposeTaskPacket(args: Record<string, unknown>) {
-  const targetPlatforms = Array.isArray(args.targetPlatforms) ? args.targetPlatforms : ['Facebook'];
-  return {
-    status: 'TASK_PACKET_CREATED_NOT_EXECUTED',
-    governance: 'No external publish, Shopify mutation, Stripe money movement, or production action performed by this tool.',
-    packet: {
-      sourceVideoUrl: args.sourceVideoUrl,
-      campaignName: args.campaignName,
-      shopifyProductHandle: args.shopifyProductHandle ?? null,
-      targetPlatforms,
-      postsPerDay: args.postsPerDay ?? 3,
-      handoff: {
-        intake: 'Place source video in Drive intake folder or provide URL.',
-        repurpose: 'Use Repurpose.io connected under strategicmindsadvisory@gmail.com.',
-        output: 'Export finished clips/shorts to Drive output folder.',
-        publish: 'Route finalized assets to Xyla/Facebook publishing queue.',
-        attribution: 'Attach UTM campaign, platform, clip ID, product handle, date, Shopify outcome, and Stripe payment/deposit reference when available.',
-      },
-      requiredValidation: [
-        'Confirm video intake asset exists.',
-        'Confirm Repurpose.io job created or queued.',
-        'Confirm finished clip output exists.',
-        'Confirm publish destination connected.',
-        'Confirm Shopify/Stripe attribution fields are recorded before optimization.',
-      ],
-    },
-  };
+function readBundledFile(path: string) {
+  const value = repoFiles[path];
+  if (!value) {
+    throw new Error(`Unknown path: ${path}`);
+  }
+  return value;
 }
 
-function governancePreflight(args: Record<string, unknown>) {
-  const mutation = args.mutationRequested === true;
-  const explicit = args.currentSessionExplicitCommand === true;
-  const target = String(args.targetSystem ?? 'unknown').toLowerCase();
-  const financialTarget = target.includes('stripe') || target.includes('billing') || target.includes('payout') || target.includes('refund');
-  const protectedMutation = mutation && !explicit;
-  return {
-    action: args.action,
-    targetSystem: args.targetSystem ?? 'unknown',
-    classification: protectedMutation ? 'BLOCKED_PROTECTED_MUTATION' : mutation ? 'AUTHORIZED_MUTATION_REQUIRES_VALIDATION' : 'SAFE_READ_OR_PLAN',
-    humanNeeded: protectedMutation,
-    financialSafety: financialTarget
-      ? 'Stripe/billing/payout/refund actions are protected. Default MCP behavior is read-only unless Jeremy explicitly commands the exact mutation in the current session.'
-      : 'No financial protected target detected.',
-    nextStep: protectedMutation
-      ? 'Stop mutation, document blocker, provide workaround, request exact Jeremy command.'
-      : 'Continue governed execution with validation and dehydrate logging.',
-  };
-}
+function readTextFile(path: string, startLine?: number, endLine?: number) {
+  const text = readBundledFile(path);
+  const lines = text.split(/\r?\n/);
+  const firstLine = Math.max(1, Number(startLine ?? 1));
+  const lastLine = Math.min(lines.length, Number(endLine ?? lines.length));
 
-function recursivePromptChainNext(args: Record<string, unknown>) {
-  const lastResponse = String(args.lastResponse || '');
-  const match = lastResponse.match(/NEXT GPT INSTRUCTION:\s*```(?:text)?\s*([\s\S]*?)```/i);
-  const extracted = match?.[1]?.trim();
-  const objective = String(args.objective || 'Continue AUTO BUILDER recursive operation.');
-
-  return {
-    status: extracted ? 'EXTRACTED_NEXT_INSTRUCTION' : 'GENERATED_FALLBACK_NEXT_INSTRUCTION',
-    humanNeeded: args.humanNeeded === true,
-    currentPhaseStep: args.currentPhaseStep ?? 'UNKNOWN',
-    nextInstruction:
-      extracted ||
-      `PHASE-NEXT / STEP-1 :\n\nRehydrate AUTO BUILDER continuity from the AUTOBUILDER BRIDGE Ops Sheet and governance hierarchy.\n\nObjective: ${objective}\n\nPreserve governance locks, executive final block reporting, blocker/workaround/self-heal logging, recursive continuation logic, and autonomous continuity preservation. If prior context is insufficient, stop and request rehydrate before any protected mutation.`,
-    governance:
-      'The recursive prompt-chain tool must not authorize protected mutation unless Jeremy explicitly commanded that exact mutation in the current session.',
-  };
-}
-
-async function handleRpc(req: NextRequest, body: JsonRpcRequest) {
-  if (!requireBridgeToken(req)) {
-    return jsonRpcError(body.id, -32001, 'Unauthorized MCP bridge request.');
+  if (lastLine < firstLine) {
+    throw new Error("endLine must be greater than or equal to startLine");
   }
 
-  switch (body.method) {
-    case 'initialize':
-      return jsonRpcResult(body.id, {
-        protocolVersion: '2024-11-05',
-        capabilities: { tools: {} },
-        serverInfo: SERVER_INFO,
-      });
+  const content = lines
+    .slice(firstLine - 1, lastLine)
+    .map((line, index) => `${firstLine + index}: ${line}`)
+    .join("\n");
 
-    case 'tools/list':
-      return jsonRpcResult(body.id, { tools: TOOL_DEFINITIONS });
+  return {
+    path,
+    startLine: firstLine,
+    endLine: lastLine,
+    content
+  };
+}
 
-    case 'tools/call': {
-      const params = (body.params || {}) as ToolCallParams;
-      const args = params.arguments || {};
-      if (params.name === 'autobuilder_stack_status') return jsonRpcResult(body.id, { content: asText(stackStatus()) });
-      if (params.name === 'create_repurpose_task_packet') return jsonRpcResult(body.id, { content: asText(createRepurposeTaskPacket(args)) });
-      if (params.name === 'governance_preflight') return jsonRpcResult(body.id, { content: asText(governancePreflight(args)) });
-      if (params.name === 'recursive_prompt_chain_next') return jsonRpcResult(body.id, { content: asText(recursivePromptChainNext(args)) });
-      return jsonRpcError(body.id, -32602, `Unknown tool: ${params.name}`);
+const handler = createMcpHandler(
+  (server) => {
+    server.registerTool(
+      "health_check",
+      {
+        title: "Health Check",
+        description: "Use this before other calls to confirm the remote MCP server is alive.",
+        inputSchema: {}
+      },
+      async () => ({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                status: "ok",
+                service: "xps-ai-factory-control-plane",
+                transport: "streamable-http",
+                environment: process.env.VERCEL ? "vercel" : "local",
+                timestamp: new Date().toISOString()
+              },
+              null,
+              2
+            )
+          }
+        ]
+      })
+    );
+
+    server.registerTool(
+      "read_bootstrap_status",
+      {
+        title: "Read Bootstrap Status",
+        description: "Inspect the bundled control-plane package metadata and bootstrap entrypoints.",
+        inputSchema: {}
+      },
+      async () => ({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                packageJsonPath: "apps/control-plane/package.json",
+                scripts: buildRepoSummary().controlPlaneScripts,
+                bundledPaths: visibleRepoPaths
+              },
+              null,
+              2
+            )
+          }
+        ]
+      })
+    );
+
+    server.registerTool(
+      "get_repo_summary",
+      {
+        title: "Get Repo Summary",
+        description: "Use this first for repo discovery. It returns the key scripts, package names, and file entrypoints exposed by this MCP.",
+        inputSchema: {}
+      },
+      async () => ({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(buildRepoSummary(), null, 2)
+          }
+        ]
+      })
+    );
+
+    server.registerTool(
+      "list_repo_files",
+      {
+        title: "List Repo Files",
+        description: "List the bundled repo paths this remote MCP exposes.",
+        inputSchema: {
+          subpath: z.string().optional(),
+          maxDepth: z.number().int().min(0).max(8).optional(),
+          limit: z.number().int().min(1).max(500).optional()
+        }
+      },
+      async ({ subpath, limit }) => {
+        const prefix = subpath ? subpath.replace(/\/$/, "") : ".";
+        const items = visibleRepoPaths
+          .filter((item) => prefix === "." || item === prefix || item.startsWith(`${prefix}/`))
+          .slice(0, limit ?? 200)
+          .map((item) => ({
+            path: item,
+            type:
+              item === "." ||
+              item === "docs" ||
+              item === "docs/handoffs" ||
+              item === "docs/prompts" ||
+              item === "apps" ||
+              item === "apps/control-plane"
+                ? "directory"
+                : "file"
+          }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(items, null, 2)
+            }
+          ]
+        };
+      }
+    );
+
+    server.registerTool(
+      "read_text_file",
+      {
+        title: "Read Text File",
+        description: "Read a bundled UTF-8 file from this remote MCP server, optionally constrained to a line range.",
+        inputSchema: {
+          path: z.string(),
+          startLine: z.number().int().min(1).optional(),
+          endLine: z.number().int().min(1).optional()
+        }
+      },
+      async ({ path, startLine, endLine }) => ({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(readTextFile(path, startLine, endLine), null, 2)
+          }
+        ]
+      })
+    );
+
+    for (const resource of resources) {
+      server.registerResource(
+        resource.name,
+        resource.uri,
+        {
+          title: resource.name,
+          description: resource.description,
+          mimeType: resource.mimeType
+        },
+        async () => ({
+          contents: [
+            {
+              uri: resource.uri,
+              mimeType: resource.mimeType,
+              text: readBundledFile(resource.path)
+            }
+          ]
+        })
+      );
     }
 
-    default:
-      return jsonRpcError(body.id, -32601, `Unsupported method: ${body.method}`);
+    server.registerPrompt(
+      "repo_discovery",
+      {
+        title: "Repo Discovery",
+        description: "Prompt template for orienting work inside AUTO BUILDER."
+      },
+      async () => ({
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: readBundledFile("docs/prompts/repo-discovery.prompt.md")
+            }
+          }
+        ]
+      })
+    );
+  },
+  {
+    instructions:
+      "Use this server for repo inspection and control-plane discovery tasks. Prefer get_repo_summary first, then list_repo_files, then read_text_file."
+  },
+  {
+    basePath: "/api",
+    maxDuration: 60,
+    verboseLogs: false
   }
-}
+);
 
-export async function GET() {
-  return NextResponse.json({
-    name: SERVER_INFO.name,
-    version: SERVER_INFO.version,
-    status: 'ok',
-    endpoint: '/api/mcp',
-    tools: TOOL_DEFINITIONS.map((tool) => tool.name),
-    installHint: 'Use POST JSON-RPC MCP requests or add this deployed URL as a ChatGPT MCP/custom app server if your workspace supports custom MCP apps.',
-  });
-}
-
-export async function POST(req: NextRequest) {
-  let body: JsonRpcRequest;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonRpcError(null, -32700, 'Invalid JSON.');
-  }
-  return handleRpc(req, body);
-}
+export { handler as GET, handler as POST, handler as DELETE };
