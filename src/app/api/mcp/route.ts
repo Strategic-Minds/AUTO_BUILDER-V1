@@ -14,7 +14,7 @@ type ToolCallParams = {
 
 const SERVER_INFO = {
   name: 'auto-builder-mcp-bridge',
-  version: '0.1.0',
+  version: '0.2.0',
 };
 
 const TOOL_DEFINITIONS = [
@@ -68,6 +68,23 @@ const TOOL_DEFINITIONS = [
       additionalProperties: true,
     },
   },
+  {
+    name: 'recursive_prompt_chain_next',
+    title: 'Recursive Prompt Chain Next',
+    description:
+      'Extracts or creates the next executable GPT instruction from the prior response final block. This preserves recursive AUTO BUILDER progression without authorizing protected mutation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        lastResponse: { type: 'string', description: 'The full prior GPT response, including the final executive block if available.' },
+        currentPhaseStep: { type: 'string', description: 'Current PHASE-X / STEP-Y marker.' },
+        objective: { type: 'string', description: 'Optional objective if fallback generation is needed.' },
+        humanNeeded: { type: 'boolean', description: 'Whether the last response required human intervention.' },
+      },
+      required: ['lastResponse'],
+      additionalProperties: true,
+    },
+  },
 ];
 
 function jsonRpcResult(id: JsonRpcRequest['id'], result: unknown) {
@@ -91,12 +108,13 @@ function requireBridgeToken(req: NextRequest) {
 
 function stackStatus() {
   return {
-    phase: 'PHASE-10 / STEP-1',
+    phase: 'PHASE-10 / STEP-12',
     stack: [
       'Google Workspace',
       'Google Drive',
       'Google Sheets',
       'Shopify',
+      'Stripe',
       'Repurpose.io',
       'Xyla',
       'Facebook',
@@ -104,18 +122,23 @@ function stackStatus() {
       'Vercel',
       'Supabase',
       'OpenAI',
+      'MCP Bridge Layer',
     ],
     primaryCanon: {
       drive: 'https://drive.google.com/drive/folders/1UbkNznxlUcdeJi8NGgMIIGXbuA6BcDu-',
       opsSheet: 'https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOryfao',
     },
+    connectedByUser: {
+      stripe: 'Connected with read/write access under strategicmindsadvisory@gmail.com; MCP defaults to read-only financial inspection unless exact current-session command authorizes mutation.',
+      repurpose: 'Repurpose.io connected under strategicmindsadvisory@gmail.com with Facebook connection complete by user report.',
+    },
     governance: {
       defaultMode: 'read-only inspection, planning, task packet creation, validation, and continuity logging',
       protectedMutationRule:
-        'No workflow, governance, source-truth, billing, deployment, database, Shopify, Vercel env, Supabase schema, Drive canon, Sheets canon, or authority-file mutation without Jeremy explicit current-session command.',
+        'No workflow, governance, source-truth, billing, deployment, database, Shopify, Stripe money movement, Vercel env, Supabase schema, Drive canon, Sheets canon, or authority-file mutation without Jeremy explicit current-session command.',
     },
     closedLoopTarget:
-      'GPT -> MCP bridge -> Drive/Repurpose.io -> finished clips -> Xyla/Facebook -> Shopify attribution -> Supabase telemetry -> recursive optimization',
+      'GPT -> MCP bridge -> Drive/Repurpose.io -> finished clips -> Xyla/Facebook -> Shopify/Stripe attribution -> Supabase telemetry -> recursive optimization',
   };
 }
 
@@ -123,7 +146,7 @@ function createRepurposeTaskPacket(args: Record<string, unknown>) {
   const targetPlatforms = Array.isArray(args.targetPlatforms) ? args.targetPlatforms : ['Facebook'];
   return {
     status: 'TASK_PACKET_CREATED_NOT_EXECUTED',
-    governance: 'No external publish, Shopify mutation, or production action performed by this tool.',
+    governance: 'No external publish, Shopify mutation, Stripe money movement, or production action performed by this tool.',
     packet: {
       sourceVideoUrl: args.sourceVideoUrl,
       campaignName: args.campaignName,
@@ -135,14 +158,14 @@ function createRepurposeTaskPacket(args: Record<string, unknown>) {
         repurpose: 'Use Repurpose.io connected under strategicmindsadvisory@gmail.com.',
         output: 'Export finished clips/shorts to Drive output folder.',
         publish: 'Route finalized assets to Xyla/Facebook publishing queue.',
-        attribution: 'Attach UTM campaign, platform, clip ID, product handle, and date.',
+        attribution: 'Attach UTM campaign, platform, clip ID, product handle, date, Shopify outcome, and Stripe payment/deposit reference when available.',
       },
       requiredValidation: [
         'Confirm video intake asset exists.',
         'Confirm Repurpose.io job created or queued.',
         'Confirm finished clip output exists.',
         'Confirm publish destination connected.',
-        'Confirm attribution fields are recorded before optimization.',
+        'Confirm Shopify/Stripe attribution fields are recorded before optimization.',
       ],
     },
   };
@@ -151,15 +174,38 @@ function createRepurposeTaskPacket(args: Record<string, unknown>) {
 function governancePreflight(args: Record<string, unknown>) {
   const mutation = args.mutationRequested === true;
   const explicit = args.currentSessionExplicitCommand === true;
+  const target = String(args.targetSystem ?? 'unknown').toLowerCase();
+  const financialTarget = target.includes('stripe') || target.includes('billing') || target.includes('payout') || target.includes('refund');
   const protectedMutation = mutation && !explicit;
   return {
     action: args.action,
     targetSystem: args.targetSystem ?? 'unknown',
     classification: protectedMutation ? 'BLOCKED_PROTECTED_MUTATION' : mutation ? 'AUTHORIZED_MUTATION_REQUIRES_VALIDATION' : 'SAFE_READ_OR_PLAN',
     humanNeeded: protectedMutation,
+    financialSafety: financialTarget
+      ? 'Stripe/billing/payout/refund actions are protected. Default MCP behavior is read-only unless Jeremy explicitly commands the exact mutation in the current session.'
+      : 'No financial protected target detected.',
     nextStep: protectedMutation
       ? 'Stop mutation, document blocker, provide workaround, request exact Jeremy command.'
       : 'Continue governed execution with validation and dehydrate logging.',
+  };
+}
+
+function recursivePromptChainNext(args: Record<string, unknown>) {
+  const lastResponse = String(args.lastResponse || '');
+  const match = lastResponse.match(/NEXT GPT INSTRUCTION:\s*```(?:text)?\s*([\s\S]*?)```/i);
+  const extracted = match?.[1]?.trim();
+  const objective = String(args.objective || 'Continue AUTO BUILDER recursive operation.');
+
+  return {
+    status: extracted ? 'EXTRACTED_NEXT_INSTRUCTION' : 'GENERATED_FALLBACK_NEXT_INSTRUCTION',
+    humanNeeded: args.humanNeeded === true,
+    currentPhaseStep: args.currentPhaseStep ?? 'UNKNOWN',
+    nextInstruction:
+      extracted ||
+      `PHASE-NEXT / STEP-1 :\n\nRehydrate AUTO BUILDER continuity from the AUTOBUILDER BRIDGE Ops Sheet and governance hierarchy.\n\nObjective: ${objective}\n\nPreserve governance locks, executive final block reporting, blocker/workaround/self-heal logging, recursive continuation logic, and autonomous continuity preservation. If prior context is insufficient, stop and request rehydrate before any protected mutation.`,
+    governance:
+      'The recursive prompt-chain tool must not authorize protected mutation unless Jeremy explicitly commanded that exact mutation in the current session.',
   };
 }
 
@@ -185,6 +231,7 @@ async function handleRpc(req: NextRequest, body: JsonRpcRequest) {
       if (params.name === 'autobuilder_stack_status') return jsonRpcResult(body.id, { content: asText(stackStatus()) });
       if (params.name === 'create_repurpose_task_packet') return jsonRpcResult(body.id, { content: asText(createRepurposeTaskPacket(args)) });
       if (params.name === 'governance_preflight') return jsonRpcResult(body.id, { content: asText(governancePreflight(args)) });
+      if (params.name === 'recursive_prompt_chain_next') return jsonRpcResult(body.id, { content: asText(recursivePromptChainNext(args)) });
       return jsonRpcError(body.id, -32602, `Unknown tool: ${params.name}`);
     }
 
@@ -199,6 +246,7 @@ export async function GET() {
     version: SERVER_INFO.version,
     status: 'ok',
     endpoint: '/api/mcp',
+    tools: TOOL_DEFINITIONS.map((tool) => tool.name),
     installHint: 'Use POST JSON-RPC MCP requests or add this deployed URL as a ChatGPT MCP/custom app server if your workspace supports custom MCP apps.',
   });
 }
