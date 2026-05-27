@@ -167,7 +167,6 @@ export async function writeWorkbookRowsByKey(args: {
 
   const currentRows = matrix.slice(1);
   const sheetRowKeyIndex = headers.indexOf("sheet_row_key");
-  const sourceKeyIndex = headers.indexOf("sync_source_key");
   const existingByKey = new Map<string, { rowNumber: number; row: string[] }>();
 
   currentRows.forEach((row, index) => {
@@ -286,7 +285,7 @@ export async function upsertNormalizedRows(args: {
   return { count: args.rows.length };
 }
 
-function buildTargetRows(table: string, row: NormalizedWorkbookRow) {
+function buildTargetRows(table: string, row: NormalizedWorkbookRow): Array<Record<string, unknown>> {
   const payload = row.payload;
   switch (table) {
     case "provider_capability_rules":
@@ -436,7 +435,7 @@ export async function materializeWorkbookRows(args: {
   const results: Record<string, number> = {};
 
   for (const table of args.mapping.targetTables) {
-    const payload = args.rows.flatMap((row) => buildTargetRows(table, row));
+    const payload: Array<Record<string, unknown>> = args.rows.flatMap((row) => buildTargetRows(table, row));
     if (payload.length === 0) {
       results[table] = 0;
       continue;
