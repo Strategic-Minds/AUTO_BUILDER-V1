@@ -53,8 +53,7 @@ export async function claimRecursiveBucket(input: ClaimRecursiveBucketInput): Pr
     route: input.route,
     status: "claimed",
     proof: input.bucketKey,
-    created_at: claimedAt,
-    source: input.source
+    created_at: claimedAt
   });
 
   return {
