@@ -1,0 +1,5 @@
+Source,Tool,Destination,Workflow type,Publishing mode,Schedule,Notes
+HeyGen Eden Skye avatar video,Repurpose.io,TikTok,Video to Video,Scheduled,Mon/Wed/Fri 12:00-20:00 ET,"Captions on, headline off for cinematic clips, platform-native caption added in destination"
+HeyGen Eden Skye avatar video,Repurpose.io,Instagram Reels,Video to Video,Scheduled,Tue/Thu/Sat 11:00-19:00 ET,Use first comment for CTA or keywords when appropriate
+Kling cinematic short,Repurpose.io,YouTube Shorts,Video to Video,ASAP after approval,After source upload detection,"Use vertical 9:16, hook in first 1.5 seconds"
+Longer tutorial/master video,Repurpose.io,Clips/Snippets,Create Clips workflow,Manual approval,Weekly batch,Generate 3-5 clips per long video; preserve best hooks
