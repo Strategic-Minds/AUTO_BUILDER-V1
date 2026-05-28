@@ -3,7 +3,7 @@ import { start } from "workflow/api";
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
 import { classifyBlocker, compressMemory, rankNextTask } from "@/lib/recursive-intelligence";
 import { readRecentTelemetry } from "@/lib/telemetry-store";
-import { awosRecursiveControlWorkflow } from "@/workflows/awos-recursive-control";
+import { awosRecursiveControlWorkflow } from "../../../../../workflows/awos-recursive-control";
 
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
