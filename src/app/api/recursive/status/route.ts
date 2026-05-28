@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { readRecentTelemetry, telemetryStoreStatus } from "@/lib/telemetry-store";
 
+type LooseRecord = Record<string, unknown>;
+
 function findEvent(rows: unknown[], telemetryKey: string) {
   return rows.find((row: unknown) => {
     const typed = row as Record<string, unknown>;
     return typed.telemetry_key === telemetryKey;
-  }) as Record<string, unknown> | undefined;
+  }) as LooseRecord | undefined;
 }
 
-function payloadFor(event: Record<string, unknown> | null) {
-  return ((event?.event_payload as Record<string, unknown> | undefined) ?? null);
+function payloadFor(event: LooseRecord | null) {
+  return ((event?.event_payload as LooseRecord | undefined) ?? null);
+}
+
+function nestedRecord(value: unknown) {
+  return value && typeof value === "object" ? (value as LooseRecord) : null;
 }
 
 export async function GET() {
@@ -37,8 +43,10 @@ export async function GET() {
   const sandboxPayload = payloadFor(latestSandbox);
   const queueMaterializationPayload = payloadFor(latestQueueMaterialization);
   const queueExecutionPayload = payloadFor(latestQueueExecution);
-  const latestQueueMetric = queueMetrics.ok ? ((queueMetrics.rows[0] as Record<string, unknown> | undefined) ?? null) : null;
-  const latestSchedulerSignal = schedulerSignals.ok ? ((schedulerSignals.rows[0] as Record<string, unknown> | undefined) ?? null) : null;
+  const queueMaterialization = nestedRecord(queueMaterializationPayload?.queueMaterialization);
+  const queueExecutionSummary = nestedRecord(queueExecutionPayload?.summary);
+  const latestQueueMetric = queueMetrics.ok ? ((queueMetrics.rows[0] as LooseRecord | undefined) ?? null) : null;
+  const latestSchedulerSignal = schedulerSignals.ok ? ((schedulerSignals.rows[0] as LooseRecord | undefined) ?? null) : null;
 
   const initializedState = {
     mode: "initialized",
@@ -87,7 +95,7 @@ export async function GET() {
               }
             : null,
           queue: {
-            name: queueExecutionPayload?.queueName ?? queueMaterializationPayload?.queueMaterialization?.queueName ?? null,
+            name: (queueExecutionPayload?.queueName as string | undefined) ?? (queueMaterialization?.queueName as string | undefined) ?? null,
             metric: latestQueueMetric
               ? {
                   depth: latestQueueMetric.depth ?? null,
@@ -100,19 +108,17 @@ export async function GET() {
             materialization: queueMaterializationPayload
               ? {
                   eventStatus: latestQueueMaterialization?.event_status ?? null,
-                  generatedAt: queueMaterializationPayload.queueMaterialization?.generatedAt ?? null,
-                  queueJobsSummary: queueMaterializationPayload.queueJobsSummary ?? null,
-                  queueItemCount: Array.isArray(queueMaterializationPayload.queueMaterialization?.items)
-                    ? queueMaterializationPayload.queueMaterialization.items.length
-                    : null
+                  generatedAt: queueMaterialization?.generatedAt ?? null,
+                  queueJobsSummary: nestedRecord(queueMaterializationPayload.queueJobsSummary),
+                  queueItemCount: Array.isArray(queueMaterialization?.items) ? queueMaterialization.items.length : null
                 }
               : null,
             execution: queueExecutionPayload
               ? {
                   eventStatus: latestQueueExecution?.event_status ?? null,
                   generatedAt: queueExecutionPayload.generatedAt ?? null,
-                  summary: queueExecutionPayload.summary ?? null,
-                  results: queueExecutionPayload.results ?? []
+                  summary: queueExecutionSummary,
+                  results: Array.isArray(queueExecutionPayload.results) ? queueExecutionPayload.results : []
                 }
               : null
           },
@@ -121,7 +127,7 @@ export async function GET() {
                 mode: latestSandbox?.event_status ?? null,
                 jobId: sandboxPayload.jobId ?? null,
                 tasksRequested: sandboxPayload.tasksRequested ?? null,
-                taskIds: sandboxPayload.taskIds ?? [],
+                taskIds: Array.isArray(sandboxPayload.taskIds) ? sandboxPayload.taskIds : [],
                 runtime: sandboxPayload.runtime ?? null,
                 sandboxId: sandboxPayload.sandboxId ?? null
               }
@@ -131,7 +137,7 @@ export async function GET() {
     agentPlan: agentPlanPayload
       ? {
           bucketKey: agentPlanPayload.bucketKey ?? null,
-          summary: agentPlanPayload.summary ?? null,
+          summary: nestedRecord(agentPlanPayload.summary),
           queueName: agentPlanPayload.queueName ?? null
         }
       : null,
