@@ -1,10 +1,14 @@
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
+import { buildRecursiveAgentPlan, type RecursiveAgentPlan } from "@/lib/recursive-agents";
+import { getFiveMinuteBucketKey } from "@/lib/recursive-control-ledger";
 import { classifyBlocker, compressMemory, hashText, rankNextTask } from "@/lib/recursive-intelligence";
-import { insertTelemetry, readRecentTelemetry, readTelemetryByQuery } from "@/lib/telemetry-store";
+import { insertTelemetry, readRecentTelemetry, readTelemetryByQuery, updateTelemetry } from "@/lib/telemetry-store";
+import { runSandboxTask, sandboxRuntimeStatus, type SandboxTaskResult } from "@/lib/vercel-sandbox";
 
 type WorkflowTrigger = {
   requestedAt?: string;
   source?: string;
+  bucketKey?: string;
 };
 
 type QueueJobResult = {
@@ -17,10 +21,40 @@ type QueueJobResult = {
   status?: number;
 };
 
+type WorkflowState = Awaited<ReturnType<typeof collectState>>;
+
+type QueueJobsSummary = {
+  total: number;
+  inserted: number;
+  skippedExisting: number;
+  failed: number;
+};
+
+type SandboxExecutionSummary = SandboxTaskResult & {
+  tasksRequested: number;
+  taskIds: string[];
+};
+
+function sandboxRunnerSource() {
+  return [
+    'import { readFileSync, writeFileSync } from "node:fs";',
+    'const plan = JSON.parse(readFileSync("plan.json", "utf8"));',
+    'const artifact = {',
+    '  bucketKey: plan.bucketKey,',
+    '  queueName: plan.queueName,',
+    '  generatedAt: new Date().toISOString(),',
+    '  tasksExecuted: plan.tasks.map((task) => ({ taskId: task.taskId, agentId: task.agentId, action: task.action }))',
+    '};',
+    'writeFileSync("artifact.json", JSON.stringify(artifact, null, 2));',
+    'console.log(JSON.stringify({ bucketKey: artifact.bucketKey, tasksExecuted: artifact.tasksExecuted.length }));'
+  ].join("\n");
+}
+
 async function collectState(trigger: WorkflowTrigger) {
   "use step";
 
   const now = trigger.requestedAt ?? new Date().toISOString();
+  const bucketKey = trigger.bucketKey ?? getFiveMinuteBucketKey(now);
   const awosHandoffPack = getAwosHandoffPack();
   const sourceTruthChecklist = getAwosSourceTruthChecklist();
   const latestTraces = await readRecentTelemetry("execution_traces", "started_at", 25);
@@ -79,10 +113,23 @@ async function collectState(trigger: WorkflowTrigger) {
     String(needsEscalation),
     queueMaterialization.items.map((item) => item.type).join(",")
   ].join("|"));
+  const sandboxStatus = sandboxRuntimeStatus();
+  const agentPlan = buildRecursiveAgentPlan({
+    generatedAt: now,
+    bucketKey,
+    queueName: queueMaterialization.queueName,
+    blocker,
+    blockerSeverity: blockerClass.severity,
+    needsEscalation,
+    items: queueMaterialization.items,
+    workerStale,
+    sandboxAvailable: sandboxStatus.enabled
+  });
 
   return {
     now,
     source: trigger.source ?? "vercel-cron",
+    bucketKey,
     awosHandoffPack,
     sourceTruthChecklist,
     blocker,
@@ -107,6 +154,8 @@ async function collectState(trigger: WorkflowTrigger) {
     workerStale,
     watchdogAge,
     queueFingerprint,
+    sandboxStatus,
+    agentPlan,
     governedTask: {
       task: "recursive-governed-next-step",
       mode: "bounded_single_loop",
@@ -116,12 +165,13 @@ async function collectState(trigger: WorkflowTrigger) {
       allowDestructiveDbActions: false,
       doctrinePack: awosHandoffPack.name,
       queueName: queueMaterialization.queueName,
+      bucketKey,
       timestamp: now
     }
   };
 }
 
-async function materializeQueueJobs(state: Awaited<ReturnType<typeof collectState>>) {
+async function materializeQueueJobs(state: WorkflowState) {
   "use step";
 
   const queueJobs = await Promise.all(
@@ -179,10 +229,74 @@ async function materializeQueueJobs(state: Awaited<ReturnType<typeof collectStat
   };
 }
 
+async function executeSandboxValidation(state: WorkflowState): Promise<SandboxExecutionSummary> {
+  "use step";
+
+  const sandboxTasks = state.agentPlan.tasks.filter((task) => task.requiresSandbox);
+  if (sandboxTasks.length === 0) {
+    return {
+      ok: true,
+      skipped: true,
+      mode: "disabled",
+      jobId: `awos-sandbox-${state.bucketKey}`,
+      label: "awos-recursive-control",
+      reason: "No sandbox-tagged tasks were generated for this bucket.",
+      runtime: "node24",
+      networkPolicy: "deny-all",
+      tasksRequested: 0,
+      taskIds: []
+    };
+  }
+
+  const planPayload = {
+    bucketKey: state.bucketKey,
+    queueName: state.queueMaterialization.queueName,
+    generatedAt: state.now,
+    tasks: sandboxTasks.map((task) => ({
+      taskId: task.taskId,
+      agentId: task.agentId,
+      action: task.action,
+      instructions: task.instructions,
+      priority: task.priority
+    }))
+  };
+
+  const result = await runSandboxTask({
+    jobId: `awos-sandbox-${state.bucketKey}`,
+    label: "awos-recursive-control",
+    runtime: "node24",
+    timeoutMs: 300_000,
+    allowNetwork: false,
+    files: [
+      {
+        path: "plan.json",
+        content: JSON.stringify(planPayload, null, 2)
+      },
+      {
+        path: "runner.mjs",
+        content: sandboxRunnerSource(),
+        mode: 0o755
+      }
+    ],
+    command: {
+      cmd: "node",
+      args: ["runner.mjs"]
+    },
+    artifactPath: "artifact.json"
+  });
+
+  return {
+    ...result,
+    tasksRequested: sandboxTasks.length,
+    taskIds: sandboxTasks.map((task) => task.taskId)
+  };
+}
+
 async function persistWorkflowTelemetry(
-  state: Awaited<ReturnType<typeof collectState>>,
+  state: WorkflowState,
   queueJobs: QueueJobResult[],
-  queueJobsSummary: { total: number; inserted: number; skippedExisting: number; failed: number }
+  queueJobsSummary: QueueJobsSummary,
+  sandboxExecution: SandboxExecutionSummary
 ) {
   "use step";
 
@@ -190,9 +304,9 @@ async function persistWorkflowTelemetry(
     queue: state.queueMaterialization.queueName,
     depth: state.queueMaterialization.items.length,
     processing: state.queueMaterialization.items.filter((item) => !item.approvalRequired).length,
-    failed: 0,
+    failed: queueJobsSummary.failed,
     oldest_job_age_seconds: 0,
-    status: "watch",
+    status: queueJobsSummary.failed > 0 ? "degraded" : "watch",
     observed_at: state.now
   });
 
@@ -209,12 +323,23 @@ async function persistWorkflowTelemetry(
   const trace = await insertTelemetry("execution_traces", {
     agent: "gpt-recursive-orchestrator",
     operation: "recursive-control-loop",
-    status: "success",
-    evidence: state.nextPrompt,
+    status: sandboxExecution.ok || sandboxExecution.skipped ? "success" : "sandbox_error",
+    evidence: `bucket:${state.bucketKey} ${state.nextPrompt}`,
     rollback_ref: state.awosHandoffPack.buildPacket,
     started_at: state.now,
     completed_at: state.now
   });
+
+  const schedulerStatus = await updateTelemetry(
+    "scheduler_verification",
+    {
+      status: sandboxExecution.ok ? "executed" : sandboxExecution.skipped ? "executed_without_sandbox" : "executed_with_sandbox_error"
+    },
+    {
+      scheduler_name: "eq.awos_recursive_control",
+      proof: `eq.${state.bucketKey}`
+    }
+  );
 
   const registries = await Promise.all([
     insertTelemetry("recursive_memory_compression", {
@@ -281,7 +406,7 @@ async function persistWorkflowTelemetry(
     insertTelemetry("scheduler_verification", {
       scheduler_name: "vercel_workflow",
       route: "/api/cron/recursive-control",
-      status: "executed",
+      status: sandboxExecution.ok ? "executed" : sandboxExecution.skipped ? "executed_without_sandbox" : "executed_with_sandbox_error",
       proof: trace.response?.[0]?.id ?? "no-trace-id",
       created_at: state.now
     }),
@@ -289,6 +414,7 @@ async function persistWorkflowTelemetry(
       telemetry_key: "awos_queue_materialization",
       event_status: queueJobsSummary.failed > 0 ? "partial_failure" : "captured",
       event_payload: {
+        bucketKey: state.bucketKey,
         handoffPack: state.awosHandoffPack,
         sourceTruthChecklist: state.sourceTruthChecklist,
         queueMaterialization: state.queueMaterialization,
@@ -297,6 +423,25 @@ async function persistWorkflowTelemetry(
         queueFingerprint: state.queueFingerprint,
         workflowSource: state.source
       },
+      created_at: state.now,
+      updated_at: state.now
+    }),
+    insertTelemetry("runtime_telemetry_events", {
+      telemetry_key: "awos_agent_plan",
+      event_status: "planned",
+      event_payload: {
+        bucketKey: state.bucketKey,
+        summary: state.agentPlan.summary,
+        agents: state.agentPlan.agents,
+        tasks: state.agentPlan.tasks
+      },
+      created_at: state.now,
+      updated_at: state.now
+    }),
+    insertTelemetry("runtime_telemetry_events", {
+      telemetry_key: "awos_sandbox_execution",
+      event_status: sandboxExecution.ok ? "passed" : sandboxExecution.skipped ? "skipped" : "failed",
+      event_payload: sandboxExecution,
       created_at: state.now,
       updated_at: state.now
     })
@@ -320,7 +465,9 @@ async function persistWorkflowTelemetry(
     trace,
     registries,
     approvalEscalation,
-    queueJobs
+    queueJobs,
+    schedulerStatus,
+    sandboxExecution
   };
 }
 
@@ -329,17 +476,22 @@ export async function awosRecursiveControlWorkflow(trigger: WorkflowTrigger = {}
 
   const state = await collectState(trigger);
   const { queueJobs, queueJobsSummary } = await materializeQueueJobs(state);
-  const telemetry = await persistWorkflowTelemetry(state, queueJobs, queueJobsSummary);
+  const sandboxExecution = await executeSandboxValidation(state);
+  const telemetry = await persistWorkflowTelemetry(state, queueJobs, queueJobsSummary, sandboxExecution);
 
   return {
     ok: true,
     source: state.source,
+    bucketKey: state.bucketKey,
     timestamp: state.now,
     governedTask: state.governedTask,
     awosHandoffPack: state.awosHandoffPack,
     sourceTruthChecklist: state.sourceTruthChecklist,
     queueMaterialization: state.queueMaterialization,
     queueFingerprint: state.queueFingerprint,
+    agentPlan: state.agentPlan,
+    sandboxStatus: state.sandboxStatus,
+    sandboxExecution,
     queueJobsSummary,
     taskRanking: {
       profitability: state.profitability,
