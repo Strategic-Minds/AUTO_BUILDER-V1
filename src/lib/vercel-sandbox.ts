@@ -78,7 +78,7 @@ export async function runSandboxTask(task: SandboxTaskInput): Promise<SandboxTas
       stderr: () => Promise<string>;
     }>;
     readFileToBuffer: (input: { path: string }) => Promise<Buffer | null>;
-    stop: () => Promise<void>;
+    stop: () => Promise<unknown>;
   } | null = null;
 
   try {
