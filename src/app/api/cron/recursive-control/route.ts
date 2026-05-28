@@ -120,11 +120,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const [{ start }, { awosRecursiveControlWorkflow }] = await Promise.all([
+    const [{ start }, workflowModule] = await Promise.all([
       import("workflow/api"),
       import("../../../../../workflows/awos-recursive-control")
     ]);
 
+    const awosRecursiveControlWorkflow = workflowModule.default ?? workflowModule.awosRecursiveControlWorkflow;
     const run = await start(awosRecursiveControlWorkflow, [
       {
         requestedAt: timestamp,
