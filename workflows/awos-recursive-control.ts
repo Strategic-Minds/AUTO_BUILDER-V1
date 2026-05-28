@@ -5,6 +5,7 @@ import { insertTelemetry, readRecentTelemetry, readTelemetryByQuery } from "@/li
 type WorkflowTrigger = {
   requestedAt?: string;
   source?: string;
+  bucketKey?: string;
 };
 
 type QueueJobResult = {
