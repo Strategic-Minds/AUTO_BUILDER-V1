@@ -1,0 +1,66 @@
+name: AWOS Bucket Verifier
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      bucket:
+        description: Optional expected bucket key such as 2026-05-28T18:05Z
+        required: false
+        type: string
+      base_url:
+        description: Optional AWOS base URL override
+        required: false
+        type: string
+
+jobs:
+  verify-bucket:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      AWOS_BASE_URL: ${{ inputs.base_url || 'https://auto-builder-livid.vercel.app' }}
+      AWOS_BUCKET: ${{ inputs.bucket }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run upstream capture runner
+        id: verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          CMD=(python automation/awos_bucket_verifier/awos_upstream_capture_runner.py --base-url "$AWOS_BASE_URL")
+          if [ -n "${AWOS_BUCKET:-}" ]; then
+            CMD+=(--bucket "$AWOS_BUCKET")
+          fi
+          "${CMD[@]}" | tee automation/awos_bucket_verifier/output/workflow-result.json
+
+      - name: Show verifier result
+        if: always()
+        shell: bash
+        run: |
+          if [ -f automation/awos_bucket_verifier/output/workflow-result.json ]; then
+            cat automation/awos_bucket_verifier/output/workflow-result.json
+          fi
+          if [ -f automation/awos_bucket_verifier/logs/awos-bucket-verification-log.md ]; then
+            echo ""
+            cat automation/awos_bucket_verifier/logs/awos-bucket-verification-log.md
+          fi
+
+      - name: Upload verifier artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: awos-bucket-verifier-${{ github.run_id }}
+          path: |
+            automation/awos_bucket_verifier/output
+            automation/awos_bucket_verifier/logs
+          if-no-files-found: warn
