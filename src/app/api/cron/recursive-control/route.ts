@@ -15,12 +15,25 @@ function buildNextPrompt(blocker: string, priorPrompt: string) {
   return `Resolve blocker: ${blocker}. Then execute next bounded recursive step. Prior guidance: ${priorPrompt}`;
 }
 
+function getAwosHandoffPack() {
+  return {
+    name: "awos-max-autonomy",
+    docsRoot: "docs/awos-max-autonomy",
+    sourceOfTruthMap: "docs/awos-max-autonomy/00_SOURCE_OF_TRUTH_MAP.md",
+    agentRegistry: "docs/awos-max-autonomy/04_AGENT_REGISTRY.md",
+    queueSchemaDraft: "docs/awos-max-autonomy/05_SUPABASE_QUEUE_SCHEMA.sql",
+    workflowAndCronPlan: "docs/awos-max-autonomy/06_VERCEL_WORKFLOW_AND_CRON_PLAN.md",
+    buildPacket: "docs/awos-max-autonomy/09_BUILD_PACKET.md"
+  };
+}
+
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const now = new Date().toISOString();
+  const awosHandoffPack = getAwosHandoffPack();
   const latestTraces = await readRecentTelemetry("execution_traces", "started_at", 25);
 
   const lastRecursiveTrace = latestTraces.ok
@@ -35,15 +48,16 @@ export async function GET(request: NextRequest) {
   const memory = compressMemory([
     priorPrompt,
     String(lastRecursiveTrace?.status ?? ""),
-    String(lastRecursiveTrace?.started_at ?? "")
+    String(lastRecursiveTrace?.started_at ?? ""),
+    awosHandoffPack.docsRoot
   ]);
   const nextPromptDraft = buildNextPrompt(blocker, memory);
   const currentHash = hashText(nextPromptDraft);
   const priorHash = hashText(priorPrompt);
   const deduped = currentHash === priorHash;
   const nextPrompt = deduped
-    ? `Execute ranked workaround to reduce blocker pressure. Memory: ${memory}`
-    : nextPromptDraft;
+    ? `Execute ranked workaround to reduce blocker pressure, then reconcile against ${awosHandoffPack.sourceOfTruthMap}. Memory: ${memory}`
+    : `${nextPromptDraft} Reconcile actions against ${awosHandoffPack.sourceOfTruthMap}.`;
 
   const blockerClass = classifyBlocker(blocker);
   const profitability = blockerClass.severity === "low" ? 82 : blockerClass.severity === "medium" ? 61 : 38;
@@ -60,6 +74,7 @@ export async function GET(request: NextRequest) {
     allowExternalPublishing: false,
     allowPaidActions: false,
     allowDestructiveDbActions: false,
+    doctrinePack: awosHandoffPack.name,
     timestamp: now
   };
 
@@ -88,7 +103,7 @@ export async function GET(request: NextRequest) {
     operation: "recursive-control-loop",
     status: "success",
     evidence: nextPrompt,
-    rollback_ref: "none",
+    rollback_ref: awosHandoffPack.buildPacket,
     started_at: now,
     completed_at: now
   });
@@ -200,6 +215,7 @@ export async function GET(request: NextRequest) {
     deduped,
     nextInstruction: nextPrompt,
     governedTask,
+    awosHandoffPack,
     taskRanking: {
       profitability,
       blockerReduction,
