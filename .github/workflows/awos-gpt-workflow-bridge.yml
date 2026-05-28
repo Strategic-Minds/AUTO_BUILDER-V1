@@ -37,3 +37,5 @@ jobs:
         with:
           name: awos-gpt-workflow-bridge-artifacts
           path: automation/awos_bucket_verifier/output
+
+# Trigger note: keep this file path in the push filter so the first smoke-test run can be registered from repo updates.
