@@ -29,7 +29,8 @@ https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOry
 7. Repurpose.io is the video repurpose bridge layer.
 8. Xyla is the downstream social creative, scheduling, publishing, and multi-platform content layer when available.
 9. OpenAI is the orchestration and reasoning layer.
-10. MCP, OpenAPI, webhooks, browser automation, Zapier, Make, n8n, and Drive handoffs are bridge layers, not replacements for governance.
+10. GPT MCP is a verified connected bridge layer for AUTO BUILDER by Jeremy confirmation.
+11. MCP, OpenAPI, webhooks, browser automation, Zapier, Make, n8n, and Drive handoffs are bridge layers, not replacements for governance.
 
 ## Operating Standard
 AUTO BUILDER uses PHASE-X / STEP-Y progression, rehydrate/sign-in/dehydrate/sign-out continuity, numbered operational reasoning, blocker/workaround/self-heal logging, validation gates, and an executive final block for human review and recursive GPT continuation.
@@ -77,7 +78,7 @@ The MVP test package must prove the full governed loop:
 9. Validation
 10. Dehydrate/sign-out
 
-MCP troubleshooting is parked unless Jeremy explicitly reopens that thread. MCP/OpenAPI/SSE code may remain installed as bridge infrastructure, but system finalization must not stall on connector debugging.
+GPT MCP is connected and can be used as an active bridge layer. MCP/OpenAPI/SSE expansion remains governed and must not bypass approval gates.
 
 ## Core Doctrine
 - Optimize for maximum profitability.
