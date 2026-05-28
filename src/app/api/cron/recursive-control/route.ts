@@ -34,19 +34,6 @@ export async function GET(request: NextRequest) {
     : null;
 
   const blocker = String(lastRecursiveTrace?.status ?? "no_blocker_detected");
-  const priorPrompt = String(lastRecursiveTrace?.evidence ?? "stabilize telemetry and governance evidence");
-  const memory = compressMemory([
-    priorPrompt,
-    String(lastRecursiveTrace?.status ?? ""),
-    String(lastRecursiveTrace?.started_at ?? ""),
-    awosHandoffPack.docsRoot,
-    sourceTruthChecklist.join(",")
-  ]);
-  const nextPromptDraft = buildNextPrompt(blocker, memory);
-  const currentHash = hashText(nextPromptDraft);
-  const priorHash = hashText(priorPrompt);
-  const deduped = currentHash === priorHash;
-
   const blockerClass = classifyBlocker(blocker);
   const codexBudgetLimit = Number(process.env.CODEX_BUDGET_MAX_CLAIMS ?? "300");
   const playwrightBudgetLimit = Number(process.env.PLAYWRIGHT_BUDGET_MAX_RUNS ?? "300");
@@ -63,6 +50,19 @@ export async function GET(request: NextRequest) {
     blocker,
     approvalEscalationNeeded: needsEscalation
   });
+
+  const guidanceSeed = compressMemory([
+    blocker,
+    String(lastRecursiveTrace?.started_at ?? ""),
+    awosHandoffPack.docsRoot,
+    sourceTruthChecklist.join(","),
+    queueMaterialization.items.map((item) => item.type).join(",")
+  ]);
+  const nextPromptDraft = buildNextPrompt(blocker, guidanceSeed);
+  const currentHash = hashText(nextPromptDraft);
+  const priorHash = hashText(String(lastRecursiveTrace?.evidence ?? guidanceSeed));
+  const deduped = currentHash === priorHash;
+  const memory = guidanceSeed;
 
   const nextPrompt = deduped
     ? `Execute ranked workaround to reduce blocker pressure, then reconcile against ${awosHandoffPack.sourceOfTruthMap}. Queue: ${queueMaterialization.queueName}. Memory: ${memory}`
@@ -119,10 +119,16 @@ export async function GET(request: NextRequest) {
 
   const watchdogAge = Math.max(0, Math.floor((Date.now() - Date.parse(String(lastRecursiveTrace?.completed_at ?? now))) / 1000));
   const workerStale = watchdogAge > 300;
+  const queueFingerprint = hashText([
+    awosHandoffPack.name,
+    blockerClass.severity,
+    String(needsEscalation),
+    queueMaterialization.items.map((item) => item.type).join(",")
+  ].join("|"));
 
   const queueJobs = await Promise.all(
-    queueMaterialization.items.map(async (item, index) => {
-      const idempotencyKey = `${currentHash}-${index}`;
+    queueMaterialization.items.map(async (item) => {
+      const idempotencyKey = `${queueFingerprint}-${item.type}`;
       const existingQueueJob = await readTelemetryByQuery("queue_jobs", {
         select: "id,idempotency_key,job_status,created_at",
         idempotency_key: `eq.${idempotencyKey}`,
@@ -239,7 +245,8 @@ export async function GET(request: NextRequest) {
         sourceTruthChecklist,
         queueMaterialization,
         queueJobsSummary,
-        governedTask
+        governedTask,
+        queueFingerprint
       },
       created_at: now,
       updated_at: now
