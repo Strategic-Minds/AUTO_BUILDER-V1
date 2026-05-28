@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { start } from "workflow/api";
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
 import { readRecentTelemetry } from "@/lib/telemetry-store";
-import { awosRecursiveControlWorkflow } from "../../../../../workflows/awos-recursive-control";
 
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
@@ -11,6 +9,20 @@ function isAuthorized(request: NextRequest) {
   }
   const header = request.headers.get("x-cron-token") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   return header === expected;
+}
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    };
+  }
+
+  return {
+    message: typeof error === "string" ? error : JSON.stringify(error)
+  };
 }
 
 async function buildPreview(requestedAt: string) {
@@ -39,19 +51,37 @@ async function buildPreview(requestedAt: string) {
 
 async function triggerWorkflow(source: string) {
   const requestedAt = new Date().toISOString();
-  const [preview, run] = await Promise.all([
-    buildPreview(requestedAt),
-    start(awosRecursiveControlWorkflow, [{ requestedAt, source }])
-  ]);
 
-  return NextResponse.json({
-    ok: true,
-    workflowTriggered: true,
-    workflowRunId: run.runId,
-    source,
-    requestedAt,
-    ...preview
-  });
+  try {
+    const [{ start }, { awosRecursiveControlWorkflow }, preview] = await Promise.all([
+      import("workflow/api"),
+      import("@/workflows/awos-recursive-control"),
+      buildPreview(requestedAt)
+    ]);
+
+    const run = await start(awosRecursiveControlWorkflow, [{ requestedAt, source }]);
+
+    return NextResponse.json({
+      ok: true,
+      workflowTriggered: true,
+      workflowRunId: run.runId,
+      source,
+      requestedAt,
+      ...preview
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        workflowTriggered: false,
+        source,
+        requestedAt,
+        error: "manual_awos_workflow_failed",
+        details: serializeError(error)
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET(request: NextRequest) {
