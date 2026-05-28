@@ -20,7 +20,7 @@ AUTO BUILDER is the locked governed orchestration system for Strategic Minds Adv
 2. Drive Canon: https://drive.google.com/drive/folders/1UbkNznxlUcdeJi8NGgMIIGXbuA6BcDu-?usp=drive_link
 3. Ops Sheet: https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOryfao/edit?usp=drive_link
 4. Repo: `Strategic-Minds/AUTO_BUILDER`
-5. GPT Workbook Library: GPT Intelligence Data Center for reusable workbooks, systems, prompts, research packs, agent skills, templates, and high-value operating intelligence.
+5. GPT Workbook Library Repo: dedicated GPT Intelligence Data Center repo for reusable workbooks, systems, prompts, research packs, agent skills, templates, and high-value operating intelligence.
 
 ## Current System Status
 1. Governed framework complete.
@@ -34,11 +34,11 @@ AUTO BUILDER is the locked governed orchestration system for Strategic Minds Adv
 9. Layer-1 and Layer-2 MCP executor contracts installed.
 10. MCP helper implementation architecture installed.
 11. Browser Agent Bridge architecture installed.
-12. GPT Workbook Library established as the GPT Intelligence Data Center.
+12. GPT Workbook Library Repo established as the GPT Intelligence Data Center.
 
 ## Locked Stack
 1. Google Workspace, Drive, and Sheets are first-class canon, file, artifact, and continuity layers.
-2. GPT Workbook Library is the GPT Intelligence Data Center for compounding reusable intelligence.
+2. GPT Workbook Library Repo is the GPT Intelligence Data Center for compounding reusable intelligence.
 3. GitHub is the code and source-control layer.
 4. Vercel and Next.js are the route, cron, frontend, and runtime surface.
 5. Supabase is the backend, state, telemetry, queue, and persistence layer.
@@ -64,8 +64,8 @@ AUTO BUILDER is the locked governed orchestration system for Strategic Minds Adv
 10. `docs/AUTO_BUILDER_BLOCKER_WORKAROUND_LOG.md`
 11. `docs/AUTO_BUILDER_OMISSION_LOG.md`
 
-## GPT Workbook Library Rule
-The GPT Workbook Library is the GPT Intelligence Data Center. GPT must treat it as a reusable intelligence layer for:
+## GPT Workbook Library Repo Rule
+The GPT Workbook Library Repo is the GPT Intelligence Data Center. GPT must treat it as a reusable intelligence repo for:
 1. Workbooks.
 2. Agent skills.
 3. SOPs.
@@ -75,8 +75,9 @@ The GPT Workbook Library is the GPT Intelligence Data Center. GPT must treat it 
 7. Shopify, Stripe, Repurpose.io, Xyla, social, and automation templates.
 8. MCP and browser-agent implementation packets.
 9. Future system training material.
+10. Wealth-generation, simulation, prediction, business-model, and operating-system workbooks.
 
-GPT must use the Workbook Library as an intelligence source when available, but it must not treat workbook content as live production truth unless validated against repo/runtime/Drive/Sheets/live evidence.
+GPT must use the GPT Workbook Library Repo as an intelligence source when available, but it must not treat workbook content as live production truth unless validated against repo/runtime/Drive/Sheets/live evidence.
 
 ## Governance Lock
 No workflow, governance, source-truth, billing, deployment, database, Drive canon, Sheets canon, Shopify, Stripe money movement, Vercel env, Supabase schema, connector, browser session, account setting, or authority-file mutation is allowed unless Jeremy explicitly commands that exact mutation in the current session.
