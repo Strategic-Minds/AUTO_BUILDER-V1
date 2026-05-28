@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NextResponse } from "next/server";
 import { providers, repoRoles, factorySurfaces } from "@/lib/autobuilder";
+import { getAwosHandoffPack } from "@/lib/awos-handoff";
 import { factoryReadiness } from "@/lib/factory";
 
 type PackageJson = {
@@ -20,6 +21,7 @@ function getPackageMetadata(): PackageJson {
 
 export async function GET() {
   const pkg = getPackageMetadata();
+  const awosHandoffPack = getAwosHandoffPack();
 
   return NextResponse.json({
     status: "ok",
@@ -39,6 +41,13 @@ export async function GET() {
     factory: {
       readiness: factoryReadiness,
       surfaces: factorySurfaces
+    },
+    awos: {
+      doctrinePack: awosHandoffPack.name,
+      handoffRoute: "/api/awos/handoff",
+      sourceOfTruthMap: awosHandoffPack.sourceOfTruthMap,
+      stagedMigrationFile: awosHandoffPack.stagedMigrationFile,
+      migrationStatus: "staged_not_executed"
     }
   });
 }
