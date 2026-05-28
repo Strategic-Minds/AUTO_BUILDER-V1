@@ -23,6 +23,7 @@ import {
   reverseEngineeringLanes,
   templateLibrary
 } from "@/lib/factory";
+import { registerSocialMcpTools } from "@/lib/autobuilder/social-mcp-tools";
 
 export const runtime = "nodejs";
 
@@ -436,6 +437,7 @@ function buildUniversalIntegrationBlueprint(args: {
 
 const handler = createMcpHandler(
   (server) => {
+    registerSocialMcpTools(server);
     server.registerTool(
       "health_check",
       {
