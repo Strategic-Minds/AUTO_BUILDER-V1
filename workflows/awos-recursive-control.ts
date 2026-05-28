@@ -30,6 +30,26 @@ type QueueJobsSummary = {
   failed: number;
 };
 
+type QueueExecutionResult = {
+  queueItemId: string;
+  jobType: string;
+  idempotencyKey: string;
+  approvalRequired: boolean;
+  initialMode: string;
+  claimed: boolean;
+  finalized: boolean;
+  finalStatus: string;
+  note: string;
+};
+
+type QueueExecutionSummary = {
+  total: number;
+  executed: number;
+  completed: number;
+  awaitingApproval: number;
+  failed: number;
+};
+
 type SandboxExecutionSummary = SandboxTaskResult & {
   tasksRequested: number;
   taskIds: string[];
@@ -101,6 +121,54 @@ function buildSandboxTelemetryPayload(state: WorkflowState, sandboxExecution: Sa
     stderr: sandboxExecution.stderr ?? null,
     artifact: sandboxExecution.artifact ?? null
   });
+}
+
+function buildQueueExecutionTelemetryPayload(
+  state: WorkflowState,
+  queueExecutionResults: QueueExecutionResult[],
+  queueExecutionSummary: QueueExecutionSummary
+) {
+  return normalizeTelemetryPayload({
+    bucketKey: state.bucketKey,
+    queueName: state.queueMaterialization.queueName,
+    summary: queueExecutionSummary,
+    results: queueExecutionResults,
+    generatedAt: state.now
+  });
+}
+
+function finalQueueStatusForItem(itemType: string, approvalRequired: boolean) {
+  if (approvalRequired) {
+    return "awaiting_approval";
+  }
+
+  switch (itemType) {
+    case "source-truth-reconciliation":
+      return "reconciled";
+    case "workflow-loop-refresh":
+      return "refreshed";
+    case "queue-materialization":
+      return "materialized";
+    default:
+      return "completed";
+  }
+}
+
+function executionNoteForItem(itemType: string, approvalRequired: boolean) {
+  if (approvalRequired) {
+    return `Queued ${itemType} remains held at the approval gate.`;
+  }
+
+  switch (itemType) {
+    case "source-truth-reconciliation":
+      return "Source-of-truth reconciliation lane completed for this loop.";
+    case "workflow-loop-refresh":
+      return "Workflow refresh lane completed for this loop.";
+    case "queue-materialization":
+      return "Queue materialization lane completed for this loop.";
+    default:
+      return `Execution lane completed for ${itemType}.`;
+  }
 }
 
 async function collectState(trigger: WorkflowTrigger) {
@@ -282,6 +350,71 @@ async function materializeQueueJobs(state: WorkflowState) {
   };
 }
 
+async function consumeQueueJobs(state: WorkflowState, queueJobs: QueueJobResult[]) {
+  "use step";
+
+  const queueExecutionResults = await Promise.all(
+    state.queueMaterialization.items.map(async (item, index): Promise<QueueExecutionResult> => {
+      const queueJob = queueJobs[index];
+      const idempotencyKey = queueJob?.idempotencyKey ?? `${state.queueFingerprint}-${item.type}`;
+
+      if (!queueJob?.ok) {
+        return {
+          queueItemId: item.id,
+          jobType: item.type,
+          idempotencyKey,
+          approvalRequired: item.approvalRequired,
+          initialMode: queueJob?.mode ?? "missing_queue_job",
+          claimed: false,
+          finalized: false,
+          finalStatus: "failed",
+          note: `Queue job could not be consumed for ${item.type}.`
+        };
+      }
+
+      let claimed = true;
+      if (!item.approvalRequired) {
+        const claimedUpdate = await updateTelemetry(
+          "queue_jobs",
+          { job_status: "running" },
+          { idempotency_key: `eq.${idempotencyKey}` }
+        );
+        claimed = claimedUpdate.ok;
+      }
+
+      const finalStatus = finalQueueStatusForItem(item.type, item.approvalRequired);
+      const finalizedUpdate = await updateTelemetry(
+        "queue_jobs",
+        { job_status: finalStatus },
+        { idempotency_key: `eq.${idempotencyKey}` }
+      );
+
+      return {
+        queueItemId: item.id,
+        jobType: item.type,
+        idempotencyKey,
+        approvalRequired: item.approvalRequired,
+        initialMode: queueJob.mode,
+        claimed,
+        finalized: finalizedUpdate.ok,
+        finalStatus: finalizedUpdate.ok ? finalStatus : "failed",
+        note: executionNoteForItem(item.type, item.approvalRequired)
+      };
+    })
+  );
+
+  return {
+    queueExecutionResults,
+    queueExecutionSummary: {
+      total: queueExecutionResults.length,
+      executed: queueExecutionResults.filter((result) => result.claimed || result.approvalRequired).length,
+      completed: queueExecutionResults.filter((result) => !result.approvalRequired && result.finalized && result.finalStatus !== "failed").length,
+      awaitingApproval: queueExecutionResults.filter((result) => result.finalStatus === "awaiting_approval").length,
+      failed: queueExecutionResults.filter((result) => result.finalStatus === "failed").length
+    }
+  };
+}
+
 async function executeSandboxValidation(state: WorkflowState): Promise<SandboxExecutionSummary> {
   "use step";
 
@@ -349,17 +482,19 @@ async function persistWorkflowTelemetry(
   state: WorkflowState,
   queueJobs: QueueJobResult[],
   queueJobsSummary: QueueJobsSummary,
+  queueExecutionResults: QueueExecutionResult[],
+  queueExecutionSummary: QueueExecutionSummary,
   sandboxExecution: SandboxExecutionSummary
 ) {
   "use step";
 
   const queueMetric = await insertTelemetry("queue_metrics", {
     queue: state.queueMaterialization.queueName,
-    depth: state.queueMaterialization.items.length,
-    processing: state.queueMaterialization.items.filter((item) => !item.approvalRequired).length,
-    failed: queueJobsSummary.failed,
+    depth: Math.max(0, queueExecutionSummary.awaitingApproval),
+    processing: queueExecutionSummary.completed,
+    failed: queueExecutionSummary.failed,
     oldest_job_age_seconds: 0,
-    status: queueJobsSummary.failed > 0 ? "degraded" : "watch",
+    status: queueExecutionSummary.failed > 0 ? "degraded" : queueExecutionSummary.awaitingApproval > 0 ? "approval_hold" : "active",
     observed_at: state.now
   });
 
@@ -373,10 +508,18 @@ async function persistWorkflowTelemetry(
     created_at: state.now
   });
 
+  const workerState = await insertTelemetry("worker_states", {
+    worker: "awos-recursive-control",
+    status: queueExecutionSummary.failed > 0 ? "degraded" : "online",
+    queue: state.queueMaterialization.queueName,
+    last_run_at: state.now,
+    next_run_at: new Date(Date.parse(state.now) + 5 * 60 * 1000).toISOString()
+  });
+
   const trace = await insertTelemetry("execution_traces", {
     agent: "gpt-recursive-orchestrator",
     operation: "recursive-control-loop",
-    status: sandboxExecution.ok || sandboxExecution.skipped ? "success" : "sandbox_error",
+    status: queueExecutionSummary.failed > 0 ? "queue_error" : sandboxExecution.ok || sandboxExecution.skipped ? "success" : "sandbox_error",
     evidence: `bucket:${state.bucketKey} ${state.nextPrompt}`,
     rollback_ref: state.awosHandoffPack.buildPacket,
     started_at: state.now,
@@ -483,6 +626,13 @@ async function persistWorkflowTelemetry(
       updated_at: state.now
     }),
     insertTelemetry("runtime_telemetry_events", {
+      telemetry_key: "awos_queue_execution",
+      event_status: queueExecutionSummary.failed > 0 ? "partial_failure" : queueExecutionSummary.awaitingApproval > 0 ? "approval_hold" : "executed",
+      event_payload: buildQueueExecutionTelemetryPayload(state, queueExecutionResults, queueExecutionSummary),
+      created_at: state.now,
+      updated_at: state.now
+    }),
+    insertTelemetry("runtime_telemetry_events", {
       telemetry_key: "awos_agent_plan",
       event_status: "planned",
       event_payload: buildAgentPlanTelemetryPayload(state),
@@ -513,6 +663,7 @@ async function persistWorkflowTelemetry(
   return {
     queueMetric,
     heartbeat,
+    workerState,
     trace,
     registries,
     runtimeTelemetry,
@@ -528,8 +679,16 @@ export async function awosRecursiveControlWorkflow(trigger: WorkflowTrigger = {}
 
   const state = await collectState(trigger);
   const { queueJobs, queueJobsSummary } = await materializeQueueJobs(state);
+  const { queueExecutionResults, queueExecutionSummary } = await consumeQueueJobs(state, queueJobs);
   const sandboxExecution = await executeSandboxValidation(state);
-  const telemetry = await persistWorkflowTelemetry(state, queueJobs, queueJobsSummary, sandboxExecution);
+  const telemetry = await persistWorkflowTelemetry(
+    state,
+    queueJobs,
+    queueJobsSummary,
+    queueExecutionResults,
+    queueExecutionSummary,
+    sandboxExecution
+  );
 
   return {
     ok: true,
@@ -545,6 +704,8 @@ export async function awosRecursiveControlWorkflow(trigger: WorkflowTrigger = {}
     sandboxStatus: state.sandboxStatus,
     sandboxExecution,
     queueJobsSummary,
+    queueExecutionSummary,
+    queueExecutionResults,
     taskRanking: {
       profitability: state.profitability,
       blockerReduction: state.blockerReduction,
