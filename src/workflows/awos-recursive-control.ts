@@ -1,5 +1,5 @@
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
-import { buildRecursiveAgentPlan, type RecursiveAgentPlan } from "@/lib/recursive-agents";
+import { buildRecursiveAgentPlan } from "@/lib/recursive-agents";
 import { getFiveMinuteBucketKey } from "@/lib/recursive-control-ledger";
 import { classifyBlocker, compressMemory, hashText, rankNextTask } from "@/lib/recursive-intelligence";
 import { insertTelemetry, readRecentTelemetry, readTelemetryByQuery, updateTelemetry } from "@/lib/telemetry-store";
@@ -48,6 +48,59 @@ function sandboxRunnerSource() {
     'writeFileSync("artifact.json", JSON.stringify(artifact, null, 2));',
     'console.log(JSON.stringify({ bucketKey: artifact.bucketKey, tasksExecuted: artifact.tasksExecuted.length }));'
   ].join("\n");
+}
+
+function normalizeTelemetryPayload<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function buildAgentPlanTelemetryPayload(state: WorkflowState) {
+  return normalizeTelemetryPayload({
+    bucketKey: state.bucketKey,
+    summary: state.agentPlan.summary,
+    queueName: state.agentPlan.queueName,
+    generatedAt: state.agentPlan.generatedAt,
+    agents: state.agentPlan.agents.map((agent) => ({
+      agentId: agent.agentId,
+      label: agent.label,
+      role: agent.role,
+      autonomy: agent.autonomy,
+      sandboxCapable: agent.sandboxCapable,
+      approvalRequiredFor: agent.approvalRequiredFor
+    })),
+    tasks: state.agentPlan.tasks.map((task) => ({
+      taskId: task.taskId,
+      agentId: task.agentId,
+      queueItemId: task.queueItemId,
+      action: task.action,
+      priority: task.priority,
+      approvalRequired: task.approvalRequired,
+      requiresSandbox: task.requiresSandbox,
+      instructions: task.instructions
+    }))
+  });
+}
+
+function buildSandboxTelemetryPayload(state: WorkflowState, sandboxExecution: SandboxExecutionSummary) {
+  return normalizeTelemetryPayload({
+    bucketKey: state.bucketKey,
+    queueName: state.queueMaterialization.queueName,
+    ok: sandboxExecution.ok,
+    skipped: sandboxExecution.skipped ?? false,
+    mode: sandboxExecution.mode,
+    jobId: sandboxExecution.jobId,
+    label: sandboxExecution.label,
+    reason: sandboxExecution.reason ?? null,
+    runtime: sandboxExecution.runtime,
+    networkPolicy: sandboxExecution.networkPolicy,
+    sandboxId: sandboxExecution.sandboxId ?? null,
+    exitCode: sandboxExecution.exitCode ?? null,
+    tasksRequested: sandboxExecution.tasksRequested,
+    taskIds: sandboxExecution.taskIds,
+    stdout: sandboxExecution.stdout ?? null,
+    stderr: sandboxExecution.stderr ?? null,
+    artifact: sandboxExecution.artifact ?? null
+  });
 }
 
 async function collectState(trigger: WorkflowTrigger) {
@@ -341,7 +394,7 @@ async function persistWorkflowTelemetry(
     }
   );
 
-  const registries = await Promise.all([
+  const registries = await Promise.allSettled([
     insertTelemetry("recursive_memory_compression", {
       memory_key: "recursive-control",
       compressed_summary: state.guidanceSeed,
@@ -409,11 +462,14 @@ async function persistWorkflowTelemetry(
       status: sandboxExecution.ok ? "executed" : sandboxExecution.skipped ? "executed_without_sandbox" : "executed_with_sandbox_error",
       proof: trace.response?.[0]?.id ?? "no-trace-id",
       created_at: state.now
-    }),
+    })
+  ]);
+
+  const runtimeTelemetry = await Promise.allSettled([
     insertTelemetry("runtime_telemetry_events", {
       telemetry_key: "awos_queue_materialization",
       event_status: queueJobsSummary.failed > 0 ? "partial_failure" : "captured",
-      event_payload: {
+      event_payload: normalizeTelemetryPayload({
         bucketKey: state.bucketKey,
         handoffPack: state.awosHandoffPack,
         sourceTruthChecklist: state.sourceTruthChecklist,
@@ -422,26 +478,21 @@ async function persistWorkflowTelemetry(
         governedTask: state.governedTask,
         queueFingerprint: state.queueFingerprint,
         workflowSource: state.source
-      },
+      }),
       created_at: state.now,
       updated_at: state.now
     }),
     insertTelemetry("runtime_telemetry_events", {
       telemetry_key: "awos_agent_plan",
       event_status: "planned",
-      event_payload: {
-        bucketKey: state.bucketKey,
-        summary: state.agentPlan.summary,
-        agents: state.agentPlan.agents,
-        tasks: state.agentPlan.tasks
-      },
+      event_payload: buildAgentPlanTelemetryPayload(state),
       created_at: state.now,
       updated_at: state.now
     }),
     insertTelemetry("runtime_telemetry_events", {
       telemetry_key: "awos_sandbox_execution",
       event_status: sandboxExecution.ok ? "passed" : sandboxExecution.skipped ? "skipped" : "failed",
-      event_payload: sandboxExecution,
+      event_payload: buildSandboxTelemetryPayload(state, sandboxExecution),
       created_at: state.now,
       updated_at: state.now
     })
@@ -464,6 +515,7 @@ async function persistWorkflowTelemetry(
     heartbeat,
     trace,
     registries,
+    runtimeTelemetry,
     approvalEscalation,
     queueJobs,
     schedulerStatus,
