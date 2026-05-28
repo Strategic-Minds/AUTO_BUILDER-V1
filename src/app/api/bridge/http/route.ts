@@ -5,5 +5,5 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const input = await req.json().catch(() => ({}));
-  return NextResponse.json(genericHttpBridgePlan(input));
+  return NextResponse.json(await genericHttpBridgePlan(input));
 }
