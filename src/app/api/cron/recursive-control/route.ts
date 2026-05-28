@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertTelemetry, readRecentTelemetry } from "@/lib/telemetry-store";
+import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
 import { classifyBlocker, compressMemory, hashText, rankNextTask } from "@/lib/recursive-intelligence";
+import { insertTelemetry, readRecentTelemetry } from "@/lib/telemetry-store";
 
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
@@ -15,18 +16,6 @@ function buildNextPrompt(blocker: string, priorPrompt: string) {
   return `Resolve blocker: ${blocker}. Then execute next bounded recursive step. Prior guidance: ${priorPrompt}`;
 }
 
-function getAwosHandoffPack() {
-  return {
-    name: "awos-max-autonomy",
-    docsRoot: "docs/awos-max-autonomy",
-    sourceOfTruthMap: "docs/awos-max-autonomy/00_SOURCE_OF_TRUTH_MAP.md",
-    agentRegistry: "docs/awos-max-autonomy/04_AGENT_REGISTRY.md",
-    queueSchemaDraft: "docs/awos-max-autonomy/05_SUPABASE_QUEUE_SCHEMA.sql",
-    workflowAndCronPlan: "docs/awos-max-autonomy/06_VERCEL_WORKFLOW_AND_CRON_PLAN.md",
-    buildPacket: "docs/awos-max-autonomy/09_BUILD_PACKET.md"
-  };
-}
-
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -34,6 +23,7 @@ export async function GET(request: NextRequest) {
 
   const now = new Date().toISOString();
   const awosHandoffPack = getAwosHandoffPack();
+  const sourceTruthChecklist = getAwosSourceTruthChecklist();
   const latestTraces = await readRecentTelemetry("execution_traces", "started_at", 25);
 
   const lastRecursiveTrace = latestTraces.ok
@@ -49,22 +39,40 @@ export async function GET(request: NextRequest) {
     priorPrompt,
     String(lastRecursiveTrace?.status ?? ""),
     String(lastRecursiveTrace?.started_at ?? ""),
-    awosHandoffPack.docsRoot
+    awosHandoffPack.docsRoot,
+    sourceTruthChecklist.join(",")
   ]);
   const nextPromptDraft = buildNextPrompt(blocker, memory);
   const currentHash = hashText(nextPromptDraft);
   const priorHash = hashText(priorPrompt);
   const deduped = currentHash === priorHash;
-  const nextPrompt = deduped
-    ? `Execute ranked workaround to reduce blocker pressure, then reconcile against ${awosHandoffPack.sourceOfTruthMap}. Memory: ${memory}`
-    : `${nextPromptDraft} Reconcile actions against ${awosHandoffPack.sourceOfTruthMap}.`;
 
   const blockerClass = classifyBlocker(blocker);
+  const codexBudgetLimit = Number(process.env.CODEX_BUDGET_MAX_CLAIMS ?? "300");
+  const playwrightBudgetLimit = Number(process.env.PLAYWRIGHT_BUDGET_MAX_RUNS ?? "300");
+  const recentClaims = await readRecentTelemetry("bridge_claims", "claimed_at", 500);
+  const codexUsage = recentClaims.ok ? recentClaims.rows.length : 0;
+  const playwrightUsage = await readRecentTelemetry("playwright_sessions", "last_action_at", 500);
+  const playwrightCount = playwrightUsage.ok ? playwrightUsage.rows.length : 0;
+  const codexBlocked = codexUsage > codexBudgetLimit;
+  const playwrightBlocked = playwrightCount > playwrightBudgetLimit;
+  const needsEscalation = codexBlocked || playwrightBlocked || blockerClass.severity === "high";
+
+  const queueMaterialization = materializeAwosQueue({
+    timestamp: now,
+    blocker,
+    approvalEscalationNeeded: needsEscalation
+  });
+
+  const nextPrompt = deduped
+    ? `Execute ranked workaround to reduce blocker pressure, then reconcile against ${awosHandoffPack.sourceOfTruthMap}. Queue: ${queueMaterialization.queueName}. Memory: ${memory}`
+    : `${nextPromptDraft} Reconcile actions against ${awosHandoffPack.sourceOfTruthMap} and materialize ${queueMaterialization.queueName}.`;
+
   const profitability = blockerClass.severity === "low" ? 82 : blockerClass.severity === "medium" ? 61 : 38;
   const blockerReduction = blockerClass.severity === "high" ? 91 : blockerClass.severity === "medium" ? 72 : 54;
-  const capabilityGain = 77;
-  const runtimeStability = blockerClass.severity === "high" ? 44 : 73;
-  const telemetryHealth = 79;
+  const capabilityGain = 81;
+  const runtimeStability = blockerClass.severity === "high" ? 44 : 76;
+  const telemetryHealth = 81;
   const totalScore = rankNextTask({ profitability, blockerReduction, capabilityGain, runtimeStability, telemetryHealth });
 
   const governedTask = {
@@ -75,13 +83,14 @@ export async function GET(request: NextRequest) {
     allowPaidActions: false,
     allowDestructiveDbActions: false,
     doctrinePack: awosHandoffPack.name,
+    queueName: queueMaterialization.queueName,
     timestamp: now
   };
 
   const queueMetric = await insertTelemetry("queue_metrics", {
-    queue: "recursive_control_queue",
-    depth: 1,
-    processing: 1,
+    queue: queueMaterialization.queueName,
+    depth: queueMaterialization.items.length,
+    processing: queueMaterialization.items.filter((item) => !item.approvalRequired).length,
     failed: 0,
     oldest_job_age_seconds: 0,
     status: "watch",
@@ -110,15 +119,6 @@ export async function GET(request: NextRequest) {
 
   const watchdogAge = Math.max(0, Math.floor((Date.now() - Date.parse(String(lastRecursiveTrace?.completed_at ?? now))) / 1000));
   const workerStale = watchdogAge > 300;
-  const codexBudgetLimit = Number(process.env.CODEX_BUDGET_MAX_CLAIMS ?? "300");
-  const playwrightBudgetLimit = Number(process.env.PLAYWRIGHT_BUDGET_MAX_RUNS ?? "300");
-  const recentClaims = await readRecentTelemetry("bridge_claims", "claimed_at", 500);
-  const codexUsage = recentClaims.ok ? recentClaims.rows.length : 0;
-  const playwrightUsage = await readRecentTelemetry("playwright_sessions", "last_action_at", 500);
-  const playwrightCount = playwrightUsage.ok ? playwrightUsage.rows.length : 0;
-  const codexBlocked = codexUsage > codexBudgetLimit;
-  const playwrightBlocked = playwrightCount > playwrightBudgetLimit;
-  const needsEscalation = codexBlocked || playwrightBlocked || blockerClass.severity === "high";
 
   const inserts = await Promise.all([
     insertTelemetry("recursive_memory_compression", {
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
     insertTelemetry("profit_score_registry", {
       workflow: "recursive_control_loop",
       profit_score: profitability,
-      rationale: "Ranked from blocker severity, stability, and telemetry health.",
+      rationale: "Ranked from blocker severity, stability, telemetry health, and AWOS queue readiness.",
       created_at: now
     }),
     insertTelemetry("worker_watchdog", {
@@ -188,6 +188,24 @@ export async function GET(request: NextRequest) {
       status: "executed",
       proof: trace.response?.[0]?.id ?? "no-trace-id",
       created_at: now
+    }),
+    insertTelemetry("queue_control_events", {
+      queue_name: queueMaterialization.queueName,
+      event_type: "materialized",
+      item_count: queueMaterialization.items.length,
+      payload: queueMaterialization,
+      created_at: now
+    }),
+    insertTelemetry("autobuilder_bridge_state", {
+      state_key: "awos_max_autonomy_runtime",
+      status: "active",
+      payload: {
+        handoffPack: awosHandoffPack,
+        sourceTruthChecklist,
+        queueMaterialization,
+        governedTask
+      },
+      created_at: now
     })
   ]);
 
@@ -216,6 +234,8 @@ export async function GET(request: NextRequest) {
     nextInstruction: nextPrompt,
     governedTask,
     awosHandoffPack,
+    sourceTruthChecklist,
+    queueMaterialization,
     taskRanking: {
       profitability,
       blockerReduction,
