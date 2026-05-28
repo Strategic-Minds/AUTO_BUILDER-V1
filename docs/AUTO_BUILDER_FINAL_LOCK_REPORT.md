@@ -15,6 +15,7 @@ Define the finalized governed operational state of AUTO BUILDER.
 9. Validation checklist created.
 10. Blocker/workaround/self-heal log created.
 11. Omission log created.
+12. GPT MCP bridge passed and connected by Jeremy confirmation.
 
 ## Locked Stack
 1. Google Workspace, Drive, and Sheets are first-class canon and continuity systems.
@@ -26,7 +27,8 @@ Define the finalized governed operational state of AUTO BUILDER.
 7. Repurpose.io is the video repurpose bridge layer.
 8. Xyla is the downstream social publishing layer when available.
 9. OpenAI is the orchestration layer.
-10. MCP/OpenAPI/SSE remains parked bridge infrastructure.
+10. GPT MCP is an active connected bridge layer for AUTO BUILDER.
+11. MCP/OpenAPI/SSE remain installed bridge infrastructure, with GPT MCP now verified connected by user confirmation.
 
 ## Locked Governance Rules
 1. PHASE-X / STEP-Y progression required.
@@ -55,11 +57,11 @@ AUTO BUILDER is prepared for:
 10. Dehydrate/sign-out
 
 ## Remaining Non-Blocking Work
-1. Future MCP transport hardening if reopened.
-2. Future governed executor implementation.
-3. Future telemetry expansion.
-4. Future automation scaling.
-5. Future attribution refinement.
+1. Future governed executor implementation.
+2. Future telemetry expansion.
+3. Future automation scaling.
+4. Future attribution refinement.
+5. Future MCP tool expansion only when explicitly directed.
 
 ## Final Status
 AUTO BUILDER now operates as a governed recursive operational framework with:
@@ -71,3 +73,4 @@ AUTO BUILDER now operates as a governed recursive operational framework with:
 - continuity preservation
 - Drive/Sheets-first canon structure
 - sandbox-first execution posture
+- GPT MCP connected bridge layer
