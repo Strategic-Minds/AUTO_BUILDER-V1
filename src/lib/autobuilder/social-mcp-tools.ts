@@ -4,7 +4,7 @@ import { socialGovernancePreflight } from './social-governance';
 import { getSocialContentQueueStatus } from './social-status';
 
 type McpServerLike = {
-  registerTool: (name: string, config: unknown, handler: (args: any) => Promise<any> | any) => void;
+  registerTool: (...args: any[]) => any;
 };
 
 function socialEnvelope(args: {
