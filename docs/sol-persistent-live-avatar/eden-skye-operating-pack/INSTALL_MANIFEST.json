@@ -1,0 +1,75 @@
+{
+  "module_id": "eden-skye-character-operating-pack",
+  "module_name": "Eden Skye Character Operating Pack",
+  "status": "staging_ready_repo_module",
+  "parent_system": "SOL Persistent Live Avatar Assistant v1",
+  "repo_target": "Strategic-Minds/AUTO_BUILDER",
+  "recommended_path": "docs/sol-persistent-live-avatar/eden-skye-operating-pack",
+  "installed_files": [
+    "README.md",
+    "CHARACTER_BIBLE.md",
+    "INSTALL_MANIFEST.json",
+    "SOURCE_NOTES.md",
+    "csv/metricool-calendar-seed.csv",
+    "csv/repurpose-workflow-map.csv",
+    "csv/xyla-social-queue.csv",
+    "csv/kling-prompt-bank.csv",
+    "csv/heygen-script-bank.csv",
+    "csv/shopify-offer-asset-sheet.csv"
+  ],
+  "tool_surfaces": [
+    "Metricool",
+    "Repurpose.io",
+    "Xyla",
+    "Shopify",
+    "Kling AI",
+    "HeyGen"
+  ],
+  "template_alignment": [
+    "TPL-001 Landing + Lead Capture",
+    "TPL-004 AI Agent Console",
+    "TPL-005 Workflow Queue Runner"
+  ],
+  "connector_alignment": [
+    "Shopify: commerce source truth, store mutations gated",
+    "Xyla: creative/publishing engine, auto-publish gated",
+    "Opus/Repurpose: video repurposing, publishing gated",
+    "OpenAI/Codex: orchestration and prompt/patch generation",
+    "GitHub: repo source-control layer"
+  ],
+  "approval_gates": [
+    "public_posting",
+    "post_scheduling",
+    "shopify_live_mutation",
+    "pricing_or_discount_change",
+    "heygen_digital_twin_creation",
+    "repeated_cost_bearing_generation",
+    "paid_promotion",
+    "production_deploy",
+    "supabase_production_sql",
+    "bulk_outbound_messaging"
+  ],
+  "binary_asset_policy": {
+    "commit_binary_images_to_repo": false,
+    "preferred_asset_hosts": [
+      "Google Drive",
+      "Shopify CDN",
+      "Vercel Blob",
+      "approved public media host"
+    ],
+    "required_before_metricool_import": "Replace placeholder media URLs with public direct media URLs."
+  },
+  "validation_plan": [
+    "Verify no secrets are committed.",
+    "Verify CSV headers remain stable and UTF-8 encoded.",
+    "Verify all live publishing and commerce mutations remain approval-gated.",
+    "Verify Eden Skye remains fictional, adult, non-identifiable, non-explicit, and platform-safe.",
+    "Verify external media URLs before Metricool import."
+  ],
+  "next_targets": [
+    "Add Supabase staging schema for persona assets, prompt bank, content queue, approvals, and signal logs.",
+    "Add FRONTEND review route for Eden Skye queues.",
+    "Add factory capability test for approval gates and CSV shape.",
+    "Move binary image assets to approved asset host and update CSV placeholders."
+  ]
+}
