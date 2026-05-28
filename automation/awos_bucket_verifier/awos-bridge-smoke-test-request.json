@@ -1,0 +1,39 @@
+{
+  "action": "create_github_workflow",
+  "bridgeTarget": "github_workflow",
+  "currentSessionExplicitCommand": true,
+  "repo": "Strategic-Minds/AUTO_BUILDER",
+  "target_path": ".github/workflows/awos-bridge-smoke-test.yml",
+  "workflow_name": "AWOS Bridge Smoke Test",
+  "workflow_goal": "Run a governed read-only smoke test through the GPT GitHub workflow bridge to confirm that the live bridge runtime can create a low-risk workflow file.",
+  "trigger_type": "manual",
+  "jobs": [
+    {
+      "job_id": "smoke-test",
+      "runs_on": "ubuntu-latest",
+      "steps": [
+        "actions/checkout@v4",
+        {
+          "name": "Bridge smoke test",
+          "run": "echo \"AWOS bridge smoke test\""
+        }
+      ]
+    }
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "secrets_required": [],
+  "writes_repo_contents": false,
+  "writes_external_systems": false,
+  "requires_human_approval": false,
+  "validation_plan": [
+    "Send this payload to /api/bridge/http.",
+    "Confirm the runtime returns created or updated.",
+    "Verify the target workflow file exists in Strategic-Minds/AUTO_BUILDER.",
+    "Inspect the generated workflow YAML for a manual read-only smoke test."
+  ],
+  "rollback_plan": [
+    "Delete or revert .github/workflows/awos-bridge-smoke-test.yml if the output is incorrect."
+  ]
+}
