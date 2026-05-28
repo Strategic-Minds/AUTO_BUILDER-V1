@@ -38,4 +38,5 @@ jobs:
           name: awos-gpt-workflow-bridge-artifacts
           path: automation/awos_bucket_verifier/output
 
-# Trigger note: keep this file path in the push filter so the first smoke-test run can be registered from repo updates.
+# Trigger note: keep this file path in the push filter so smoke-test runs can be registered from repo updates.
+# Manual bridge runner trigger: 2026-05-28T22:23:30Z.
