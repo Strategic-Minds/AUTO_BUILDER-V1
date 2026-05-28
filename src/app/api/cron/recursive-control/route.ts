@@ -1,25 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { start } from "workflow/api";
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
+import { authorizeCronRequest } from "@/lib/cron-auth";
+import { buildRecursiveAgentPlan } from "@/lib/recursive-agents";
+import { claimRecursiveBucket, getFiveMinuteBucketKey } from "@/lib/recursive-control-ledger";
 import { classifyBlocker, compressMemory, rankNextTask } from "@/lib/recursive-intelligence";
 import { readRecentTelemetry } from "@/lib/telemetry-store";
-import { awosRecursiveControlWorkflow } from "../../../../../workflows/awos-recursive-control";
-
-function isAuthorized(request: NextRequest) {
-  const expected = process.env.CRON_API_TOKEN;
-  if (!expected) {
-    return true;
-  }
-  const header = request.headers.get("x-cron-token") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return header === expected;
-}
+import { sandboxRuntimeStatus } from "@/lib/vercel-sandbox";
+import { awosRecursiveControlWorkflow } from "@/workflows/awos-recursive-control";
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorization = authorizeCronRequest(request);
+  if (!authorization.ok) {
+    return NextResponse.json(
+      {
+        error: authorization.reason,
+        mode: authorization.mode,
+        acceptedHeaderNames: authorization.acceptedHeaderNames
+      },
+      { status: authorization.status }
+    );
   }
 
-  const now = new Date().toISOString();
+  const now = new Date();
+  const timestamp = now.toISOString();
+  const bucketKey = getFiveMinuteBucketKey(now);
   const awosHandoffPack = getAwosHandoffPack();
   const sourceTruthChecklist = getAwosSourceTruthChecklist();
   const latestTraces = await readRecentTelemetry("execution_traces", "started_at", 25);
@@ -34,10 +39,11 @@ export async function GET(request: NextRequest) {
   const blocker = String(lastRecursiveTrace?.status ?? "no_blocker_detected");
   const blockerClass = classifyBlocker(blocker);
   const queueMaterialization = materializeAwosQueue({
-    timestamp: now,
+    timestamp,
     blocker,
     approvalEscalationNeeded: blockerClass.severity === "high"
   });
+  const sandboxStatus = sandboxRuntimeStatus();
 
   const memory = compressMemory([
     blocker,
@@ -54,7 +60,60 @@ export async function GET(request: NextRequest) {
   const telemetryHealth = 81;
   const totalScore = rankNextTask({ profitability, blockerReduction, capabilityGain, runtimeStability, telemetryHealth });
 
-  const run = await start(awosRecursiveControlWorkflow, [{ requestedAt: now, source: "vercel-cron" }]);
+  const agentPlan = buildRecursiveAgentPlan({
+    generatedAt: timestamp,
+    bucketKey,
+    queueName: queueMaterialization.queueName,
+    blocker,
+    blockerSeverity: blockerClass.severity,
+    needsEscalation: blockerClass.severity === "high",
+    items: queueMaterialization.items,
+    workerStale: false,
+    sandboxAvailable: sandboxStatus.enabled
+  });
+
+  const bucketClaim = await claimRecursiveBucket({
+    bucketKey,
+    route: "/api/cron/recursive-control",
+    source: "vercel-cron",
+    claimedAt: timestamp
+  });
+
+  if (!bucketClaim.claimed) {
+    return NextResponse.json({
+      ok: true,
+      workflowTriggered: false,
+      duplicateBucket: true,
+      authorization,
+      bucketKey,
+      timestamp,
+      blockerContext: blocker,
+      blockerClassification: blockerClass,
+      awosHandoffPack,
+      sourceTruthChecklist,
+      queueMaterialization,
+      sandboxStatus,
+      agentPlan,
+      bucketClaim,
+      taskRanking: {
+        profitability,
+        blockerReduction,
+        capabilityGain,
+        runtimeStability,
+        telemetryHealth,
+        totalScore
+      },
+      nextInstruction: `Bucket ${bucketKey} was already claimed. Preserve the existing durable run and continue with the next safe cycle.`
+    });
+  }
+
+  const run = await start(awosRecursiveControlWorkflow, [
+    {
+      requestedAt: timestamp,
+      source: "vercel-cron",
+      bucketKey
+    }
+  ]);
 
   return NextResponse.json({
     ok: true,
@@ -65,7 +124,9 @@ export async function GET(request: NextRequest) {
     externalPublishingAllowed: false,
     paidActionsAllowed: false,
     destructiveDbActionsAllowed: false,
-    timestamp: now,
+    authorization,
+    bucketKey,
+    timestamp,
     blockerContext: blocker,
     blockerClassification: blockerClass,
     nextInstruction: `Durable workflow queued for ${queueMaterialization.queueName}. Memory seed: ${memory}`,
@@ -78,11 +139,15 @@ export async function GET(request: NextRequest) {
       allowDestructiveDbActions: false,
       doctrinePack: awosHandoffPack.name,
       queueName: queueMaterialization.queueName,
-      timestamp: now
+      bucketKey,
+      timestamp
     },
     awosHandoffPack,
     sourceTruthChecklist,
     queueMaterialization,
+    sandboxStatus,
+    agentPlan,
+    bucketClaim,
     taskRanking: {
       profitability,
       blockerReduction,
