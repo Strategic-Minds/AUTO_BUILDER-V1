@@ -361,3 +361,5 @@ export async function awosRecursiveControlWorkflow(trigger: WorkflowTrigger = {}
     telemetry
   };
 }
+
+export default awosRecursiveControlWorkflow;
