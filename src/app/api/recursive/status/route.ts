@@ -8,11 +8,17 @@ function findEvent(rows: unknown[], telemetryKey: string) {
   }) as Record<string, unknown> | undefined;
 }
 
+function payloadFor(event: Record<string, unknown> | null) {
+  return ((event?.event_payload as Record<string, unknown> | undefined) ?? null);
+}
+
 export async function GET() {
   const store = telemetryStoreStatus();
-  const [traceResult, runtimeEvents] = await Promise.all([
+  const [traceResult, runtimeEvents, queueMetrics, schedulerSignals] = await Promise.all([
     readRecentTelemetry("execution_traces", "started_at", 20),
-    readRecentTelemetry("runtime_telemetry_events", "created_at", 20)
+    readRecentTelemetry("runtime_telemetry_events", "created_at", 30),
+    readRecentTelemetry("queue_metrics", "observed_at", 10),
+    readRecentTelemetry("scheduler_verification", "created_at", 10)
   ]);
 
   const latestRecursive = traceResult.ok
@@ -24,8 +30,15 @@ export async function GET() {
 
   const latestSandbox = runtimeEvents.ok ? findEvent(runtimeEvents.rows, "awos_sandbox_execution") ?? null : null;
   const latestAgentPlan = runtimeEvents.ok ? findEvent(runtimeEvents.rows, "awos_agent_plan") ?? null : null;
-  const agentPlanPayload = (latestAgentPlan?.event_payload as Record<string, unknown> | undefined) ?? null;
-  const sandboxPayload = (latestSandbox?.event_payload as Record<string, unknown> | undefined) ?? null;
+  const latestQueueMaterialization = runtimeEvents.ok ? findEvent(runtimeEvents.rows, "awos_queue_materialization") ?? null : null;
+  const latestQueueExecution = runtimeEvents.ok ? findEvent(runtimeEvents.rows, "awos_queue_execution") ?? null : null;
+
+  const agentPlanPayload = payloadFor(latestAgentPlan);
+  const sandboxPayload = payloadFor(latestSandbox);
+  const queueMaterializationPayload = payloadFor(latestQueueMaterialization);
+  const queueExecutionPayload = payloadFor(latestQueueExecution);
+  const latestQueueMetric = queueMetrics.ok ? ((queueMetrics.rows[0] as Record<string, unknown> | undefined) ?? null) : null;
+  const latestSchedulerSignal = schedulerSignals.ok ? ((schedulerSignals.rows[0] as Record<string, unknown> | undefined) ?? null) : null;
 
   const initializedState = {
     mode: "initialized",
@@ -41,6 +54,13 @@ export async function GET() {
     status: "ok",
     environment: process.env.VERCEL_ENV ?? "local",
     store,
+    surfaces: {
+      manualWorkflowTrigger: "/api/workflows/awos-recursive-control",
+      cronRoute: "/api/cron/recursive-control",
+      handoffRoute: "/api/awos/handoff",
+      runtimeTelemetryRoute: "/api/runtime/telemetry",
+      cronCadence: "*/5 * * * *"
+    },
     recursive: latestRecursive
       ? {
           mode: "active",
@@ -56,7 +76,45 @@ export async function GET() {
             completedAt: latestRecursive.completed_at ?? null,
             status: latestRecursive.status ?? null,
             evidence: latestRecursive.evidence ?? null,
-            bucketKey: agentPlanPayload?.bucketKey ?? null
+            bucketKey: agentPlanPayload?.bucketKey ?? queueExecutionPayload?.bucketKey ?? null
+          },
+          scheduler: latestSchedulerSignal
+            ? {
+                schedulerName: latestSchedulerSignal.scheduler_name ?? null,
+                status: latestSchedulerSignal.status ?? null,
+                proof: latestSchedulerSignal.proof ?? null,
+                createdAt: latestSchedulerSignal.created_at ?? null
+              }
+            : null,
+          queue: {
+            name: queueExecutionPayload?.queueName ?? queueMaterializationPayload?.queueMaterialization?.queueName ?? null,
+            metric: latestQueueMetric
+              ? {
+                  depth: latestQueueMetric.depth ?? null,
+                  processing: latestQueueMetric.processing ?? null,
+                  failed: latestQueueMetric.failed ?? null,
+                  status: latestQueueMetric.status ?? null,
+                  observedAt: latestQueueMetric.observed_at ?? null
+                }
+              : null,
+            materialization: queueMaterializationPayload
+              ? {
+                  eventStatus: latestQueueMaterialization?.event_status ?? null,
+                  generatedAt: queueMaterializationPayload.queueMaterialization?.generatedAt ?? null,
+                  queueJobsSummary: queueMaterializationPayload.queueJobsSummary ?? null,
+                  queueItemCount: Array.isArray(queueMaterializationPayload.queueMaterialization?.items)
+                    ? queueMaterializationPayload.queueMaterialization.items.length
+                    : null
+                }
+              : null,
+            execution: queueExecutionPayload
+              ? {
+                  eventStatus: latestQueueExecution?.event_status ?? null,
+                  generatedAt: queueExecutionPayload.generatedAt ?? null,
+                  summary: queueExecutionPayload.summary ?? null,
+                  results: queueExecutionPayload.results ?? []
+                }
+              : null
           },
           sandbox: sandboxPayload
             ? {
@@ -64,7 +122,8 @@ export async function GET() {
                 jobId: sandboxPayload.jobId ?? null,
                 tasksRequested: sandboxPayload.tasksRequested ?? null,
                 taskIds: sandboxPayload.taskIds ?? [],
-                runtime: sandboxPayload.runtime ?? null
+                runtime: sandboxPayload.runtime ?? null,
+                sandboxId: sandboxPayload.sandboxId ?? null
               }
             : null
         }
@@ -72,7 +131,8 @@ export async function GET() {
     agentPlan: agentPlanPayload
       ? {
           bucketKey: agentPlanPayload.bucketKey ?? null,
-          summary: agentPlanPayload.summary ?? null
+          summary: agentPlanPayload.summary ?? null,
+          queueName: agentPlanPayload.queueName ?? null
         }
       : null,
     source: traceResult.ok ? "supabase" : "safe-fallback"
