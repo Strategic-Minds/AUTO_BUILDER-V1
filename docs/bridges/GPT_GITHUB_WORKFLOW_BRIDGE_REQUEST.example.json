@@ -1,0 +1,35 @@
+{
+  "repo": "Strategic-Minds/AUTO_BUILDER",
+  "target_path": ".github/workflows/awos-bucket-verifier.yml",
+  "workflow_name": "AWOS Bucket Verifier",
+  "workflow_goal": "Fetch live AWOS runtime endpoints on a recurring schedule, verify the bucket state, emit a standardized PASS/WARN/FAIL record, and upload artifacts for audit.",
+  "trigger_type": "schedule_and_manual",
+  "schedule_cron": "*/5 * * * *",
+  "jobs": [
+    {
+      "job_id": "verify-bucket",
+      "runs_on": "ubuntu-latest",
+      "steps": [
+        "actions/checkout@v4",
+        "actions/setup-python@v5",
+        "python automation/awos_bucket_verifier/awos_upstream_capture_runner.py"
+      ]
+    }
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "secrets_required": [],
+  "writes_repo_contents": false,
+  "writes_external_systems": false,
+  "requires_human_approval": false,
+  "validation_plan": [
+    "Wait for or trigger the first workflow run.",
+    "Inspect uploaded artifacts.",
+    "Confirm the emitted bucket record matches the standardized PASS/WARN/FAIL JSON contract."
+  ],
+  "rollback_plan": [
+    "Disable the workflow in GitHub Actions.",
+    "Revert the workflow file if the runner behavior is incorrect."
+  ]
+}
