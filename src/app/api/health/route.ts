@@ -45,6 +45,11 @@ export async function GET() {
     awos: {
       doctrinePack: awosHandoffPack.name,
       handoffRoute: "/api/awos/handoff",
+      recursiveStatusRoute: "/api/recursive/status",
+      runtimeTelemetryRoute: "/api/runtime/telemetry",
+      manualWorkflowTriggerRoute: "/api/workflows/awos-recursive-control",
+      cronRoute: "/api/cron/recursive-control",
+      cronCadence: "*/5 * * * *",
       sourceOfTruthMap: awosHandoffPack.sourceOfTruthMap,
       stagedMigrationFile: awosHandoffPack.stagedMigrationFile,
       migrationStatus: "staged_not_executed"
