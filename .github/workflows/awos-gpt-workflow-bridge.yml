@@ -1,0 +1,39 @@
+name: AWOS GPT Workflow Bridge Runner
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/awos-gpt-workflow-bridge.yml"
+      - "automation/awos_bucket_verifier/awos_bridge_autonomous_runner.py"
+      - "automation/awos_bucket_verifier/awos-bridge-smoke-test-request.json"
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  bridge_smoke_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run autonomous bridge smoke test
+        run: |
+          python automation/awos_bucket_verifier/awos_bridge_autonomous_runner.py
+
+      - name: Upload bridge artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: awos-gpt-workflow-bridge-artifacts
+          path: automation/awos_bucket_verifier/output
