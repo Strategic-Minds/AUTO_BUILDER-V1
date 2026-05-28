@@ -120,6 +120,23 @@ export async function GET(request: NextRequest) {
   const watchdogAge = Math.max(0, Math.floor((Date.now() - Date.parse(String(lastRecursiveTrace?.completed_at ?? now))) / 1000));
   const workerStale = watchdogAge > 300;
 
+  const queueJobs = await Promise.all(
+    queueMaterialization.items.map((item, index) =>
+      insertTelemetry("queue_jobs", {
+        source_key: awosHandoffPack.name,
+        runtime_object_type: "awos_handoff_pack",
+        runtime_object_id: awosHandoffPack.docsRoot,
+        connector_name: item.approvalRequired ? "approval-gate" : "recursive-control",
+        job_type: item.type,
+        job_status: item.approvalRequired ? "awaiting_approval" : "queued",
+        priority: item.priority,
+        idempotency_key: `${currentHash}-${index}`,
+        input_payload: item,
+        scheduled_at: now
+      })
+    )
+  );
+
   const inserts = await Promise.all([
     insertTelemetry("recursive_memory_compression", {
       memory_key: "recursive-control",
@@ -189,23 +206,18 @@ export async function GET(request: NextRequest) {
       proof: trace.response?.[0]?.id ?? "no-trace-id",
       created_at: now
     }),
-    insertTelemetry("queue_control_events", {
-      queue_name: queueMaterialization.queueName,
-      event_type: "materialized",
-      item_count: queueMaterialization.items.length,
-      payload: queueMaterialization,
-      created_at: now
-    }),
-    insertTelemetry("autobuilder_bridge_state", {
-      state_key: "awos_max_autonomy_runtime",
-      status: "active",
-      payload: {
+    insertTelemetry("runtime_telemetry_events", {
+      telemetry_key: "awos_queue_materialization",
+      event_status: "captured",
+      event_payload: {
         handoffPack: awosHandoffPack,
         sourceTruthChecklist,
         queueMaterialization,
-        governedTask
+        governedTask,
+        queueJobs
       },
-      created_at: now
+      created_at: now,
+      updated_at: now
     })
   ]);
 
@@ -256,6 +268,7 @@ export async function GET(request: NextRequest) {
       queueMetric,
       heartbeat,
       trace,
+      queueJobs,
       registries: inserts,
       approvalEscalation
     }
