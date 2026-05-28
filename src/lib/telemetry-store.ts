@@ -41,7 +41,9 @@ type TelemetryTable =
   | "notification_bridge"
   | "queue_control_events"
   | "worker_heartbeats"
-  | "autobuilder_bridge_state";
+  | "autobuilder_bridge_state"
+  | "queue_jobs"
+  | "runtime_telemetry_events";
 
 type TelemetryValue = string | number | boolean | null | undefined | Record<string, unknown> | unknown[];
 type TelemetryInsert = Record<string, TelemetryValue>;
