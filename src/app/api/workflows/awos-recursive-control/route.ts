@@ -53,12 +53,13 @@ async function triggerWorkflow(source: string) {
   const requestedAt = new Date().toISOString();
 
   try {
-    const [{ start }, { awosRecursiveControlWorkflow }, preview] = await Promise.all([
+    const [{ start }, workflowModule, preview] = await Promise.all([
       import("workflow/api"),
       import("../../../../../workflows/awos-recursive-control"),
       buildPreview(requestedAt)
     ]);
 
+    const awosRecursiveControlWorkflow = workflowModule.default ?? workflowModule.awosRecursiveControlWorkflow;
     const run = await start(awosRecursiveControlWorkflow, [{ requestedAt, source }]);
 
     return NextResponse.json({
