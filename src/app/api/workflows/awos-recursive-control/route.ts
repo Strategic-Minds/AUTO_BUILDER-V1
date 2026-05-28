@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { start } from "workflow/api";
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
 import { readRecentTelemetry } from "@/lib/telemetry-store";
-import { awosRecursiveControlWorkflow } from "@/workflows/awos-recursive-control";
+import { awosRecursiveControlWorkflow } from "../../../../../workflows/awos-recursive-control";
 
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
@@ -37,23 +37,35 @@ async function buildPreview(requestedAt: string) {
   };
 }
 
-export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+async function triggerWorkflow(source: string) {
   const requestedAt = new Date().toISOString();
   const [preview, run] = await Promise.all([
     buildPreview(requestedAt),
-    start(awosRecursiveControlWorkflow, [{ requestedAt, source: "manual-route" }])
+    start(awosRecursiveControlWorkflow, [{ requestedAt, source }])
   ]);
 
   return NextResponse.json({
     ok: true,
     workflowTriggered: true,
     workflowRunId: run.runId,
-    source: "manual-route",
+    source,
     requestedAt,
     ...preview
   });
+}
+
+export async function GET(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return triggerWorkflow("manual-route-get");
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return triggerWorkflow("manual-route-post");
 }
