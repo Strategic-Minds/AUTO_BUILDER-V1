@@ -437,7 +437,7 @@ function buildUniversalIntegrationBlueprint(args: {
 
 const handler = createMcpHandler(
   (server) => {
-    registerSocialMcpTools(server);
+    registerSocialMcpTools(server as any);
     server.registerTool(
       "health_check",
       {
