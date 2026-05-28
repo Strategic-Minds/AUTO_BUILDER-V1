@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
 import { classifyBlocker, compressMemory, hashText, rankNextTask } from "@/lib/recursive-intelligence";
-import { insertTelemetry, readRecentTelemetry } from "@/lib/telemetry-store";
+import { insertTelemetry, readRecentTelemetry, readTelemetryByQuery } from "@/lib/telemetry-store";
 
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
@@ -121,8 +121,26 @@ export async function GET(request: NextRequest) {
   const workerStale = watchdogAge > 300;
 
   const queueJobs = await Promise.all(
-    queueMaterialization.items.map((item, index) =>
-      insertTelemetry("queue_jobs", {
+    queueMaterialization.items.map(async (item, index) => {
+      const idempotencyKey = `${currentHash}-${index}`;
+      const existingQueueJob = await readTelemetryByQuery("queue_jobs", {
+        select: "id,idempotency_key,job_status,created_at",
+        idempotency_key: `eq.${idempotencyKey}`,
+        limit: "1"
+      });
+
+      if (existingQueueJob.ok && existingQueueJob.rows.length > 0) {
+        return {
+          ok: true,
+          mode: "deduped_existing_queue_job",
+          table: "queue_jobs",
+          skipped: true,
+          idempotencyKey,
+          response: existingQueueJob.rows
+        };
+      }
+
+      return insertTelemetry("queue_jobs", {
         source_key: awosHandoffPack.name,
         runtime_object_type: "awos_handoff_pack",
         runtime_object_id: awosHandoffPack.docsRoot,
@@ -130,12 +148,19 @@ export async function GET(request: NextRequest) {
         job_type: item.type,
         job_status: item.approvalRequired ? "awaiting_approval" : "queued",
         priority: item.priority,
-        idempotency_key: `${currentHash}-${index}`,
+        idempotency_key: idempotencyKey,
         input_payload: item,
         scheduled_at: now
-      })
-    )
+      });
+    })
   );
+
+  const queueJobsSummary = {
+    total: queueJobs.length,
+    inserted: queueJobs.filter((result) => result.ok && !("skipped" in result && result.skipped)).length,
+    skippedExisting: queueJobs.filter((result) => "skipped" in result && result.skipped).length,
+    failed: queueJobs.filter((result) => !result.ok).length
+  };
 
   const inserts = await Promise.all([
     insertTelemetry("recursive_memory_compression", {
@@ -208,13 +233,13 @@ export async function GET(request: NextRequest) {
     }),
     insertTelemetry("runtime_telemetry_events", {
       telemetry_key: "awos_queue_materialization",
-      event_status: "captured",
+      event_status: queueJobsSummary.failed > 0 ? "partial_failure" : "captured",
       event_payload: {
         handoffPack: awosHandoffPack,
         sourceTruthChecklist,
         queueMaterialization,
-        governedTask,
-        queueJobs
+        queueJobsSummary,
+        governedTask
       },
       created_at: now,
       updated_at: now
@@ -269,6 +294,7 @@ export async function GET(request: NextRequest) {
       heartbeat,
       trace,
       queueJobs,
+      queueJobsSummary,
       registries: inserts,
       approvalEscalation
     }
