@@ -3,10 +3,14 @@ import { buildCapabilityTestMatrix, factoryReadiness, templateLibrary, fastPathR
 import { assetFactory, buildPacketContract, factorySchema, queueAgentMap } from "@/lib/factory-registry";
 import { blockerAutonomyPolicy } from "@/lib/blocker-remediation";
 import { buildFinanceCommandCenter, defaultFinanceScenarios } from "@/lib/finance-sim";
+import { buildOperationalReadinessSnapshot } from "@/lib/operational-readiness";
 
 export async function GET() {
+  const operationalReadiness = await buildOperationalReadinessSnapshot();
+
   return NextResponse.json({
-    status: "ok",
+    status: operationalReadiness.status === "operational" ? "ok" : "degraded",
+    operationalReadiness,
     factory: factoryReadiness,
     routes: fastPathRoutes,
     templates: templateLibrary,
