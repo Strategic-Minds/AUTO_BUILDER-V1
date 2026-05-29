@@ -9,7 +9,8 @@ export async function POST(request: Request) {
 
   const body = await parseJsonBody(request);
   const platform = asOptionalString(body.platform);
-  const contentQueueId = asOptionalString(body.content_queue_id);
+  const contentProductId = asOptionalString(body.content_product_id) || asOptionalString(body.content_queue_id);
+  const interactionModeId = asOptionalString(body.interaction_mode_id);
 
   if (!platform) {
     return NextResponse.json({ ok: false, status: "blocked", blocker: "platform is required." }, { status: 400 });
@@ -22,10 +23,11 @@ export async function POST(request: Request) {
 
   const metadata = typeof body.metadata_json === "object" && body.metadata_json !== null ? body.metadata_json : {};
   const { data, error } = await client
-    .from("eden_signal_logs")
+    .from("signal_logs")
     .insert({
-      content_queue_id: contentQueueId,
-      persona_id: asOptionalString(body.persona_id) || "eden-skye",
+      content_product_id: contentProductId,
+      interaction_mode_id: interactionModeId,
+      persona_key: asOptionalString(body.persona_key) || asOptionalString(body.persona_id) || "eden-skye",
       platform,
       measured_at: asOptionalString(body.measured_at) || new Date().toISOString(),
       impressions: asNumber(body.impressions),
