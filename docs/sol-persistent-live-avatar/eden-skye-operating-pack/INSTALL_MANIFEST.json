@@ -1,15 +1,23 @@
 {
-  "module_id": "eden-skye-character-operating-pack",
-  "module_name": "Eden Skye Character Operating Pack",
+  "module_id": "forbidden-fruit-eden-skye-persona-001-operating-pack",
+  "module_name": "Forbidden Fruit Persona 001 - Eden Skye Operating Pack",
   "status": "staging_ready_repo_module",
+  "parent_company": "Forbidden Fruit",
+  "persona_key": "eden-skye",
+  "persona_label": "Persona 001 - Eden Skye",
   "parent_system": "SOL Persistent Live Avatar Assistant v1",
   "repo_target": "Strategic-Minds/AUTO_BUILDER",
   "recommended_path": "docs/sol-persistent-live-avatar/eden-skye-operating-pack",
   "installed_files": [
     "README.md",
+    "FORBIDDEN_FRUIT_PARENT_BRAND_BRIEF.md",
+    "PLATFORM_POLICY_VALIDATION_MATRIX.md",
     "CHARACTER_BIBLE.md",
     "INSTALL_MANIFEST.json",
     "SOURCE_NOTES.md",
+    "frontend/EDEN_SKYE_QUEUE_REVIEW_PLAN.md",
+    "supabase/EDEN_SKYE_SANDBOX_SCHEMA.sql",
+    "supabase/README.md",
     "csv/metricool-calendar-seed.csv",
     "csv/repurpose-workflow-map.csv",
     "csv/xyla-social-queue.csv",
@@ -17,33 +25,56 @@
     "csv/heygen-script-bank.csv",
     "csv/shopify-offer-asset-sheet.csv"
   ],
+  "sandbox_tables": [
+    "forbidden_fruit_personas",
+    "persona_assets",
+    "persona_prompt_bank",
+    "content_products",
+    "interaction_modes",
+    "approval_events",
+    "signal_logs"
+  ],
   "tool_surfaces": [
     "Metricool",
     "Repurpose.io",
     "Xyla",
     "Shopify",
+    "Payment processor",
     "Kling AI",
-    "HeyGen"
+    "HeyGen",
+    "Chat runtime",
+    "Voice runtime",
+    "Video runtime",
+    "Hosting",
+    "Analytics",
+    "Storage"
   ],
   "template_alignment": [
     "TPL-001 Landing + Lead Capture",
     "TPL-004 AI Agent Console",
-    "TPL-005 Workflow Queue Runner"
+    "TPL-005 Workflow Queue Runner",
+    "Forbidden Fruit adult AI fantasy-entertainment governance"
   ],
   "connector_alignment": [
     "Shopify: commerce source truth, store mutations gated",
+    "Payment processor: checkout and subscription activation gated until policy validation",
     "Xyla: creative/publishing engine, auto-publish gated",
     "Opus/Repurpose: video repurposing, publishing gated",
+    "Kling AI: staging-only image-to-video generation until policy approval",
+    "HeyGen: avatar/voice/video generation gated by consent, policy, and cost approvals",
     "OpenAI/Codex: orchestration and prompt/patch generation",
-    "GitHub: repo source-control layer"
+    "GitHub: repo source-control layer",
+    "Supabase: sandbox-only review and signal data until production approval"
   ],
   "approval_gates": [
     "public_posting",
     "post_scheduling",
     "shopify_live_mutation",
+    "payment_activation",
     "pricing_or_discount_change",
     "heygen_digital_twin_creation",
-    "repeated_cost_bearing_generation",
+    "kling_or_heygen_cost_bearing_generation",
+    "chat_voice_video_interaction_launch",
     "paid_promotion",
     "production_deploy",
     "supabase_production_sql",
@@ -57,19 +88,20 @@
       "Vercel Blob",
       "approved public media host"
     ],
-    "required_before_metricool_import": "Replace placeholder media URLs with public direct media URLs."
+    "required_before_metricool_import": "Replace placeholder media URLs with public direct media URLs after platform policy validation."
   },
   "validation_plan": [
     "Verify no secrets are committed.",
     "Verify CSV headers remain stable and UTF-8 encoded.",
     "Verify all live publishing and commerce mutations remain approval-gated.",
-    "Verify Eden Skye remains fictional, adult, non-identifiable, non-explicit, and platform-safe.",
-    "Verify external media URLs before Metricool import."
+    "Verify Eden Skye remains fictional, adult, AI-disclosed, non-identifiable, and platform-safe.",
+    "Verify Forbidden Fruit platform-policy matrix blocks live commerce and distribution until validated.",
+    "Verify external media URLs before Metricool import or downloadable-product setup."
   ],
   "next_targets": [
-    "Add Supabase staging schema for persona assets, prompt bank, content queue, approvals, and signal logs.",
-    "Add FRONTEND review route for Eden Skye queues.",
-    "Add factory capability test for approval gates and CSV shape.",
-    "Move binary image assets to approved asset host and update CSV placeholders."
+    "Confirm preview Supabase target is safe staging or switch preview envs to sandbox ref ezoxmpyhjdjjnacjfjzs.",
+    "Validate reusable Forbidden Fruit sandbox schema in the confirmed sandbox target.",
+    "Validate FRONTEND review route for personas, assets, prompts, content products, interaction modes, approvals, and signal logs.",
+    "Move binary image assets to approved asset host and update CSV placeholders only after policy review."
   ]
 }
