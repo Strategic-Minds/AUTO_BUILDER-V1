@@ -28,6 +28,8 @@ jobs:
           python-version: "3.12"
 
       - name: Run autonomous bridge smoke test
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           python automation/awos_bucket_verifier/awos_bridge_autonomous_runner.py
 
@@ -40,3 +42,4 @@ jobs:
 
 # Trigger note: keep this file path in the push filter so smoke-test runs can be registered from repo updates.
 # Manual bridge runner trigger: 2026-05-28T22:23:30Z.
+# Token env patch trigger: 2026-05-28T23:08:00Z.
