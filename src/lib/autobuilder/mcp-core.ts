@@ -191,7 +191,7 @@ function validateWorkflowBridgeRequest(request: WorkflowBridgeRequest) {
 
 function isLowRiskWorkflowRequest(request: WorkflowBridgeRequest) {
   return (
-    request.secrets_required.length === 0 &&
+    (request.secrets_required || []).length === 0 &&
     request.writes_external_systems !== true &&
     request.requires_human_approval !== true
   );
