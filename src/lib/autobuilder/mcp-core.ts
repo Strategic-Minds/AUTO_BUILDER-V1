@@ -141,6 +141,11 @@ function parseWorkflowBridgeRequest(input: JsonRecord) {
       runs_on: typeof job.runs_on === "string" ? job.runs_on : undefined,
       steps: Array.isArray(job.steps) ? (job.steps as Array<string | JsonRecord>) : undefined
     }));
+  const permissions: Record<string, string> = Object.fromEntries(
+    Object.entries(asRecord(input.permissions)).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string"
+    )
+  );
 
   return {
     repo: typeof input.repo === "string" ? input.repo : "",
@@ -150,9 +155,7 @@ function parseWorkflowBridgeRequest(input: JsonRecord) {
     trigger_type: typeof input.trigger_type === "string" ? input.trigger_type : "",
     schedule_cron: typeof input.schedule_cron === "string" ? input.schedule_cron : undefined,
     jobs,
-    permissions: Object.fromEntries(
-      Object.entries(asRecord(input.permissions)).filter(([, value]) => typeof value === "string")
-    ),
+    permissions,
     secrets_required: asStringArray(input.secrets_required),
     writes_repo_contents: input.writes_repo_contents === true,
     writes_external_systems: input.writes_external_systems === true,
@@ -249,7 +252,7 @@ async function upsertGitHubWorkflow(request: WorkflowBridgeRequest, workflowYaml
   const contentSha = typeof result.body?.content === "object" && result.body?.content && typeof (result.body.content as JsonRecord).sha === "string"
     ? String((result.body.content as JsonRecord).sha)
     : null;
-  const commitSha = typeof result.body?.commit === "object" && result.body?.commit && typeof (result.body.commit as JsonRecord).sha === "string"
+  const commitSha = typeof result.body?.commit === "object" && result.body?.commit && typeof result.body.commit === "object" && typeof (result.body.commit as JsonRecord).sha === "string"
     ? String((result.body.commit as JsonRecord).sha)
     : null;
 
