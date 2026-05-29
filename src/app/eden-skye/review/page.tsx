@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { buildReadinessSnapshot, readAllEdenReviewData, type ApprovalEvent, type ContentQueueItem, type PersonaAsset, type PromptBankItem, type ReadinessSnapshot, type SignalLog } from "@/lib/eden-skye/review-data";
+import { buildReadinessSnapshot, readAllEdenReviewData, type ApprovalEvent, type ContentQueueItem, type ForbiddenFruitPersona, type InteractionMode, type PersonaAsset, type PromptBankItem, type ReadinessSnapshot, type SignalLog } from "@/lib/eden-skye/review-data";
 
 export const dynamic = "force-dynamic";
 
@@ -48,8 +48,8 @@ function normalizeSource(source: string): ReadinessSnapshot["source"] {
 }
 
 function tone(status: string): Tone {
-  if (["approved", "published", "sandbox_ready"].includes(status)) return "ok";
-  if (["rejected", "blocked", "archived"].includes(status)) return "block";
+  if (["approved", "published", "sandbox_ready", "live"].includes(status)) return "ok";
+  if (["rejected", "blocked", "archived", "disabled"].includes(status)) return "block";
   if (["needs_review", "draft", "scheduled", "medium", "high"].includes(status)) return "warn";
   return "neutral";
 }
@@ -67,9 +67,20 @@ function Section({ title, subtitle, children }: { title: string; subtitle: strin
   return (
     <section style={panel}>
       <h2 style={{ margin: 0, fontSize: 18 }}>{title}</h2>
-      <p style={{ margin: "6px 0 12px", color: "var(--muted)", maxWidth: 760 }}>{subtitle}</p>
+      <p style={{ margin: "6px 0 12px", color: "var(--muted)", maxWidth: 860 }}>{subtitle}</p>
       {children}
     </section>
+  );
+}
+
+function Personas({ rows }: { rows: ForbiddenFruitPersona[] }) {
+  return (
+    <TableShell>
+      <table style={table}>
+        <thead><tr><th style={th}>Persona</th><th style={th}>Parent</th><th style={th}>Archetype</th><th style={th}>Status</th><th style={th}>Risk</th></tr></thead>
+        <tbody>{rows.map((row) => <tr key={row.id || row.persona_key}><td style={td}>{row.display_name} / {row.persona_key}</td><td style={td}>{row.parent_brand}</td><td style={td}>{row.archetype}</td><td style={td}><Badge status={row.status}>{row.status}</Badge></td><td style={td}><Badge status={row.policy_risk_level}>{row.policy_risk_level}</Badge></td></tr>)}</tbody>
+      </table>
+    </TableShell>
   );
 }
 
@@ -99,8 +110,19 @@ function Queue({ rows }: { rows: ContentQueueItem[] }) {
   return (
     <TableShell>
       <table style={table}>
-        <thead><tr><th style={th}>Title</th><th style={th}>Platform</th><th style={th}>Pillar</th><th style={th}>Status</th><th style={th}>Risk</th><th style={th}>Schedule</th></tr></thead>
-        <tbody>{rows.map((row) => <tr key={row.id || `${row.platform}-${row.title}`}><td style={td}>{row.title}</td><td style={td}>{row.platform}</td><td style={td}>{row.content_pillar}</td><td style={td}><Badge status={row.status}>{row.status}</Badge></td><td style={td}><Badge status={row.risk_level}>{row.risk_level}</Badge></td><td style={td}>{row.scheduled_for || "not scheduled"}</td></tr>)}</tbody>
+        <thead><tr><th style={th}>Title</th><th style={th}>Platform</th><th style={th}>Type</th><th style={th}>Status</th><th style={th}>Risk</th><th style={th}>Schedule</th></tr></thead>
+        <tbody>{rows.map((row) => <tr key={row.id || `${row.platform}-${row.title}`}><td style={td}>{row.title}</td><td style={td}>{row.platform}</td><td style={td}>{row.product_type || row.content_type || "content"}</td><td style={td}><Badge status={row.status}>{row.status}</Badge></td><td style={td}><Badge status={row.risk_level}>{row.risk_level}</Badge></td><td style={td}>{row.scheduled_for || "not scheduled"}</td></tr>)}</tbody>
+      </table>
+    </TableShell>
+  );
+}
+
+function Modes({ rows }: { rows: InteractionMode[] }) {
+  return (
+    <TableShell>
+      <table style={table}>
+        <thead><tr><th style={th}>Mode</th><th style={th}>Type</th><th style={th}>Status</th><th style={th}>Risk</th><th style={th}>Required Gates</th></tr></thead>
+        <tbody>{rows.map((row) => <tr key={row.id || row.mode_key}><td style={td}>{row.display_name}</td><td style={td}>{row.mode_type}</td><td style={td}><Badge status={row.status}>{row.status}</Badge></td><td style={td}><Badge status={row.risk_level}>{row.risk_level}</Badge></td><td style={td}>{[row.age_gate_required && "age gate", row.ai_disclosure_required && "AI disclosure", row.moderation_required && "moderation", row.approval_required && "approval"].filter(Boolean).join(", ")}</td></tr>)}</tbody>
       </table>
     </TableShell>
   );
@@ -137,9 +159,9 @@ export default async function EdenSkyeReviewPage() {
       <section style={{ ...panel, display: "grid", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ color: "var(--accent)", fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Eden Skye</div>
-            <h1 style={{ margin: "8px 0", fontSize: 28 }}>Queue Review Command Surface</h1>
-            <p style={{ margin: 0, color: "var(--muted)", maxWidth: 840 }}>Read-only review lane for persona assets, prompt bank, content queue, approvals, and signal logs. Execution remains gated until sandbox credentials and approvals are present.</p>
+            <div style={{ color: "var(--accent)", fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Forbidden Fruit / Persona 001</div>
+            <h1 style={{ margin: "8px 0", fontSize: 28 }}>Eden Skye Review Command Surface</h1>
+            <p style={{ margin: 0, color: "var(--muted)", maxWidth: 900 }}>Read-only review lane for the Forbidden Fruit parent brand, Eden Skye persona assets, prompt bank, content products, interaction modes, approvals, and signal logs. Commerce, public distribution, chat, voice, and video execution remain gated.</p>
           </div>
           <Badge status={readiness.status}>{readiness.status}</Badge>
         </div>
@@ -149,9 +171,11 @@ export default async function EdenSkyeReviewPage() {
         {readiness.blockers.length > 0 && <div style={{ border: "1px solid rgba(248, 113, 113, 0.42)", borderRadius: 8, padding: 12, background: "rgba(127, 29, 29, 0.18)" }}><strong>Blocked before execution</strong><ul style={{ margin: "8px 0 0", paddingLeft: 18, color: "#fecaca" }}>{readiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></div>}
       </section>
 
-      <Section title="Persona Assets" subtitle="Identity, voice, visual, and source assets that must resolve before downstream scheduling."><Assets rows={result.data.personaAssets} /></Section>
-      <Section title="Prompt Bank" subtitle="Tool-specific prompts for Kling AI, HeyGen, Metricool, Shopify, and related generation surfaces."><Prompts rows={result.data.promptBank} /></Section>
-      <Section title="Content Queue" subtitle="Draft and review-state queue items before any public scheduler, storefront, or avatar workflow runs."><Queue rows={result.data.contentQueue} /></Section>
+      <Section title="Persona Registry" subtitle="Forbidden Fruit portfolio rows. Eden Skye is Persona 001, not the whole company."><Personas rows={result.data.personas} /></Section>
+      <Section title="Persona Assets" subtitle="Identity, voice, visual, and source assets that must resolve before downstream scheduling or product setup."><Assets rows={result.data.personaAssets} /></Section>
+      <Section title="Prompt Bank" subtitle="Tool-specific prompts for Kling AI, HeyGen, Metricool, Shopify, chat, voice, video, and related generation surfaces."><Prompts rows={result.data.promptBank} /></Section>
+      <Section title="Content Products" subtitle="Draft social, storefront, downloadable, and campaign rows before any public scheduler, storefront, or avatar workflow runs."><Queue rows={result.data.contentQueue} /></Section>
+      <Section title="Interaction Modes" subtitle="Chat, voice, video, download, social, and storefront modes that require age-gate, AI disclosure, moderation, and approval gates."><Modes rows={result.data.interactionModes} /></Section>
       <Section title="Approval Events" subtitle="Audit lane for approval requests, blockers, workarounds, and rollback paths."><Approvals rows={result.data.approvalEvents} /></Section>
       <Section title="Signal Logs" subtitle="Performance telemetry after approved sandbox tests and public launches."><Signals rows={result.data.signalLogs} /></Section>
     </main>
