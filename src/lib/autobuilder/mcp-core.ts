@@ -19,13 +19,13 @@ type WorkflowBridgeRequest = {
   trigger_type: string;
   schedule_cron?: string;
   jobs: WorkflowBridgeJob[];
-  permissions?: Record<string, string>;
-  secrets_required?: string[];
-  writes_repo_contents?: boolean;
-  writes_external_systems?: boolean;
-  requires_human_approval?: boolean;
-  validation_plan?: string[];
-  rollback_plan?: string[];
+  permissions: Record<string, string>;
+  secrets_required: string[];
+  writes_repo_contents: boolean;
+  writes_external_systems: boolean;
+  requires_human_approval: boolean;
+  validation_plan: string[];
+  rollback_plan: string[];
 };
 
 function asRecord(value: unknown): JsonRecord {
