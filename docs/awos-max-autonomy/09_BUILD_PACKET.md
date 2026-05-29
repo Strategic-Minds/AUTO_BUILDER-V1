@@ -42,6 +42,13 @@ The uploaded workbook has been normalized into additive repo docs so the source 
 - Vercel connector in this environment does not directly execute the deployment command
 - runtime patching should wait until the current repo deployment is confirmed healthy
 
+## Production Recovery Receipt
+
+- 2026-05-29T18:33:00Z: triggered a safe production recovery redeploy after confirming Supabase telemetry and recursive-control scheduler receipts are healthy.
+- Prior failed Vercel status was attached to commit `5eb26cb458e8f28459b2a09ce24b62e6616e73e3`.
+- Recent bridge smoke-test commits report Vercel success, including `e8b21334805e8ac4112969684f921443ad49b469`.
+- This receipt performs no production data mutation, Shopify mutation, billing action, public publishing, or destructive Supabase change.
+
 ## Next Best Prompt
 
 Inspect the deployment triggered by the new docs pack, confirm production health, then patch the existing recursive-control route and related runtime layers incrementally instead of creating a replacement system.
