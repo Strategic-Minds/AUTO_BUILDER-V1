@@ -1,0 +1,13 @@
+name: AWOS Bridge Smoke Test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: "actions/checkout@v4"
+      -
+        name: "Bridge smoke test"
+        run: "echo \"AWOS bridge smoke test\""
