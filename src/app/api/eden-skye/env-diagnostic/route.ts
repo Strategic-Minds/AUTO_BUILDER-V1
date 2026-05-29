@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const EDEN_TABLES = [
-  "eden_persona_assets",
-  "eden_prompt_bank",
-  "eden_content_queue",
-  "eden_approval_events",
-  "eden_signal_logs"
+const FORBIDDEN_FRUIT_TABLES = [
+  "forbidden_fruit_personas",
+  "persona_assets",
+  "persona_prompt_bank",
+  "content_products",
+  "interaction_modes",
+  "approval_events",
+  "signal_logs"
 ] as const;
 
 function firstPresent(...values: Array<string | undefined>) {
@@ -79,7 +81,7 @@ async function tableVisibility(table: string) {
 export async function GET() {
   const url = supabaseUrl();
   const target = parseTarget(url);
-  const visibility = await Promise.all(EDEN_TABLES.map((table) => tableVisibility(table)));
+  const visibility = await Promise.all(FORBIDDEN_FRUIT_TABLES.map((table) => tableVisibility(table)));
   const expectedSandboxRef = "ezoxmpyhjdjjnacjfjzs";
 
   return NextResponse.json({
@@ -88,7 +90,7 @@ export async function GET() {
     expectedSandboxRef,
     matchesExpectedSandbox: target.ref === expectedSandboxRef,
     envPresence: sourceFlags(),
-    edenTables: visibility,
+    forbiddenFruitTables: visibility,
     secretsExposed: false
   });
 }
