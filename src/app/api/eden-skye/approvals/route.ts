@@ -6,7 +6,7 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true,
-    table: "eden_approval_events",
+    table: "approval_events",
     source: result.source,
     blockers: result.blockers,
     rows: result.rows
