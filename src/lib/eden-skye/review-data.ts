@@ -249,24 +249,53 @@ export const edenSeedData: EdenReviewData = {
 let readClient: SupabaseClient | null = null;
 let adminClient: SupabaseClient | null = null;
 
+function firstPresent(...values: Array<string | undefined>) {
+  return values.find((value) => typeof value === "string" && value.length > 0) || "";
+}
+
 function getSupabaseUrl() {
-  return process.env.EDEN_SKYE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+  return firstPresent(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_URL,
+    process.env.EDEN_SKYE_SUPABASE_URL
+  );
 }
 
 function getSupabaseAnonKey() {
-  return process.env.EDEN_SKYE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+  return firstPresent(
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.SUPABASE_ANON_KEY,
+    process.env.EDEN_SKYE_SUPABASE_ANON_KEY
+  );
 }
 
 function getSupabaseServiceKey() {
-  return process.env.EDEN_SKYE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  return firstPresent(
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.EDEN_SKYE_SUPABASE_SERVICE_ROLE_KEY
+  );
+}
+
+function getApprovalToken() {
+  return firstPresent(process.env.EDEN_SKYE_APPROVAL_TOKEN, process.env.SOL_APPROVAL_TOKEN);
+}
+
+function solReadOnlyMode() {
+  return process.env.SOL_READ_ONLY_MODE !== "false";
+}
+
+function solRequiresApprovals() {
+  return process.env.SOL_REQUIRE_APPROVALS !== "false";
 }
 
 export function getEdenReadClient() {
   const url = getSupabaseUrl();
+  const serviceKey = getSupabaseServiceKey();
   const anonKey = getSupabaseAnonKey();
+  const key = serviceKey || anonKey;
 
-  if (!url || !anonKey) return null;
-  if (!readClient) readClient = createClient(url, anonKey);
+  if (!url || !key) return null;
+  if (!readClient) readClient = createClient(url, key);
   return readClient;
 }
 
@@ -285,7 +314,7 @@ async function readTable<T>(table: string, fallback: T[]): Promise<EdenReadResul
     return {
       source: "static_seed",
       rows: fallback,
-      blockers: ["Sandbox Supabase read environment is not configured; serving static seed data."]
+      blockers: ["Supabase read environment is not configured; serving static Eden Skye seed data."]
     };
   }
 
@@ -371,7 +400,7 @@ export function buildReadinessSnapshot(data: EdenReviewData, source: ReadinessSn
   }
 
   if (source === "static_seed") {
-    computedBlockers.push("Sandbox Supabase schema has not been verified through live reads yet.");
+    computedBlockers.push("Eden Skye schema has not been verified through live Supabase reads yet.");
   }
 
   const status: ReadinessSnapshot["status"] = computedBlockers.length > 0 ? "blocked" : approvalNeeded.length > 0 ? "needs_review" : "sandbox_ready";
@@ -397,32 +426,33 @@ export function buildReadinessSnapshot(data: EdenReviewData, source: ReadinessSn
       "Paid or repeated cost-bearing generation requires explicit approval."
     ],
     nextActions: [
-      "Apply schema to an approved Supabase development branch.",
-      "Seed persona assets, prompt bank, and queue rows into sandbox.",
+      "Verify Vercel preview reads Eden Skye rows through the existing Supabase env contract.",
       "Attach public sandbox asset URLs before scheduler export.",
-      "Review low-risk content queue rows before any downstream automation."
+      "Review low-risk content queue rows before any downstream automation.",
+      "Run gated approval, rejection, and signal logging tests only after SOL read-only mode is disabled for preview."
     ]
   };
 }
 
 export function mutationGate(request: Request) {
-  const enabled = process.env.EDEN_SKYE_APPROVAL_WRITE_ENABLED === "true";
-  const expectedToken = process.env.EDEN_SKYE_APPROVAL_TOKEN || "";
-  const suppliedToken = request.headers.get("x-eden-approval-token") || "";
+  const readOnly = solReadOnlyMode();
+  const requiresApproval = solRequiresApprovals();
+  const expectedToken = getApprovalToken();
+  const suppliedToken = request.headers.get("x-eden-approval-token") || request.headers.get("x-sol-approval-token") || "";
 
-  if (!enabled) {
+  if (readOnly) {
     return {
       ok: false,
       status: 423,
-      message: "Eden Skye approval writes are disabled. Set EDEN_SKYE_APPROVAL_WRITE_ENABLED=true only for the sandbox runtime."
+      message: "SOL read-only mode is enabled. Set SOL_READ_ONLY_MODE=false only in preview after read-only validation passes."
     };
   }
 
-  if (!expectedToken || suppliedToken !== expectedToken) {
+  if (requiresApproval && (!expectedToken || suppliedToken !== expectedToken)) {
     return {
       ok: false,
       status: 403,
-      message: "Missing or invalid Eden Skye approval token."
+      message: "Missing or invalid SOL/Eden approval token."
     };
   }
 
@@ -430,7 +460,7 @@ export function mutationGate(request: Request) {
     return {
       ok: false,
       status: 503,
-      message: "Sandbox Supabase admin environment is not configured."
+      message: "Supabase service-role environment is not configured for guarded Eden Skye writes."
     };
   }
 
