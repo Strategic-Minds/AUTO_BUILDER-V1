@@ -43,3 +43,4 @@ jobs:
 # Trigger note: keep this file path in the push filter so smoke-test runs can be registered from repo updates.
 # Manual bridge runner trigger: 2026-05-28T22:23:30Z.
 # Token env patch trigger: 2026-05-28T23:08:00Z.
+# Live bridge rerun trigger: 2026-05-29T00:23:00Z.
