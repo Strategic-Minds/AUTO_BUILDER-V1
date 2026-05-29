@@ -64,15 +64,15 @@ async function tableVisibility(table: string) {
   const key = supabaseKey();
 
   if (!url || !key) {
-    return { table, visible: false, count: null, error: "Supabase URL or key is missing." };
+    return { table, readable: false, count: null, error: "Supabase URL or key is missing." };
   }
 
   const client = createClient(url, key);
-  const { count, error } = await client.from(table).select("id", { count: "exact", head: true });
+  const { count, error } = await client.from(table).select("id", { count: "exact" }).limit(1);
 
   return {
     table,
-    visible: !error,
+    readable: !error,
     count: error ? null : count,
     error: error?.message || null
   };
