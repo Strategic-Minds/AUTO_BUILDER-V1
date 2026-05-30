@@ -1,5 +1,29 @@
 # Validation Report
 
+## May 29, 2026 Readiness Polish
+Production recovery and bridge validation were rerun on May 29, 2026 UTC after the stale Vercel failure was cleared by commit `8793d14527a513d1c6c3f327335553ed8cf5b543`.
+
+### Verified
+- Latest GitHub-to-Vercel production recovery commit returned a successful Vercel check.
+- Auto Builder control plane health returned healthy on the Vercel-hosted control-plane service.
+- Supabase project `prhppuuwcnmfdhwsagug` reported `ACTIVE_HEALTHY`.
+- `scheduler_verification` showed `/api/cron/recursive-control` executing every 5 minutes with current `executed` receipts.
+- `execution_traces` showed 279 traces in the prior 24 hours, all with `success` status.
+- `runtime_telemetry_events` returned no `failed`, `error`, or `blocked` events in the inspected window.
+- Queue telemetry showed protected work continuing to land in `approval_hold`, which is expected governance behavior.
+
+### Polished
+- Added a live operational readiness snapshot that reads Supabase scheduler, execution, telemetry, and blocker receipts.
+- Split direct mutation readiness from bridge readiness so missing direct secrets no longer falsely imply the GitHub, Vercel, or Supabase bridge is down.
+- Updated `/api/factory/readiness` to expose `operationalReadiness` alongside the existing static factory matrix.
+- Updated `/api/factory/blocker-monitor` so it only creates active connector blockers for connectors without direct readiness or current bridge evidence.
+- Updated `/api/cron/factory-readiness` so cron receipts include the same operational readiness evidence.
+
+### Remaining Cleanup
+- Stale open bridge blocker records from May 26, 2026 should be closed or archived after explicit data-mutation approval.
+- Connectors without current direct readiness or bridge evidence should remain in fallback mode.
+- Production release should still require human approval before merging this polish branch.
+
 ## Current Status
 Production validation was rerun on May 27, 2026 UTC against `Strategic-Minds/AUTO_BUILDER`, the repo connected to the Vercel project `auto-builder`. The live production app is healthy across the checked release routes, while Supabase write access and Google Drive export remain blocked in this runtime.
 
@@ -53,7 +77,6 @@ Production validation was rerun on May 27, 2026 UTC against `Strategic-Minds/AUT
 - Fresh production deployment from this runtime
 - Live Supabase migration
 - Drive export
-- Browser automation screenshot pass
 - Browser automation screenshot pass
 
 ## Release Blockers
