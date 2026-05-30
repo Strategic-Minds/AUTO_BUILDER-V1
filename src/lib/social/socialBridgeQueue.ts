@@ -1,6 +1,6 @@
 import { insertTelemetry, readTelemetryByQuery, updateTelemetry } from '@/lib/telemetry-store';
 import { createMetricoolFacebookDraft, getMetricoolBridgeStatus } from './metricoolClient';
-import { SocialBridgeCreateInput, SocialBridgeJob } from './socialBridgeTypes';
+import type { SocialBridgeCreateInput, SocialBridgeJob } from './socialBridgeTypes';
 
 const SOCIAL_QUEUE_NAME = 'eden_skye_social_bridge';
 
