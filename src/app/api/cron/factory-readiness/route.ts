@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { factoryReadiness, buildCapabilityTestMatrix } from "@/lib/factory";
+import { buildOperationalReadinessSnapshot } from "@/lib/operational-readiness";
 
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
@@ -16,12 +17,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const operationalReadiness = await buildOperationalReadinessSnapshot();
+
   return NextResponse.json({
-    ok: true,
+    ok: operationalReadiness.status === "operational",
     job: "factory-readiness",
     queued: true,
     productionActionAllowed: false,
     timestamp: new Date().toISOString(),
+    operationalReadiness,
     factory: factoryReadiness,
     capabilityMatrix: buildCapabilityTestMatrix()
   });
