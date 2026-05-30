@@ -1,4 +1,5 @@
-import { ProviderBridgeAction, ProviderRiskClass, requiresApproval } from './providerTypes';
+import type { ProviderBridgeAction, ProviderRiskClass } from './providerTypes';
+import { requiresApproval } from './providerTypes';
 
 export type ProviderWritePolicy = {
   readEnabled: boolean;
