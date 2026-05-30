@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { factoryReadiness, buildCapabilityTestMatrix } from "@/lib/factory";
 import { buildOperationalReadinessSnapshot } from "@/lib/operational-readiness";
 
+export const dynamic = "force-dynamic";
+
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
   if (!expected) {
