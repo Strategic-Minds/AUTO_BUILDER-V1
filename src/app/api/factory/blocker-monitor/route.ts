@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { factoryReadiness, templateLibrary } from "@/lib/factory";
 import { buildOperationalReadinessSnapshot, type OperationalConnectorReadiness } from "@/lib/operational-readiness";
 
+export const dynamic = "force-dynamic";
+
 export type ActiveBlockerRecord = {
   id: string;
   title: string;
