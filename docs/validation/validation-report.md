@@ -1,21 +1,26 @@
 # Validation Report
 
-## May 30, 2026 Vercel Cron Recovery
+## May 30, 2026 Vercel Recovery
 Promotion validation found that the current `main` branch was already failing the Vercel check at commit `30b1fa27193e9a297efe0bb4df357cb0cd98ba36`, before the readiness polish could be merged.
 
 ### Root Cause
-- Commit `30b1fa27193e9a297efe0bb4df357cb0cd98ba36` added `/api/cron/social-bridge` to `vercel.json` on a `*/5 * * * *` schedule.
-- The Vercel check for that commit failed after the new cron registration landed.
-- Vercel validates cron registrations during deployment, so invalid or plan-incompatible cron schedules can block the whole production deploy.
+- The known-good production recovery commit was `8793d14527a513d1c6c3f327335553ed8cf5b543`.
+- The later failing `main` commit stack added the experimental social/provider bridge runtime, including `/api/cron/social-bridge`, `/api/bridge/social-media/draft`, provider catalog/status modules, Metricool client code, and an additional Vercel cron registration.
+- Removing only the Vercel cron registration was not enough; the branch still failed until the experimental social/provider runtime files were removed from the deploy path.
 
 ### Fix Applied
-- Removed `/api/cron/social-bridge` from `vercel.json` so the deployment returns to the previously working cron registration set.
-- Kept `src/app/api/cron/social-bridge/route.ts` in the codebase so the social bridge remains callable by a governed control-plane trigger or a future scheduler lane.
+- Removed `/api/cron/social-bridge` from `vercel.json`.
+- Removed the experimental social/provider bridge runtime files that were introduced after the known-good recovery point.
+- Kept the readiness polish focused on GitHub, Vercel, and Supabase operational reporting.
 - Preserved the existing `/api/cron/recursive-control` cron as the bounded automation trigger.
 
+### Validation
+- Branch head `7540743df99c07c917dce7ee4e1806f360fe0ad8` returned a successful Vercel check after the social/provider bridge runtime was removed from the deployment surface.
+- The branch remains ahead of `main` and behind by zero commits.
+
 ### Release Rule
-- Do not promote the readiness polish until the Vercel check on this branch returns green.
-- If social bridge needs first-class Vercel scheduling later, add it by replacing or consolidating an existing cron slot, or by moving the fan-out into an already registered governed cron route.
+- Do not promote any new social bridge scheduler or external-write runtime until it has its own build-green sandbox receipt and explicit approval.
+- If social bridge needs first-class Vercel scheduling later, add it by replacing or consolidating an existing cron slot, or by moving fan-out into an already registered governed cron route.
 
 ## May 29, 2026 Readiness Polish
 Production recovery and bridge validation were rerun on May 29, 2026 UTC after the stale Vercel failure was cleared by commit `8793d14527a513d1c6c3f327335553ed8cf5b543`.
