@@ -5,6 +5,8 @@ import { blockerAutonomyPolicy } from "@/lib/blocker-remediation";
 import { buildFinanceCommandCenter, defaultFinanceScenarios } from "@/lib/finance-sim";
 import { buildOperationalReadinessSnapshot } from "@/lib/operational-readiness";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const operationalReadiness = await buildOperationalReadinessSnapshot();
 
