@@ -4,7 +4,7 @@ import { buildOperationalReadinessSnapshot, type OperationalConnectorReadiness }
 
 export const dynamic = "force-dynamic";
 
-export type ActiveBlockerRecord = {
+type ActiveBlockerRecord = {
   id: string;
   title: string;
   summary: string;
