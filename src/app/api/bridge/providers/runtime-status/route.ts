@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getRuntimeProviderStatus } from '@/lib/providers/runtimeProviderStatus';
 import { insertTelemetry } from '@/lib/telemetry-store';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const status = getRuntimeProviderStatus();
 
