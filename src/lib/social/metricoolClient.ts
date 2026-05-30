@@ -1,4 +1,4 @@
-import { SocialBridgeJob } from './socialBridgeTypes';
+import type { SocialBridgeJob } from './socialBridgeTypes';
 
 export type MetricoolDraftResult = {
   ok: boolean;
