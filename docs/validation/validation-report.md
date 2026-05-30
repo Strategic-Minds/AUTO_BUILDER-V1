@@ -1,5 +1,22 @@
 # Validation Report
 
+## May 30, 2026 Vercel Cron Recovery
+Promotion validation found that the current `main` branch was already failing the Vercel check at commit `30b1fa27193e9a297efe0bb4df357cb0cd98ba36`, before the readiness polish could be merged.
+
+### Root Cause
+- Commit `30b1fa27193e9a297efe0bb4df357cb0cd98ba36` added `/api/cron/social-bridge` to `vercel.json` on a `*/5 * * * *` schedule.
+- The Vercel check for that commit failed after the new cron registration landed.
+- Vercel validates cron registrations during deployment, so invalid or plan-incompatible cron schedules can block the whole production deploy.
+
+### Fix Applied
+- Removed `/api/cron/social-bridge` from `vercel.json` so the deployment returns to the previously working cron registration set.
+- Kept `src/app/api/cron/social-bridge/route.ts` in the codebase so the social bridge remains callable by a governed control-plane trigger or a future scheduler lane.
+- Preserved the existing `/api/cron/recursive-control` cron as the bounded automation trigger.
+
+### Release Rule
+- Do not promote the readiness polish until the Vercel check on this branch returns green.
+- If social bridge needs first-class Vercel scheduling later, add it by replacing or consolidating an existing cron slot, or by moving the fan-out into an already registered governed cron route.
+
 ## May 29, 2026 Readiness Polish
 Production recovery and bridge validation were rerun on May 29, 2026 UTC after the stale Vercel failure was cleared by commit `8793d14527a513d1c6c3f327335553ed8cf5b543`.
 
