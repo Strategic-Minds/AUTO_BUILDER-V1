@@ -4,6 +4,8 @@ import { runSocialBridgeOnce } from '@/lib/social/socialBridgeQueue';
 import { getRuntimeProviderStatus } from '@/lib/providers/runtimeProviderStatus';
 import { insertTelemetry } from '@/lib/telemetry-store';
 
+export const dynamic = 'force-dynamic';
+
 function serializeError(error: unknown) {
   if (error instanceof Error) {
     return { name: error.name, message: error.message, stack: error.stack };
