@@ -3,6 +3,8 @@ import { queueSocialBridgeJob } from '@/lib/social/socialBridgeQueue';
 import { evaluateProviderAction } from '@/lib/providers/providerSafety';
 import { insertTelemetry } from '@/lib/telemetry-store';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as {
     brand_id?: string;
