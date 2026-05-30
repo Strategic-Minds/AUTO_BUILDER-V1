@@ -1,4 +1,4 @@
-import { ProviderId, ProviderRiskClass } from './providerTypes';
+import type { ProviderId, ProviderRiskClass } from './providerTypes';
 
 export type ProviderTargetLabel = {
   id: string;
