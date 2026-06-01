@@ -1,7 +1,12 @@
-export const AUTO_BUILDER_VERSION = "0.4.0";
+export const AUTO_BUILDER_VERSION = "0.4.1";
 
 export const PROTECTED_MUTATION_RULE =
   "No protected mutation without Jeremy explicit current-session command.";
+
+const GITHUB_WORKFLOW_DISPATCH_REPO_ALLOWLIST = ["Strategic-Minds/AUTO_BUILDER"];
+const GITHUB_WORKFLOW_DISPATCH_FILE_ALLOWLIST = [
+  ".github/workflows/awos-gpt-workflow-bridge.yml"
+];
 
 type JsonRecord = Record<string, unknown>;
 
@@ -26,6 +31,14 @@ type WorkflowBridgeRequest = {
   requires_human_approval: boolean;
   validation_plan: string[];
   rollback_plan: string[];
+};
+
+type WorkflowDispatchRequest = {
+  repo: string;
+  workflow_file: string;
+  ref: string;
+  reason: string;
+  approval_text: string;
 };
 
 function asRecord(value: unknown): JsonRecord {
@@ -165,6 +178,16 @@ function parseWorkflowBridgeRequest(input: JsonRecord) {
   } satisfies WorkflowBridgeRequest;
 }
 
+function parseWorkflowDispatchRequest(input: JsonRecord) {
+  return {
+    repo: typeof input.repo === "string" ? input.repo : "",
+    workflow_file: typeof input.workflow_file === "string" ? input.workflow_file : "",
+    ref: typeof input.ref === "string" ? input.ref : "",
+    reason: typeof input.reason === "string" ? input.reason : "",
+    approval_text: typeof input.approval_text === "string" ? input.approval_text : ""
+  } satisfies WorkflowDispatchRequest;
+}
+
 function validateWorkflowBridgeRequest(request: WorkflowBridgeRequest) {
   const errors: string[] = [];
 
@@ -182,6 +205,31 @@ function validateWorkflowBridgeRequest(request: WorkflowBridgeRequest) {
   }
   if (request.trigger_type.toLowerCase().includes("schedule") && !request.schedule_cron) {
     errors.push("schedule_cron is required for schedule triggers.");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
+function validateWorkflowDispatchRequest(request: WorkflowDispatchRequest, explicit: boolean) {
+  const errors: string[] = [];
+
+  if (!explicit) errors.push(PROTECTED_MUTATION_RULE);
+  if (!request.repo) errors.push("Missing repo.");
+  if (!request.workflow_file) errors.push("Missing workflow_file.");
+  if (!request.ref) errors.push("Missing ref.");
+  if (!request.reason) errors.push("Missing reason.");
+  if (!request.approval_text) errors.push("Missing approval_text.");
+  if (!request.approval_text.includes("APPPROVAL GRANTED")) {
+    errors.push("approval_text must contain APPPROVAL GRANTED.");
+  }
+  if (!GITHUB_WORKFLOW_DISPATCH_REPO_ALLOWLIST.includes(request.repo)) {
+    errors.push(`Repo is not allowlisted: ${request.repo}`);
+  }
+  if (!GITHUB_WORKFLOW_DISPATCH_FILE_ALLOWLIST.includes(request.workflow_file)) {
+    errors.push(`Workflow file is not allowlisted: ${request.workflow_file}`);
   }
 
   return {
@@ -264,6 +312,28 @@ async function upsertGitHubWorkflow(request: WorkflowBridgeRequest, workflowYaml
   };
 }
 
+async function dispatchGitHubWorkflow(request: WorkflowDispatchRequest) {
+  const workflowPath = encodeRepoPath(request.workflow_file);
+  const dispatchUrl = `https://api.github.com/repos/${request.repo}/actions/workflows/${workflowPath}/dispatches`;
+
+  await githubApiRequest(dispatchUrl, {
+    method: "POST",
+    body: JSON.stringify({
+      ref: request.ref,
+      inputs: {
+        reason: request.reason,
+        approval_text: request.approval_text
+      }
+    })
+  });
+
+  return {
+    status: "dispatched",
+    workflow_run_url: `https://github.com/${request.repo}/actions/workflows/${request.workflow_file.split("/").pop()}`,
+    run_id: null
+  };
+}
+
 function isGitHubWorkflowBridgeRequest(input: JsonRecord) {
   return (
     input.action === "create_github_workflow" ||
@@ -271,6 +341,10 @@ function isGitHubWorkflowBridgeRequest(input: JsonRecord) {
     input.bridgeTarget === "github_workflow" ||
     (typeof input.target_path === "string" && input.target_path.startsWith(".github/workflows/"))
   );
+}
+
+function isGitHubWorkflowDispatchRequest(input: JsonRecord) {
+  return input.action === "dispatch_github_workflow" || input.bridgeTarget === "github_workflow_dispatch";
 }
 
 async function handleGitHubWorkflowBridge(input: JsonRecord) {
@@ -347,6 +421,49 @@ async function handleGitHubWorkflowBridge(input: JsonRecord) {
       result_summary: "GitHub workflow bridge failed during write execution.",
       blockers: [error instanceof Error ? error.message : "Unknown GitHub bridge error."],
       next_action: "Verify runtime GitHub token configuration and retry."
+    };
+  }
+}
+
+async function handleGitHubWorkflowDispatchBridge(input: JsonRecord) {
+  const request = parseWorkflowDispatchRequest(input);
+  const explicit = input.currentSessionExplicitCommand === true;
+  const validation = validateWorkflowDispatchRequest(request, explicit);
+
+  if (!validation.valid) {
+    return {
+      status: "blocked",
+      repo: request.repo,
+      workflow_file: request.workflow_file,
+      ref: request.ref,
+      errors: validation.errors,
+      next_validation_step: "Correct request, confirm approval text, and retry."
+    };
+  }
+
+  try {
+    const result = await dispatchGitHubWorkflow(request);
+    return {
+      status: result.status,
+      repo: request.repo,
+      workflow_file: request.workflow_file,
+      ref: request.ref,
+      reason: request.reason,
+      workflow_run_url: result.workflow_run_url,
+      run_id: result.run_id,
+      errors: [],
+      next_validation_step: "Inspect the latest run for this workflow, then fetch jobs, logs, and artifacts."
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      repo: request.repo,
+      workflow_file: request.workflow_file,
+      ref: request.ref,
+      workflow_run_url: null,
+      run_id: null,
+      errors: [error instanceof Error ? error.message : "Unknown GitHub workflow dispatch error."],
+      next_validation_step: "Verify runtime GitHub token has Actions write permission and retry."
     };
   }
 }
@@ -459,12 +576,24 @@ export function bridgeRegistry() {
       governedTargetPrefix: ".github/workflows/",
       rule: PROTECTED_MUTATION_RULE
     },
+    githubWorkflowDispatchBridge: {
+      route: "/api/bridge/http",
+      target: "github_workflow_dispatch",
+      supportedActions: ["dispatch_github_workflow"],
+      repoAllowlist: GITHUB_WORKFLOW_DISPATCH_REPO_ALLOWLIST,
+      workflowAllowlist: GITHUB_WORKFLOW_DISPATCH_FILE_ALLOWLIST,
+      rule: PROTECTED_MUTATION_RULE
+    },
     rule: "Use strongest safe bridge available."
   };
 }
 
 export async function genericHttpBridgePlan(input: Record<string, unknown>) {
   const normalized = asRecord(input);
+
+  if (isGitHubWorkflowDispatchRequest(normalized)) {
+    return handleGitHubWorkflowDispatchBridge(normalized);
+  }
 
   if (isGitHubWorkflowBridgeRequest(normalized)) {
     return handleGitHubWorkflowBridge(normalized);
