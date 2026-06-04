@@ -11,6 +11,22 @@ function serializeError(error: unknown) {
   return { message: typeof error === 'string' ? error : JSON.stringify(error) };
 }
 
+function getResultBlocker(result: Awaited<ReturnType<typeof runSocialBridgeOnce>>) {
+  if (result.ok) {
+    return null;
+  }
+
+  const error = 'error' in result ? result.error : undefined;
+  const reason = 'reason' in result ? result.reason : undefined;
+  return String(error ?? reason ?? 'social bridge did not complete');
+}
+
+function getProcessedJobCount(result: Awaited<ReturnType<typeof runSocialBridgeOnce>>) {
+  const task = 'task' in result ? result.task : null;
+  const job = 'job' in result ? result.job : null;
+  return task || job ? 1 : 0;
+}
+
 export async function GET(request: NextRequest) {
   const authorization = authorizeCronRequest(request);
   if (!authorization.ok) {
@@ -35,7 +51,7 @@ export async function GET(request: NextRequest) {
       worker: 'eden-skye-social-bridge-cron',
       status: result.ok ? 'success' : 'blocked',
       evidence: JSON.stringify({ result, providerStatus }),
-      blocker: result.ok ? null : String(result.error ?? result.reason ?? 'social bridge did not complete'),
+      blocker: getResultBlocker(result),
       created_at: checkedAt
     });
 
@@ -46,7 +62,7 @@ export async function GET(request: NextRequest) {
       providerStatus,
       result,
       boundedLoop: true,
-      processedJobs: result.task || result.job ? 1 : 0
+      processedJobs: getProcessedJobCount(result)
     });
   } catch (error) {
     const details = serializeError(error);
