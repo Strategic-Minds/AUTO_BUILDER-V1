@@ -166,23 +166,40 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, status: "blocked", reason: "Missing required confirmation token." }, { status: 403 });
   }
 
-  const token = await getGoogleDriveToken();
-  if (!token) {
+  try {
+    const token = await getGoogleDriveToken();
+    if (!token) {
+      return Response.json(
+        {
+          ok: false,
+          status: "blocked",
+          reason:
+            "Missing Google Drive auth. Set GOOGLE_DRIVE_ACCESS_TOKEN/GOOGLE_WORKSPACE_ACCESS_TOKEN or GOOGLE_CLIENT_EMAIL/GOOGLE_SERVICE_ACCOUNT_EMAIL plus GOOGLE_PRIVATE_KEY/GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY."
+        },
+        { status: 403 }
+      );
+    }
+
+    const receipts = [];
+    for (const asset of approvedAssets) {
+      receipts.push(await copyAsset(token, asset));
+    }
+
+    return Response.json({ ok: receipts.every((receipt) => receipt.status === "copied" || receipt.status === "exists"), targetFolderId: TARGET_FOLDER_ID, receipts });
+  } catch (error) {
     return Response.json(
       {
         ok: false,
-        status: "blocked",
-        reason:
-          "Missing Google Drive auth. Set GOOGLE_DRIVE_ACCESS_TOKEN/GOOGLE_WORKSPACE_ACCESS_TOKEN or GOOGLE_CLIENT_EMAIL/GOOGLE_SERVICE_ACCOUNT_EMAIL plus GOOGLE_PRIVATE_KEY/GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY."
+        status: "error",
+        reason: error instanceof Error ? error.message : String(error),
+        expectedAuth: [
+          "GOOGLE_DRIVE_ACCESS_TOKEN",
+          "GOOGLE_WORKSPACE_ACCESS_TOKEN",
+          "GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY",
+          "GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY"
+        ]
       },
-      { status: 403 }
+      { status: 500 }
     );
   }
-
-  const receipts = [];
-  for (const asset of approvedAssets) {
-    receipts.push(await copyAsset(token, asset));
-  }
-
-  return Response.json({ ok: receipts.every((receipt) => receipt.status === "copied" || receipt.status === "exists"), targetFolderId: TARGET_FOLDER_ID, receipts });
 }
