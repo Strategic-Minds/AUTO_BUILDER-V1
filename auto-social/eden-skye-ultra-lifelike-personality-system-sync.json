@@ -1,0 +1,34 @@
+{
+  "sync_name": "Eden Skye Ultra Lifelike Personality System Sync",
+  "created_at": "2026-06-04",
+  "operator": "Eden Skye",
+  "control_plane": "Auto Builder",
+  "source_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+  "drive_outputs": {
+    "personality_system_sheet": "https://docs.google.com/spreadsheets/d/1IaRVb7d0ccUwJMZ0aSjjxZ8W96jqIgMRayoobfbfR0I/edit?usp=drivesdk",
+    "personality_system_brief_doc": "https://docs.google.com/document/d/12Bu-Xd7bkjA4Tkv7vFcMFN1uOGmSj308uYb2MYDV1v0/edit?usp=drivesdk"
+  },
+  "counts": {
+    "model_profiles": 29,
+    "female_profiles": 19,
+    "male_profiles": 10,
+    "automation_lanes": 6,
+    "source_images_needed_for_profiles": 1624
+  },
+  "automation_plan": {
+    "identity_lock": "Use personality records to lock model identity before source-image generation.",
+    "image_factory": "Generate 56 source images per approved model with face continuity and safety review.",
+    "heygen_factory": "Create private HeyGen avatars only after source-pack approval and explicit approval packet.",
+    "content_factory": "Use the 300-topic matrix and personality records to produce weekly queues.",
+    "commerce_factory": "Route approved model identities into offers, downloads, licensing, and memberships after approval.",
+    "telemetry_loop": "Track views, saves, leads, CTR, conversions, and clone winning model/topic combinations."
+  },
+  "approval_gates": {
+    "source_image_generation_allowed": true,
+    "heygen_training_allowed": false,
+    "public_publishing_allowed": false,
+    "shopify_mutation_allowed": false,
+    "production_deploy_allowed": false
+  },
+  "next_factory_action": "Run the 56-image source-pack workflow for selected priority models, starting with F01 and 2-3 expansion models."
+}
