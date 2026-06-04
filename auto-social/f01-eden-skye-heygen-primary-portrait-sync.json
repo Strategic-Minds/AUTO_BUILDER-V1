@@ -1,0 +1,53 @@
+{
+  "sync_name": "F01 Eden Skye HeyGen Primary Portrait Sync",
+  "created_at": "2026-06-04",
+  "operator": "Eden Skye",
+  "control_plane": "Auto Builder",
+  "source_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+  "target_context": "Eden Skye Studios system, brand, workflow, and agent lock",
+  "avatar": {
+    "avatar_id": "F01",
+    "name": "Eden Skye",
+    "role": "primary fictional adult AI luxury creator identity"
+  },
+  "generated_portrait_candidate": {
+    "filename": "f01_eden_skye_heygen_primary_portrait.png",
+    "workspace_path": "/workspace/output/f01_eden_skye_heygen_primary_portrait.png",
+    "format": "PNG",
+    "dimensions": "1122x1402",
+    "sha256": "57fbe694ddf546a1c356d7acac043f75678ba8c5edbda43d544d6e79700fc44c",
+    "status": "generated_pending_drive_upload_and_human_approval"
+  },
+  "drive": {
+    "target_folder_name": "F01 Eden Skye",
+    "target_folder_id": "1q3JsMoHs_EKxn2NyMfX7-uSAE6QcBuJl",
+    "target_folder_url": "https://drive.google.com/drive/folders/1q3JsMoHs_EKxn2NyMfX7-uSAE6QcBuJl",
+    "upload_status": "pending",
+    "upload_blocker": "Current Google Drive connector did not expose raw image upload-to-folder action during this run."
+  },
+  "git_updates": {
+    "eden_skye_studios": [
+      "ops/studio-bootstrap/avatar-stock-index.json",
+      "ops/studio-bootstrap/f01-avatar-readiness-pass.md",
+      "ops/studio-bootstrap/heygen-approval-packets/f01-eden-skye-primary-portrait-approval.md",
+      "ops/studio-bootstrap/receipts/f01-heygen-primary-portrait-generation-receipt.md"
+    ],
+    "auto_builder": [
+      "auto-social/f01-eden-skye-heygen-primary-portrait-sync.json"
+    ]
+  },
+  "approval_gates": {
+    "portrait_human_approval_required": true,
+    "drive_upload_approval_required": true,
+    "heygen_avatar_creation_approval_required": true,
+    "public_publishing_allowed": false,
+    "shopify_mutation_allowed": false,
+    "production_deploy_allowed": false
+  },
+  "next_safe_actions": [
+    "Approve or revise the F01 clean portrait candidate.",
+    "Upload the PNG into the F01 Drive folder once raw image upload capability is available or completed manually.",
+    "Create a private HeyGen photo-avatar only after explicit HeyGen creation approval.",
+    "Record the HeyGen avatar creation receipt and update the GPT/Higgins/HeyGen handoff after creation."
+  ]
+}
