@@ -1,0 +1,110 @@
+{
+  "source": {
+    "studio_folder": "https://drive.google.com/drive/folders/1Agdaq28Lha01ASVdpm1g_CS_x_aObRcT",
+    "auto_social_folder": "https://drive.google.com/drive/folders/1jr4mrgdzvdywfY9j-QD4Ma2LurR9yLo9",
+    "avatar_network_folder": "https://drive.google.com/drive/folders/19qdJPbuWdPxl9oU6KKYR-IWIoGRpHlhw",
+    "registry_csv": "https://drive.google.com/file/d/1lmrYVkDsbTpMNiG4nrmDI8afBhWB8c-0/view?usp=drivesdk",
+    "discovered_at": "2026-06-04"
+  },
+  "avatars": [
+    {
+      "id": "F01",
+      "name": "Eden Skye",
+      "gender": "Female",
+      "niche": "AI influencer and future lifestyle",
+      "primary_platform": "TikTok",
+      "status": "Planned",
+      "drive_folder": "https://drive.google.com/drive/folders/1q3JsMoHs_EKxn2NyMfX7-uSAE6QcBuJl",
+      "asset_count_discovered": 3,
+      "assets_discovered": [
+        "ChatGPT Image Jun 4, 2026, 12_02_18 AM.png",
+        "ChatGPT Image Jun 3, 2026, 11_27_37 PM.png",
+        "ChatGPT Image Jun 3, 2026, 11_17_55 PM.png"
+      ],
+      "notes": "Primary Eden Skye fictional adult AI luxury creator identity. Use local Eden profile references for visual continuity and platform-safe premium tone."
+    },
+    {
+      "id": "F02",
+      "name": "Luna Vale",
+      "gender": "Female",
+      "niche": "Luxury lifestyle and aesthetics",
+      "primary_platform": "Instagram",
+      "status": "Planned",
+      "drive_folder": "https://drive.google.com/drive/folders/1SebSUoMX7tMTtE2EnuxUzhyGBjBXjzwC"
+    },
+    {
+      "id": "F03",
+      "name": "Nova Rae",
+      "gender": "Female",
+      "niche": "AI tools and creator tech",
+      "primary_platform": "TikTok",
+      "status": "Planned",
+      "drive_folder": "https://drive.google.com/drive/folders/1dZ41LA84jURKymuOVt_upguCVpOe3g5A"
+    },
+    {
+      "id": "F04",
+      "name": "Scarlett Frost",
+      "gender": "Female",
+      "niche": "Fitness and discipline",
+      "primary_platform": "Instagram",
+      "status": "Planned",
+      "drive_folder": "https://drive.google.com/drive/folders/1CmwaSe8Wsc6PSv74zabkA2WSrC1Cfinl"
+    },
+    {
+      "id": "F05",
+      "name": "Aria Bloom",
+      "gender": "Female",
+      "niche": "Wellness and confidence",
+      "primary_platform": "Pinterest",
+      "status": "Planned",
+      "drive_folder": "https://drive.google.com/drive/folders/15Na6tRYaCQD8ndCjMsf7ffMIYdxcJXKh"
+    },
+    {
+      "id": "M01",
+      "name": "Atlas Kane",
+      "gender": "Male",
+      "niche": "Entrepreneurship",
+      "primary_platform": "TikTok",
+      "status": "Planned"
+    },
+    {
+      "id": "M02",
+      "name": "Jaxon Steele",
+      "gender": "Male",
+      "niche": "Sales and marketing",
+      "primary_platform": "Facebook",
+      "status": "Planned"
+    },
+    {
+      "id": "M03",
+      "name": "Orion Black",
+      "gender": "Male",
+      "niche": "AI automation",
+      "primary_platform": "Reddit",
+      "status": "Planned"
+    },
+    {
+      "id": "M04",
+      "name": "Ryder Cross",
+      "gender": "Male",
+      "niche": "Motivation",
+      "primary_platform": "TikTok",
+      "status": "Planned"
+    },
+    {
+      "id": "M05",
+      "name": "Mason Cole",
+      "gender": "Male",
+      "niche": "Creator economy",
+      "primary_platform": "Instagram",
+      "status": "Planned"
+    }
+  ],
+  "continuity_rules": [
+    "Keep Eden Skye fictional, adult, platform-safe, and clearly non-deceptive.",
+    "Preserve avatar-specific niche and platform assignment.",
+    "Do not publish or schedule live posts without approval.",
+    "Do not generate explicit or exploitative content.",
+    "Use Drive asset folders as source references and Git as bridge metadata/source-control."
+  ]
+}
