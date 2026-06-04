@@ -1,0 +1,21 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/discover",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/publish-due",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/analytics",
+      "schedule": "0 */6 * * *"
+    }
+  ],
+  "notes": [
+    "Draft only. Do not promote to production Vercel without approval.",
+    "Cron routes should enqueue work and write receipts; they should not publish live content directly.",
+    "AUTO_SOCIAL_MODE must remain sandbox until Jeremy approves promotion."
+  ]
+}
