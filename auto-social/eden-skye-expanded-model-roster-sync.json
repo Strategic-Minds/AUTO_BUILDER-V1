@@ -1,0 +1,35 @@
+{
+  "sync_name": "Eden Skye Expanded Model Roster Sync",
+  "created_at": "2026-06-04",
+  "operator": "Eden Skye",
+  "control_plane": "Auto Builder",
+  "source_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+  "drive_outputs": {
+    "expanded_roster_sheet": "https://docs.google.com/spreadsheets/d/1jM8q44pkf9Gzo8KuOl2L6cUYPHnpgvbkp09ivvMjvgc/edit?usp=drivesdk",
+    "expanded_roster_brief_doc": "https://docs.google.com/document/d/1f6RFu5FTVlmrkIted8uEperQsik4AUj8nkyoDmXrjfA/edit?usp=drivesdk"
+  },
+  "created": {
+    "new_female_personalities": 19,
+    "new_male_personalities": 10,
+    "female_age_cohorts": {
+      "25_to_45": 10,
+      "50s": 3,
+      "60s": 3,
+      "70s": 3
+    },
+    "visual_boards": 5
+  },
+  "status": "personalities_created_visual_boards_created_source_images_pending",
+  "next_factory_lane": "Generate 56-image source pack per approved model, starting with F01, then F11-F20 or selected priority models.",
+  "approval_gates": {
+    "heygen_training_allowed": false,
+    "public_use_allowed": false,
+    "shopify_mutation_allowed": false,
+    "production_deploy_allowed": false
+  },
+  "drive_limitations": {
+    "native_sheet_doc_uploaded": true,
+    "parent_folder_assignment_available": false,
+    "raw_png_upload_to_drive_folder_available": false
+  }
+}
