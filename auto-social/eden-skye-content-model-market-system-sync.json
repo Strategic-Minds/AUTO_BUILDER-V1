@@ -1,0 +1,33 @@
+{
+  "sync_name": "Eden Skye Content Model Market System Sync",
+  "created_at": "2026-06-04",
+  "operator": "Eden Skye",
+  "control_plane": "Auto Builder",
+  "source_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+  "google_sheet_url": "https://docs.google.com/spreadsheets/d/1vS_BwPO0W5hum2496thT1mkbD3uJ20DADGPVHTQ8g4s/edit?usp=drivesdk",
+  "validated_counts": {
+    "topics": 300,
+    "female_models": 10,
+    "male_models": 5,
+    "images_per_model": 56,
+    "female_source_images_needed": 560,
+    "full_roster_source_images_needed": 840
+  },
+  "lanes": {
+    "topic_factory": "300 trend-informed topics mapped to platforms, age groups, financial segments, keywords, time windows, and funnel stage",
+    "model_factory": "10 female AI avatar archetypes plus male model positioning for female viewers and clients",
+    "image_factory": "56-image source pack per model before HeyGen training or public publishing",
+    "governance": "No HeyGen training, public publishing, Shopify mutation, or deploy without explicit approval"
+  },
+  "drive_status": {
+    "sheet_uploaded": true,
+    "sheet_parent_folder": "not_set_by_current_drive_import_connector",
+    "raw_image_folder_upload": "not_available_in_current_drive_connector_surface"
+  },
+  "next_actions": [
+    "Select the first 2-3 model archetypes to turn into full individuals.",
+    "Generate the 56-image source pack for F01 first, then clone the process across approved models.",
+    "Move or place the Google Sheet into the Eden Skye Studios Drive folder when folder-parent editing is available.",
+    "Do not start HeyGen training until source images are approved and indexed."
+  ]
+}
