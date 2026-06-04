@@ -1,0 +1,50 @@
+{
+  "sync_name": "Eden Skye Studios Auto Social Sync",
+  "validated_at": "2026-06-04",
+  "status": "brand_repo_bootstrapped",
+  "repos": {
+    "auto_builder": {
+      "name": "Strategic-Minds/AUTO_BUILDER",
+      "url": "https://github.com/Strategic-Minds/AUTO_BUILDER",
+      "role": "Factory orchestration, governance, build packets, cross-system validation, sandbox promotion."
+    },
+    "eden_studios": {
+      "name": "Strategic-Minds/EDENSKYESTUDIOS",
+      "url": "https://github.com/Strategic-Minds/EDENSKYESTUDIOS",
+      "role": "Active Eden Skye Studios brand/control repo, media manifest source, app/control surface, launch workflow."
+    },
+    "eden_skye_secondary": {
+      "name": "Strategic-Minds/EDEN_SKYE",
+      "url": "https://github.com/Strategic-Minds/EDEN_SKYE",
+      "role": "Secondary/minimal repo discovered; not modified in this bootstrap pass."
+    }
+  },
+  "drive": {
+    "studio_root_id": "1Agdaq28Lha01ASVdpm1g_CS_x_aObRcT",
+    "studio_root_url": "https://drive.google.com/drive/folders/1Agdaq28Lha01ASVdpm1g_CS_x_aObRcT",
+    "auto_social_folder_id": "1jr4mrgdzvdywfY9j-QD4Ma2LurR9yLo9",
+    "avatar_network_folder_id": "19qdJPbuWdPxl9oU6KKYR-IWIoGRpHlhw",
+    "eden_avatar_folder_id": "1q3JsMoHs_EKxn2NyMfX7-uSAE6QcBuJl"
+  },
+  "eden_repo_bootstrap_files": [
+    "ops/studio-bootstrap/README.md",
+    "ops/studio-bootstrap/manifest.json",
+    "ops/studio-bootstrap/drive-index.md",
+    "ops/studio-bootstrap/avatar-stock-index.json",
+    "ops/studio-bootstrap/gpt-higgins-heygen-handoff.md",
+    "ops/studio-bootstrap/automation-approval-matrix.json",
+    "ops/studio-bootstrap/sync-receipt.md"
+  ],
+  "avatar_source_images": [
+    {
+      "avatar_id": "F01",
+      "name": "Eden Skye",
+      "drive_file_ids": [
+        "1bGqd754UezoKLNhfcGsUrTCgrmbUqa_5",
+        "1g02LVzAEg5gLBdcpbyM_T8PwTGrdmAWj",
+        "14rhoKGJWc-dgn66XCbfNEjKfAbEtPPZg"
+      ]
+    }
+  ],
+  "next_builder_instruction": "Rehydrate from Strategic-Minds/EDENSKYESTUDIOS ops/studio-bootstrap/manifest.json and avatar-stock-index.json, then run an F01 Eden Skye avatar readiness scoring pass. Do not create/train HeyGen avatars, apply Supabase migrations, deploy, publish, schedule, or mutate commerce without Jeremy's explicit current-session approval."
+}
