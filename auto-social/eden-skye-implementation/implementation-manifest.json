@@ -1,0 +1,58 @@
+{
+  "name": "Eden Skye Studios Auto Builder Full Implementation Packet",
+  "created_at": "2026-06-04",
+  "control_plane": "Auto Builder",
+  "source_repo": "Strategic-Minds/AUTO_BUILDER",
+  "business_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+  "factory_surfaces": [
+    "/api/factory/readiness",
+    "/api/factory/router",
+    "/api/factory/build-packet",
+    "/api/factory/capability-test",
+    "/api/factory/reverse-engineering",
+    "/api/cron/factory-readiness",
+    "/api/cron/reverse-engineering-passive",
+    "/api/cron/eden-readiness",
+    "/api/cron/eden-trend-scan",
+    "/api/cron/eden-content-drafts",
+    "/api/cron/eden-asset-queue",
+    "/api/cron/eden-telemetry-review"
+  ],
+  "providers": [
+    "github",
+    "vercel",
+    "supabase",
+    "shopify",
+    "openai",
+    "vercel_ai_gateway",
+    "heygen",
+    "runway",
+    "descript",
+    "google_workspace",
+    "metricool",
+    "klaviyo",
+    "stripe"
+  ],
+  "cron_policy": {
+    "requested_frequency": "5 minutes",
+    "sandbox_allowed": true,
+    "production_allowed_before_gates": false,
+    "security": "CRON_SECRET required",
+    "vercel_json_example": {
+      "crons": [
+        {
+          "path": "/api/cron/eden-readiness",
+          "schedule": "*/5 * * * *"
+        }
+      ]
+    }
+  },
+  "approval_gates": {
+    "public_publishing": false,
+    "production_deploy": false,
+    "shopify_mutation": false,
+    "payment_changes": false,
+    "heygen_training": false
+  },
+  "next_implementation_step": "Build Supabase media_assets + approval_requests tables and admin approval console in sandbox."
+}
