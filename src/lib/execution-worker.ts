@@ -1,3 +1,4 @@
+import { createSign } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 export type WorkerAction =
@@ -44,10 +45,59 @@ function requireString(payload: Record<string, unknown>, key: string) {
   return value.trim();
 }
 
-function getGoogleDriveToken() {
+function base64Url(input: string | Buffer) {
+  return Buffer.from(input).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function getGooglePrivateKey() {
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY ?? process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  return privateKey?.replace(/\\n/g, "\n");
+}
+
+async function mintGoogleServiceAccountToken() {
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL ?? process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = getGooglePrivateKey();
+  if (!clientEmail || !privateKey) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = base64Url(
+    JSON.stringify({
+      iss: clientEmail,
+      scope: "https://www.googleapis.com/auth/drive",
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600
+    })
+  );
+  const unsignedJwt = `${header}.${claims}`;
+  const signature = createSign("RSA-SHA256").update(unsignedJwt).sign(privateKey);
+  const assertion = `${unsignedJwt}.${base64Url(signature)}`;
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion
+    })
+  });
+  const body = parseJsonIfPossible(await response.text()) as { access_token?: unknown; error?: unknown; error_description?: unknown } | string | null;
+  if (!response.ok || !body || typeof body === "string" || typeof body.access_token !== "string") {
+    const reason = body && typeof body === "object" ? body.error_description ?? body.error : body;
+    throw new Error(`Google service-account token exchange failed${reason ? `: ${String(reason)}` : ""}`);
+  }
+  return body.access_token;
+}
+
+async function getGoogleDriveToken() {
   const token = process.env.GOOGLE_DRIVE_ACCESS_TOKEN ?? process.env.GOOGLE_WORKSPACE_ACCESS_TOKEN;
-  if (!token) throw new Error("Missing GOOGLE_DRIVE_ACCESS_TOKEN or GOOGLE_WORKSPACE_ACCESS_TOKEN");
-  return token;
+  if (token) return token;
+  const serviceAccountToken = await mintGoogleServiceAccountToken();
+  if (serviceAccountToken) return serviceAccountToken;
+  throw new Error(
+    "Missing Google Drive auth. Set GOOGLE_DRIVE_ACCESS_TOKEN/GOOGLE_WORKSPACE_ACCESS_TOKEN or GOOGLE_CLIENT_EMAIL/GOOGLE_SERVICE_ACCOUNT_EMAIL plus GOOGLE_PRIVATE_KEY/GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY."
+  );
 }
 
 function requireWorkerEnabled(request: WorkerRequest) {
@@ -120,7 +170,7 @@ async function uploadBytesToFolder(params: { folderId: string; filename: string;
 }
 
 async function uploadFileToFolder(payload: Record<string, unknown>) {
-  const token = getGoogleDriveToken();
+  const token = await getGoogleDriveToken();
   const folderId = requireString(payload, "folderId");
   const filename = requireString(payload, "filename");
   const mimeType = requireString(payload, "mimeType");
@@ -131,7 +181,7 @@ async function uploadFileToFolder(payload: Record<string, unknown>) {
 }
 
 async function copyFileToFolder(payload: Record<string, unknown>) {
-  const token = getGoogleDriveToken();
+  const token = await getGoogleDriveToken();
   const sourceFileId = requireString(payload, "sourceFileId");
   const folderId = requireString(payload, "folderId");
   const requestedName = typeof payload.filename === "string" && payload.filename.trim() ? payload.filename.trim() : undefined;
