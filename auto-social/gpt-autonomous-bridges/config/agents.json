@@ -1,0 +1,23 @@
+{
+  "agents": [
+    "master-orchestrator",
+    "trend-discovery",
+    "trend-analysis",
+    "content-planner",
+    "avatar-assignment",
+    "script-writer",
+    "production-director",
+    "editor",
+    "qa-validator",
+    "scheduler",
+    "publisher",
+    "analytics",
+    "optimizer",
+    "evolution",
+    "monetization"
+  ],
+  "source": "EDEN SKYE STUDIOS / AUTO SOCIAL / 13-GITHUB-BOOTSTRAP / gpt-autonomous-bridges/config/agents.json",
+  "operating_mode": "sandbox-first",
+  "avatar_registry": "../../avatar-registry.json",
+  "receipt_policy": "Every agent run should log mode, input, output, status, and approval state before downstream action."
+}
