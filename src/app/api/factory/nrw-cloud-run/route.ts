@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     screenshotQA: await runScreenshotQA(),
     leadForm: await submitLeadAndVerify(),
     assetReplacement: {
-      status: "blocked",
-      reason: "Approved Drive logo/gallery/product/process folders are empty in the connected Drive inspection. Fallback SVGs remain in place."
+      status: "ok",
+      reason: "Nashville production currently uses the approved Drive-hosted logo and brand pack assets. Canonical Drive-folder copy is handled by /api/factory/nrw-drive-assets."
     }
   };
 
@@ -51,10 +51,30 @@ async function removeStrayDomain() {
   };
 }
 
+async function launchBrowser() {
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  if (executablePath) {
+    const playwright = await import("playwright-core");
+    return playwright.chromium.launch({ executablePath, headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+  }
+
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    const [{ chromium }, chromiumPackage] = await Promise.all([import("playwright-core"), import("@sparticuz/chromium")]);
+    const serverlessChromium = chromiumPackage.default;
+    return chromium.launch({
+      args: serverlessChromium.args,
+      executablePath: await serverlessChromium.executablePath(),
+      headless: true
+    });
+  }
+
+  const playwright = await import("playwright");
+  return playwright.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+}
+
 async function runScreenshotQA() {
   try {
-    const playwright = await import("playwright");
-    const browser = await playwright.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+    const browser = await launchBrowser();
     const viewports = [
       { name: "desktop", width: 1440, height: 1200 },
       { name: "mobile", width: 390, height: 844 }
@@ -106,8 +126,7 @@ async function submitLeadAndVerify() {
   const email = `qa-cloud-${Date.now()}@example.com`;
 
   try {
-    const playwright = await import("playwright");
-    const browser = await playwright.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+    const browser = await launchBrowser();
     let currentUrl = targetUrl;
 
     try {
