@@ -1,0 +1,41 @@
+{
+  "sync_name": "Eden Skye Studios Agency Foundation Sync",
+  "validated_at": "2026-06-04",
+  "status": "agency_foundation_pack_added",
+  "active_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+  "orchestration_repo": "Strategic-Minds/AUTO_BUILDER",
+  "foundation_path": "ops/agency-foundation/",
+  "business_type": "AI avatar digital modeling agency and content creation business",
+  "roster_count": 10,
+  "models": ["F01 Eden Skye", "F02 Luna Vale", "F03 Nova Rae", "F04 Scarlett Frost", "F05 Aria Bloom", "M01 Atlas Kane", "M02 Jaxon Steele", "M03 Orion Black", "M04 Ryder Cross", "M05 Mason Cole"],
+  "minimum_image_requirement": {
+    "per_model": 56,
+    "full_10_model_roster": 560,
+    "note": "This sync created requirements and manifests; it did not generate all 560 images."
+  },
+  "read_order": [
+    "ops/agency-foundation/README.md",
+    "ops/agency-foundation/MASTER_AGENCY_BLUEPRINT.md",
+    "ops/agency-foundation/MODEL_ROSTER.json",
+    "ops/agency-foundation/MODEL_BRAND_BIBLES.md",
+    "ops/agency-foundation/MODEL_IMAGE_PRODUCTION_MANIFEST.json",
+    "ops/agency-foundation/PRODUCTS_SERVICES_LICENSING_BLUEPRINT.md",
+    "ops/agency-foundation/CONTENT_FACTORY_BLUEPRINT.md",
+    "ops/agency-foundation/AI_TOOL_STACK_AND_HANDOFFS.md",
+    "ops/agency-foundation/AUTOMATION_CONNECTIVITY_BLUEPRINT.md",
+    "ops/agency-foundation/FRONTEND_BACKEND_APP_BLUEPRINT.md",
+    "ops/agency-foundation/DRIVE_GIT_FOLDER_ARCHITECTURE.md",
+    "ops/agency-foundation/GOVERNANCE_LEGAL_SAFETY.md",
+    "ops/agency-foundation/TELEMETRY_KPIS_RECEIPTS.md",
+    "ops/agency-foundation/LAUNCH_ROADMAP.md"
+  ],
+  "next_factory_action": "Start Phase 1 asset production: create F01 Eden Skye clean HeyGen primary portrait and starter identity portrait pack, upload to Drive, update EDENSKYESTUDIOS Git manifests, and prepare approval packet before HeyGen creation/training.",
+  "approval_required_for": [
+    "HeyGen avatar creation/training",
+    "production deploy",
+    "Supabase migration",
+    "Shopify or Stripe mutation",
+    "public publishing or scheduling",
+    "asset deletion or overwrite"
+  ]
+}
