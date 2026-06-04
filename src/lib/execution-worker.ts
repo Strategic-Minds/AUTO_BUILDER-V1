@@ -104,7 +104,7 @@ async function removeProjectDomain(payload: Record<string, unknown>) {
   return { project, domain, ok: response.ok, statusCode: response.status, response: parseJsonIfPossible(text) };
 }
 
-async function uploadBytesToFolder(params: { folderId: string; filename: string; mimeType: string; bytes: ArrayBuffer; token: string }) {
+async function uploadBytesToFolder(params: { folderId: string; filename: string; mimeType: string; bytes: ArrayBuffer | Uint8Array; token: string }) {
   const boundary = `auto-builder-${crypto.randomUUID()}`;
   const metadata = { name: params.filename, mimeType: params.mimeType, parents: [params.folderId] };
   const base64Content = Buffer.from(params.bytes).toString("base64");
