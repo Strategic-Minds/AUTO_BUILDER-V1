@@ -1,0 +1,32 @@
+{
+  "fully_autonomous": [
+    "discover_trends",
+    "score_trends",
+    "draft_scripts",
+    "collect_analytics"
+  ],
+  "sandbox_first": [
+    "new_agent",
+    "new_workflow",
+    "new_connector",
+    "avatar_assignment",
+    "media_asset_generation",
+    "content_queue_write"
+  ],
+  "approval_required": [
+    "publish_live_post",
+    "schedule_public_post",
+    "create_shopify_product",
+    "change_pricing",
+    "modify_schema",
+    "modify_governance",
+    "delete_assets",
+    "deploy_to_production",
+    "change_vercel_env",
+    "rotate_secrets",
+    "send_customer_email"
+  ],
+  "source": "EDEN SKYE STUDIOS / AUTO SOCIAL / 13-GITHUB-BOOTSTRAP / gpt-autonomous-bridges/config/approval-matrix.json",
+  "default_mode": "sandbox",
+  "rule": "If an action is not explicitly listed as fully_autonomous, treat it as sandbox_first or approval_required based on blast radius."
+}
