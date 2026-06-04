@@ -49,9 +49,31 @@ function base64Url(input: string | Buffer) {
   return Buffer.from(input).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
+function normalizeSecretString(value: string) {
+  const trimmed = value.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (typeof parsed === "string") return parsed;
+    if (parsed && typeof parsed === "object" && "private_key" in parsed) {
+      const privateKey = (parsed as { private_key?: unknown }).private_key;
+      if (typeof privateKey === "string") return privateKey;
+    }
+  } catch {
+    // Not JSON; continue with the raw value.
+  }
+  return trimmed.replace(/^['"]|['"]$/g, "");
+}
+
 function getGooglePrivateKey() {
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY ?? process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-  return privateKey?.replace(/\\n/g, "\n");
+  const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY ?? process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!rawPrivateKey) return undefined;
+
+  let privateKey = normalizeSecretString(rawPrivateKey).replace(/\\n/g, "\n").replace(/\r/g, "");
+  if (!privateKey.includes("BEGIN") && /^[A-Za-z0-9+/=\s]+$/.test(privateKey)) {
+    const decoded = Buffer.from(privateKey.replace(/\s/g, ""), "base64").toString("utf8");
+    if (decoded.includes("BEGIN") && decoded.includes("PRIVATE KEY")) privateKey = decoded;
+  }
+  return privateKey;
 }
 
 async function mintGoogleServiceAccountToken() {
