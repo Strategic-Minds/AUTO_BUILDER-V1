@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 
 const DEFAULT_TARGET = 'https://nashvilleresinworx-strategic-minds-advisory.vercel.app';
 const DEFAULT_WORKER = 'github_actions_playwright_nrw_worker';
-const DEFAULT_EVIDENCE_ENDPOINT = 'https://auto-builder-git-auto-builder-n-6f3dfe-strategic-minds-advisory.vercel.app/api/browser/evidence';
+const DEFAULT_EVIDENCE_ENDPOINT = 'https://auto-builder-livid.vercel.app/api/browser/evidence';
 const OIDC_AUDIENCE = 'auto-builder-browser-evidence';
 
 function parseEmailFromPrompt(prompt = '') {
