@@ -1,0 +1,66 @@
+[
+  {
+    "connector": "Slack",
+    "edenPurpose": "Approval alerts, readiness digests, failure escalation, and operating-room receipts.",
+    "target": "#eden-skye-studios",
+    "currentStatus": "Blocked until channel is visible to connected Slack app.",
+    "requiredSetup": ["Invite Slack app/user into #eden-skye-studios", "Set SLACK_EDEN_CHANNEL_ID"],
+    "approvalGate": "External messages"
+  },
+  {
+    "connector": "Vercel",
+    "edenPurpose": "Preview deploys, API routes, AI Gateway, and cron triggers.",
+    "currentStatus": "Use sandbox/preview first.",
+    "requiredSetup": ["VERCEL_TOKEN", "VERCEL_PROJECT_ID", "AI_GATEWAY_API_KEY"],
+    "approvalGate": "Production deploy and env changes"
+  },
+  {
+    "connector": "Supabase",
+    "edenPurpose": "Data, queues, approvals, model records, media, receipts, subscriptions, and analytics.",
+    "currentStatus": "Schema packet exists; production migration requires approval.",
+    "requiredSetup": ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+    "approvalGate": "Schema and service role writes"
+  },
+  {
+    "connector": "n8n",
+    "edenPurpose": "24/7 workflow orchestration for drafts, approvals, handoffs, analytics, and winner cloning.",
+    "currentStatus": "Workflow docs exist; workflows must be created/activated after approval.",
+    "requiredSetup": ["N8N_BASE_URL", "N8N_WEBHOOK_SECRET"],
+    "approvalGate": "Workflow activation and external actions"
+  },
+  {
+    "connector": "OpenAI / Vercel AI Gateway",
+    "edenPurpose": "Eden chat, recommendations, prompts, content, and voice/realtime architecture.",
+    "currentStatus": "Scaffolded in PWA; live route needs deployment wiring.",
+    "requiredSetup": ["AI_GATEWAY_API_KEY", "OPENAI_API_KEY"],
+    "approvalGate": "Model/spend changes"
+  },
+  {
+    "connector": "HeyGen",
+    "edenPurpose": "Avatar video and approved live avatar sessions.",
+    "currentStatus": "Approval-gated scaffold exists.",
+    "requiredSetup": ["HEYGEN_API_KEY", "avatar IDs", "voice IDs"],
+    "approvalGate": "Live avatar session"
+  },
+  {
+    "connector": "Metricool",
+    "edenPurpose": "Social draft slots, schedule planning, and analytics.",
+    "currentStatus": "Draft-only until approval.",
+    "requiredSetup": ["METRICOOL_API_KEY", "brand id"],
+    "approvalGate": "Public publishing or live schedule"
+  },
+  {
+    "connector": "Klaviyo",
+    "edenPurpose": "Black Card lifecycle and launch campaign drafts.",
+    "currentStatus": "Draft-only until approval.",
+    "requiredSetup": ["KLAVIYO_PRIVATE_API_KEY"],
+    "approvalGate": "Campaign send"
+  },
+  {
+    "connector": "Shopify",
+    "edenPurpose": "Website, store, Black Card products, and Xyla content source.",
+    "currentStatus": "Read/analyze safe; mutations require approval.",
+    "requiredSetup": ["SHOPIFY_ADMIN_ACCESS_TOKEN", "SHOPIFY_STORE_DOMAIN"],
+    "approvalGate": "Store mutations"
+  }
+]
