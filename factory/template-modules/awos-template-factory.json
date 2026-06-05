@@ -1,0 +1,139 @@
+{
+  "registry_name": "AWOS Template Factory",
+  "registry_version": "1.0.0",
+  "created_at": "2026-06-05T05:00:00Z",
+  "purpose": "Standardize repeatable AUTO BUILDER modules with source truth, schemas, validation, approval gates, fallback routes, and evidence receipts.",
+  "governance": {
+    "templates_do_not_authorize_live_mutation": true,
+    "sandbox_first": true,
+    "approval_required_for": [
+      "production_deploy",
+      "database_mutation",
+      "billing_or_spend",
+      "external_publishing",
+      "mass_outreach",
+      "shopify_mutation",
+      "environment_variable_mutation",
+      "irreversible_infrastructure_change"
+    ]
+  },
+  "required_module_fields": [
+    "id",
+    "name",
+    "purpose",
+    "default_mode",
+    "source_truth_required",
+    "outputs",
+    "schemas",
+    "approval_gates",
+    "validation",
+    "evidence",
+    "fallback"
+  ],
+  "modules": [
+    {
+      "id": "saas-starter",
+      "name": "SaaS Starter",
+      "purpose": "Generate a governed SaaS MVP packet and scaffold.",
+      "default_mode": "Build Mode",
+      "source_truth_required": ["customer", "problem", "primary workflow", "data model", "deployment target"],
+      "outputs": ["system brief", "frontend spec", "backend spec", "schema", "validation checklist", "release plan"],
+      "schemas": ["users", "accounts", "events", "audit_log"],
+      "approval_gates": ["production deploy", "database migration", "billing setup"],
+      "validation": ["build", "route smoke", "schema dry run", "auth gate check"],
+      "evidence": ["preview URL", "test log", "schema receipt", "rollback plan"],
+      "fallback": "Generate docs and local scaffold only."
+    },
+    {
+      "id": "landing-page-lead-capture",
+      "name": "Landing Page Lead Capture",
+      "purpose": "Build a conversion-focused lead capture page with governed form persistence.",
+      "default_mode": "Launch Mode",
+      "source_truth_required": ["brand", "offer", "target audience", "lead destination", "approved claims"],
+      "outputs": ["landing copy", "form schema", "thank-you flow", "tracking map", "QA checklist"],
+      "schemas": ["leads", "telemetry_events"],
+      "approval_gates": ["production deploy", "lead notification routing", "tracking scripts"],
+      "validation": ["page render", "form POST", "lead row confirmation", "mobile screenshot"],
+      "evidence": ["desktop screenshot", "mobile screenshot", "lead row", "route smoke"],
+      "fallback": "Static landing-page draft and manual lead form handoff."
+    },
+    {
+      "id": "content-machine",
+      "name": "Content Machine",
+      "purpose": "Create a content-to-funnel operating system for organic acquisition.",
+      "default_mode": "Social Content Mode",
+      "source_truth_required": ["niche", "offer", "platforms", "approval rules", "brand voice"],
+      "outputs": ["hook bank", "script bank", "content calendar", "repurposing map", "approval queue"],
+      "schemas": ["content_posts", "approval_events", "performance_signals"],
+      "approval_gates": ["live publishing", "mass scheduling", "paid boosting"],
+      "validation": ["claims review", "platform fit review", "approval status check"],
+      "evidence": ["approved content queue", "draft receipts", "signal report"],
+      "fallback": "Draft-only content pack."
+    },
+    {
+      "id": "shopify-funnel",
+      "name": "Shopify Funnel",
+      "purpose": "Create a governed commerce funnel from offer to product page to post-purchase flow.",
+      "default_mode": "Monetization Mode",
+      "source_truth_required": ["product", "pricing", "inventory", "images", "policies", "fulfillment"],
+      "outputs": ["product brief", "collection map", "offer copy", "checkout considerations", "launch checklist"],
+      "schemas": ["products", "collections", "discounts", "orders"],
+      "approval_gates": ["product mutation", "price changes", "discount creation", "store publishing"],
+      "validation": ["product data review", "policy review", "image/license review"],
+      "evidence": ["product preview", "mutation receipt", "rollback plan"],
+      "fallback": "CSV/import handoff and draft product copy."
+    },
+    {
+      "id": "analytics-proof-report",
+      "name": "Analytics Proof Report",
+      "purpose": "Convert signals into a decision report for kill, optimize, scale, or replicate.",
+      "default_mode": "Observe Mode",
+      "source_truth_required": ["traffic data", "lead data", "conversion data", "campaign window"],
+      "outputs": ["signal summary", "funnel diagnosis", "winner/loser map", "next action"],
+      "schemas": ["events", "leads", "content_performance", "sales"],
+      "approval_gates": ["scale spend", "pricing change", "replication launch"],
+      "validation": ["data freshness", "metric sanity", "source attribution"],
+      "evidence": ["metric table", "source links", "decision log"],
+      "fallback": "Manual scorecard from available data."
+    },
+    {
+      "id": "proof-loop-review",
+      "name": "Proof Loop Review",
+      "purpose": "Verify that assets, claims, proof, and funnel promises are grounded before launch.",
+      "default_mode": "Validate Mode",
+      "source_truth_required": ["claims", "proof assets", "screenshots", "offer copy"],
+      "outputs": ["claim risk table", "proof gaps", "launch recommendation", "fix queue"],
+      "schemas": ["claims", "proof_assets", "approval_events"],
+      "approval_gates": ["public claims", "case studies", "testimonial use"],
+      "validation": ["claim support", "image/source rights", "compliance review"],
+      "evidence": ["proof receipts", "approval log", "blocked claims list"],
+      "fallback": "Conservative copy with unsupported claims removed."
+    },
+    {
+      "id": "browser-qa-worker",
+      "name": "Browser QA Worker",
+      "purpose": "Capture browser evidence for pages, forms, and funnel paths.",
+      "default_mode": "Validate Mode",
+      "source_truth_required": ["target URL", "test cases", "approval for form submission", "evidence destination"],
+      "outputs": ["desktop screenshot", "mobile screenshot", "console report", "form submission receipt"],
+      "schemas": ["browser_tasks", "browser_claims", "browser_evidence", "browser_screenshots", "browser_blockers"],
+      "approval_gates": ["external form submission", "credentialed browsing"],
+      "validation": ["HTTP status", "console errors", "layout smoke", "row confirmation"],
+      "evidence": ["screenshots", "evidence row", "lead row", "blocker row"],
+      "fallback": "Read-only fetch and manual screenshot checklist."
+    },
+    {
+      "id": "queue-runner",
+      "name": "Queue Runner",
+      "purpose": "Reliably claim, process, and close safe approved work items.",
+      "default_mode": "Parallel Ops Mode",
+      "source_truth_required": ["queue table", "worker identity", "approval rules", "retry policy"],
+      "outputs": ["claim rule", "worker route", "cron/action trigger", "evidence log", "blocker log"],
+      "schemas": ["tasks", "claims", "evidence", "blockers", "worker_heartbeats"],
+      "approval_gates": ["production cron", "mutation worker", "external writes"],
+      "validation": ["claim write", "heartbeat write", "evidence write", "blocked-state write"],
+      "evidence": ["task state transition", "worker heartbeat", "evidence row"],
+      "fallback": "Manual queue review and command packet."
+    }
+  ]
+}
