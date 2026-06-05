@@ -26,6 +26,7 @@ on:
         required: false
         type: string
   schedule:
+    # Process approved browser QA tasks every five minutes.
     - cron: '*/5 * * * *'
 
 permissions:
