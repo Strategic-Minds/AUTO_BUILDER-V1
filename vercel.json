@@ -24,6 +24,10 @@
     {
       "path": "/api/cron/social-bridge",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/browser/process",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

@@ -1,0 +1,59 @@
+name: NRW Browser Task Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: Optional browser_tasks.id to process
+        required: false
+        type: string
+      qa_email:
+        description: Optional QA email override for the live lead-form test
+        required: false
+        type: string
+      target_url:
+        description: Optional NRW target URL override
+        required: false
+        type: string
+      evidence_endpoint:
+        description: Optional Vercel browser evidence endpoint override
+        required: false
+        type: string
+  schedule:
+    - cron: '*/30 * * * *'
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  BROWSER_WORKER_NAME: github_actions_playwright_nrw_worker
+
+jobs:
+  process-nrw-browser-task:
+    name: Process NRW browser task
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium with system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Process browser task
+        env:
+          BROWSER_EVIDENCE_ENDPOINT: ${{ github.event.inputs.evidence_endpoint || (github.ref == 'refs/heads/auto-builder/nrw-browser-worker' && 'https://auto-builder-git-auto-builder-n-6f3dfe-strategic-minds-advisory.vercel.app/api/browser/evidence' || 'https://auto-builder-livid.vercel.app/api/browser/evidence') }}
+          NRW_BROWSER_TASK_ID: ${{ github.event.inputs.task_id }}
+          NRW_QA_EMAIL: ${{ github.event.inputs.qa_email }}
+          NRW_TARGET_URL: ${{ github.event.inputs.target_url }}
+        run: npm run browser:worker:nrw
