@@ -1,6 +1,12 @@
 name: NRW Browser Task Worker
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/nrw-browser-task-worker.yml'
+      - 'scripts/nrw-browser-task-worker.mjs'
   workflow_dispatch:
     inputs:
       task_id:
