@@ -1,0 +1,38 @@
+[
+  {
+    "id": "EDEN-CRON-001",
+    "path": "/api/cron/recursive-control",
+    "schedule": "*/5 * * * *",
+    "purpose": "Check readiness, claim safe jobs, route work, create receipts, and stop.",
+    "maxRisk": "green",
+    "allowedActions": ["readiness_check", "claim_safe_job", "route_job", "create_receipt", "create_approval_request"],
+    "blockedActions": ["publish", "production_deploy", "shopify_mutation", "payment_change", "live_avatar_session"]
+  },
+  {
+    "id": "EDEN-CRON-002",
+    "path": "/api/cron/eden-content-factory",
+    "schedule": "*/15 * * * *",
+    "purpose": "Generate draft-only hooks, captions, visual prompts, scripts, and social draft packets.",
+    "maxRisk": "yellow",
+    "allowedActions": ["draft_generation", "prompt_generation", "approval_request_creation"],
+    "blockedActions": ["public_publish", "metricool_live_schedule"]
+  },
+  {
+    "id": "EDEN-CRON-003",
+    "path": "/api/cron/eden-approval-digest",
+    "schedule": "0 */3 * * *",
+    "purpose": "Summarize approvals needed and blocked work for the dashboard and Slack draft/notification.",
+    "maxRisk": "green",
+    "allowedActions": ["read_approval_queue", "create_digest", "slack_draft"],
+    "blockedActions": ["slack_post_without_policy"]
+  },
+  {
+    "id": "EDEN-CRON-004",
+    "path": "/api/cron/eden-analytics-review",
+    "schedule": "0 9 * * 1",
+    "purpose": "Review performance, identify winners, and create clone recommendations.",
+    "maxRisk": "yellow",
+    "allowedActions": ["analytics_snapshot", "winner_scoring", "draft_clone_recommendations"],
+    "blockedActions": ["new_campaign_activation"]
+  }
+]
