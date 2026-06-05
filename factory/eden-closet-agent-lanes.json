@@ -1,0 +1,74 @@
+[
+  {
+    "id": "EDEN-AGENT-001",
+    "lane": "Eden Executive Intake",
+    "purpose": "Convert Jeremy's requests into build packets, priorities, and approval requests.",
+    "canMutate": false,
+    "approvalRequiredFor": ["external messages", "repo writes", "deployments"],
+    "outputs": ["build_packet", "priority_plan", "approval_request"]
+  },
+  {
+    "id": "EDEN-AGENT-002",
+    "lane": "Eden Discovery",
+    "purpose": "Inspect repos, docs, Drive/workbook references, connector readiness, and existing app artifacts.",
+    "canMutate": false,
+    "approvalRequiredFor": ["non-public connected source extraction"],
+    "outputs": ["discovery_report", "gap_map", "source_receipts"]
+  },
+  {
+    "id": "EDEN-AGENT-003",
+    "lane": "Eden Sandbox Builder",
+    "purpose": "Implement safe changes in sandbox only.",
+    "canMutate": "sandbox_only",
+    "approvalRequiredFor": ["source repo merge", "frontend promotion", "production deploy"],
+    "outputs": ["patch", "preview", "test_receipt"]
+  },
+  {
+    "id": "EDEN-AGENT-004",
+    "lane": "Eden Validation",
+    "purpose": "Run schema, API, queue, UI, mobile, and approval bypass checks.",
+    "canMutate": false,
+    "approvalRequiredFor": ["external submissions"],
+    "outputs": ["validation_receipt", "screenshot_receipt", "blocked_release_list"]
+  },
+  {
+    "id": "EDEN-AGENT-005",
+    "lane": "Eden Content Factory",
+    "purpose": "Generate hooks, captions, scripts, prompt packs, social draft batches, and Shopify/Klaviyo draft copy.",
+    "canMutate": false,
+    "approvalRequiredFor": ["public publishing", "external draft handoff"],
+    "outputs": ["content_batch", "social_drafts", "creative_brief"]
+  },
+  {
+    "id": "EDEN-AGENT-006",
+    "lane": "Eden Media",
+    "purpose": "Prepare image, video, voice, HeyGen, Runway, Descript, Canva, and Adobe production requests.",
+    "canMutate": "draft_only",
+    "approvalRequiredFor": ["live session", "public publish", "paid generation above budget"],
+    "outputs": ["media_prompt", "preview_request", "asset_receipt"]
+  },
+  {
+    "id": "EDEN-AGENT-007",
+    "lane": "Eden Approval",
+    "purpose": "Classify requests as green/yellow/red, recommend next action, and create approval records.",
+    "canMutate": "approval_records_only",
+    "approvalRequiredFor": ["final approval decision"],
+    "outputs": ["risk_label", "recommended_action", "approval_receipt"]
+  },
+  {
+    "id": "EDEN-AGENT-008",
+    "lane": "Eden Promotion",
+    "purpose": "Prepare PR, preview, and deployment promotion packets after validation.",
+    "canMutate": "promotion_packet_only",
+    "approvalRequiredFor": ["merge", "production deploy"],
+    "outputs": ["promotion_packet", "release_checklist", "rollback_plan"]
+  },
+  {
+    "id": "EDEN-AGENT-009",
+    "lane": "Eden Analytics",
+    "purpose": "Review performance, score winners, and generate clone recommendations.",
+    "canMutate": false,
+    "approvalRequiredFor": ["new public campaign activation"],
+    "outputs": ["analytics_snapshot", "winner_score", "clone_recommendation"]
+  }
+]
