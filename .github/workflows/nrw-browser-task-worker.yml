@@ -15,15 +15,20 @@ on:
         description: Optional NRW target URL override
         required: false
         type: string
+      evidence_endpoint:
+        description: Optional Vercel browser evidence endpoint override
+        required: false
+        type: string
   schedule:
     - cron: '*/30 * * * *'
 
 permissions:
   contents: read
+  id-token: write
 
 env:
   BROWSER_WORKER_NAME: github_actions_playwright_nrw_worker
-  NRW_BROWSER_TASK_STATES: queued,claimed,blocked
+  BROWSER_EVIDENCE_ENDPOINT: ${{ inputs.evidence_endpoint || 'https://auto-builder-git-auto-builder-n-6f3dfe-strategic-minds-advisory.vercel.app/api/browser/evidence' }}
 
 jobs:
   process-nrw-browser-task:
@@ -48,9 +53,6 @@ jobs:
 
       - name: Process browser task
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NRW_BROWSER_TASK_ID: ${{ inputs.task_id }}
           NRW_QA_EMAIL: ${{ inputs.qa_email }}
           NRW_TARGET_URL: ${{ inputs.target_url }}
