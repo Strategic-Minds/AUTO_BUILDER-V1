@@ -15,6 +15,26 @@ function makeQaEmail() {
   return `nrw-gha-browser-qa-${stamp}@example.com`;
 }
 
+function shouldSubmitLead(task = {}) {
+  if (process.env.NRW_SKIP_LEAD === 'true' || process.env.BROWSER_SKIP_LEAD === 'true') return false;
+
+  const prompt = String(task.task_prompt ?? '').toLowerCase();
+  const skipPhrases = [
+    'screenshot-only',
+    'screenshots only',
+    'read-only',
+    'do not submit',
+    'do not create lead',
+    'do not create supabase lead',
+    'do not mutate',
+    'no lead',
+    'no form submission',
+    'without submitting'
+  ];
+
+  return !skipPhrases.some((phrase) => prompt.includes(phrase));
+}
+
 async function getAuthToken() {
   if (process.env.BROWSER_WORKER_TOKEN) return process.env.BROWSER_WORKER_TOKEN;
   if (process.env.AUTO_BUILDER_WORKER_TOKEN) return process.env.AUTO_BUILDER_WORKER_TOKEN;
@@ -129,6 +149,7 @@ async function main() {
   const qaEmail = process.env.NRW_QA_EMAIL || parseEmailFromPrompt(task.task_prompt) || makeQaEmail();
   const screenshots = [];
   let lead = null;
+  let leadSkipped = false;
   const blockerParts = [];
 
   const browser = await chromium.launch({ headless: true });
@@ -144,7 +165,12 @@ async function main() {
       if (receipt.pageErrors.length) blockerParts.push(`${receipt.name} page errors: ${receipt.pageErrors.slice(0, 3).join(' | ')}`);
     }
 
-    lead = await submitLeadWithBrowser(browser, target, qaEmail);
+    if (shouldSubmitLead(task)) {
+      lead = await submitLeadWithBrowser(browser, target, qaEmail);
+    } else {
+      leadSkipped = true;
+      console.log(JSON.stringify({ ok: true, taskId: task.id, target, leadSkipped: true }, null, 2));
+    }
   } catch (error) {
     blockerParts.push(error instanceof Error ? error.message : String(error));
   } finally {
@@ -161,6 +187,7 @@ async function main() {
     completedAt,
     screenshots,
     lead,
+    leadSkipped,
     blocker: blockerParts.length ? blockerParts.join(' | ') : null
   };
 
@@ -169,7 +196,7 @@ async function main() {
     body: JSON.stringify(payload)
   });
 
-  console.log(JSON.stringify({ ok: result.ok, taskId: task.id, target, result, screenshots: screenshots.map(({ dataUrl, ...receipt }) => receipt), lead }, null, 2));
+  console.log(JSON.stringify({ ok: result.ok, taskId: task.id, target, result, screenshots: screenshots.map(({ dataUrl, ...receipt }) => receipt), lead, leadSkipped }, null, 2));
   if (!result.ok) process.exitCode = 1;
 }
 
