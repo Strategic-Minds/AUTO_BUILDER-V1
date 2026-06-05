@@ -1,0 +1,22 @@
+[
+  { "jobType": "eden.readiness_check", "risk": "green", "lane": "Eden Executive Intake", "requiresApproval": false },
+  { "jobType": "eden.repo_discovery", "risk": "green", "lane": "Eden Discovery", "requiresApproval": false },
+  { "jobType": "eden.schema_dry_run", "risk": "green", "lane": "Eden Validation", "requiresApproval": false },
+  { "jobType": "eden.supabase_migration_apply", "risk": "red", "lane": "Eden Promotion", "requiresApproval": true },
+  { "jobType": "eden.pwa_build", "risk": "green", "lane": "Eden Sandbox Builder", "requiresApproval": false },
+  { "jobType": "eden.admin_control_plane_build", "risk": "green", "lane": "Eden Sandbox Builder", "requiresApproval": false },
+  { "jobType": "eden.wardrobe_preview_request", "risk": "yellow", "lane": "Eden Media", "requiresApproval": true },
+  { "jobType": "eden.social_draft_batch", "risk": "yellow", "lane": "Eden Content Factory", "requiresApproval": true },
+  { "jobType": "eden.voice_mode_test", "risk": "yellow", "lane": "Eden Media", "requiresApproval": true },
+  { "jobType": "eden.heygen_session_prep", "risk": "yellow", "lane": "Eden Media", "requiresApproval": true },
+  { "jobType": "eden.heygen_live_session_start", "risk": "red", "lane": "Eden Media", "requiresApproval": true },
+  { "jobType": "eden.metricool_draft_handoff", "risk": "yellow", "lane": "Eden Content Factory", "requiresApproval": true },
+  { "jobType": "eden.metricool_publish", "risk": "red", "lane": "Eden Promotion", "requiresApproval": true },
+  { "jobType": "eden.klaviyo_draft_handoff", "risk": "yellow", "lane": "Eden Content Factory", "requiresApproval": true },
+  { "jobType": "eden.klaviyo_send", "risk": "red", "lane": "Eden Promotion", "requiresApproval": true },
+  { "jobType": "eden.shopify_draft_handoff", "risk": "yellow", "lane": "Eden Content Factory", "requiresApproval": true },
+  { "jobType": "eden.shopify_mutation", "risk": "red", "lane": "Eden Promotion", "requiresApproval": true },
+  { "jobType": "eden.analytics_review", "risk": "green", "lane": "Eden Analytics", "requiresApproval": false },
+  { "jobType": "eden.winner_clone", "risk": "yellow", "lane": "Eden Analytics", "requiresApproval": true },
+  { "jobType": "eden.slack_digest", "risk": "yellow", "lane": "Eden Approval", "requiresApproval": true }
+]
