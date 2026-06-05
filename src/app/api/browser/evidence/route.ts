@@ -71,7 +71,8 @@ function getSupabaseClient() {
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
-}\n
+}
+
 function isNrwTask(task: BrowserTask) {
   return task.target.includes("nashvilleresinworx") || task.task_prompt.includes("NRW") || task.task_prompt.includes("nrw_leads");
 }
