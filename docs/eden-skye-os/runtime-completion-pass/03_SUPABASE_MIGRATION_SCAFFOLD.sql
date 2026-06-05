@@ -1,0 +1,81 @@
+-- EDEN_SKYE_OS_RUNTIME_COMPLETION_PASS
+-- Inert Supabase migration scaffold only.
+-- Do not apply without explicit Supabase schema approval.
+-- Do not place this in a live migration directory until approved.
+
+-- Purpose:
+-- Persist Eden Skye OS approval receipts, routing evidence, draft records,
+-- readiness audit results, and kill-switch state after approval.
+
+-- Suggested schema namespace after approval:
+-- create schema if not exists eden_skye_os;
+
+-- Table: eden_skye_os.approval_receipts
+-- create table eden_skye_os.approval_receipts (
+--   id uuid primary key default gen_random_uuid(),
+--   action_id text not null,
+--   target_platform text not null check (target_platform in ('shopify','xyla','metricool','supabase','drive','n8n','vercel','stripe')),
+--   action_type text not null,
+--   risk_class text not null check (risk_class in ('low','medium','high','critical')),
+--   approval_state text not null check (approval_state in ('not_requested','pending','approved','rejected','expired','revoked')),
+--   approved_by text,
+--   approved_at timestamptz,
+--   evidence_refs jsonb not null default '[]'::jsonb,
+--   rollback_plan text,
+--   created_at timestamptz not null default now()
+-- );
+
+-- Table: eden_skye_os.content_drafts
+-- create table eden_skye_os.content_drafts (
+--   id uuid primary key default gen_random_uuid(),
+--   campaign_id text,
+--   destination text not null check (destination in ('shopify','xyla','metricool')),
+--   destination_mode text not null check (destination_mode in ('draft','scheduled','published')) default 'draft',
+--   title text,
+--   body text not null,
+--   cta text,
+--   approval_receipt_id uuid references eden_skye_os.approval_receipts(id),
+--   external_draft_id text,
+--   publish_disabled boolean not null default true,
+--   created_at timestamptz not null default now(),
+--   updated_at timestamptz not null default now()
+-- );
+
+-- Table: eden_skye_os.routing_evidence
+-- create table eden_skye_os.routing_evidence (
+--   id uuid primary key default gen_random_uuid(),
+--   action_id text not null,
+--   bridge text not null,
+--   target_platform text not null,
+--   request_hash text,
+--   response_summary jsonb not null default '{}'::jsonb,
+--   success boolean not null default false,
+--   created_at timestamptz not null default now()
+-- );
+
+-- Table: eden_skye_os.readiness_audits
+-- create table eden_skye_os.readiness_audits (
+--   id uuid primary key default gen_random_uuid(),
+--   audit_id text not null unique,
+--   score integer not null default 0,
+--   status text not null check (status in ('blocked','needs_work','ready_for_approval','approved_for_activation')),
+--   checks jsonb not null default '{}'::jsonb,
+--   blockers jsonb not null default '[]'::jsonb,
+--   created_at timestamptz not null default now()
+-- );
+
+-- Table: eden_skye_os.kill_switch_state
+-- create table eden_skye_os.kill_switch_state (
+--   id uuid primary key default gen_random_uuid(),
+--   scope text not null check (scope in ('global','shopify','xyla','metricool','supabase','n8n','vercel','drive','stripe')),
+--   halted boolean not null default true,
+--   reason text,
+--   set_by text,
+--   set_at timestamptz not null default now(),
+--   expires_at timestamptz
+-- );
+
+-- RLS expectation after approval:
+-- Enable RLS on every table and add deny-by-default policies before use.
+-- Grant execution only to approved service roles or signed internal callers.
+-- Add indexes on action_id, target_platform, destination, audit_id, and scope after schema approval.
