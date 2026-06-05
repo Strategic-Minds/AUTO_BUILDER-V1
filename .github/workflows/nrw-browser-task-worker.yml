@@ -54,4 +54,4 @@ jobs:
           NRW_BROWSER_TASK_ID: ${{ inputs.task_id }}
           NRW_QA_EMAIL: ${{ inputs.qa_email }}
           NRW_TARGET_URL: ${{ inputs.target_url }}
-        run: node scripts/nrw-browser-task-worker.mjs
+        run: npm run browser:worker:nrw
