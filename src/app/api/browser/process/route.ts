@@ -32,6 +32,10 @@ function parseEmailFromPrompt(prompt: string) {
   return match?.[0] ?? `browser-qa-${Date.now()}@example.com`;
 }
 
+function isNrwTask(task: BrowserTask) {
+  return task.target.includes("nashvilleresinworx") || task.task_prompt.includes("NRW") || task.task_prompt.includes("nrw_leads");
+}
+
 function getSupabaseClient() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -77,12 +81,23 @@ async function getLatestClaim(taskId: string) {
   return (claims.rows[0] as { id?: string } | undefined)?.id ?? null;
 }
 
+async function taskHasEvidence(taskId: string) {
+  const evidence = await readTelemetryByQuery("browser_evidence", {
+    select: "id,status,created_at",
+    task_ref: `eq.${taskId}`,
+    order: "created_at.desc",
+    limit: "1"
+  });
+
+  return evidence.ok && evidence.rows.length > 0;
+}
+
 async function selectTask() {
   const claimed = await readTelemetryByQuery("browser_tasks", {
     select: "*",
     state: "eq.claimed",
     order: "created_at.asc",
-    limit: "10"
+    limit: "25"
   });
 
   if (!claimed.ok) {
@@ -90,14 +105,9 @@ async function selectTask() {
   }
 
   const candidates = claimed.rows as BrowserTask[];
-  for (const task of candidates) {
-    const evidence = await readTelemetryByQuery("browser_evidence", {
-      select: "id,status,created_at",
-      task_ref: `eq.${task.id}`,
-      order: "created_at.desc",
-      limit: "1"
-    });
-    if (evidence.ok && evidence.rows.length === 0) {
+  const ordered = [...candidates.filter(isNrwTask), ...candidates.filter((task) => !isNrwTask(task))];
+  for (const task of ordered) {
+    if (!(await taskHasEvidence(task.id))) {
       return { ok: true as const, task };
     }
   }
@@ -125,15 +135,8 @@ async function captureScreenshots(task: BrowserTask) {
       const response = await page.goto(task.target, { waitUntil: "networkidle", timeout: 60000 });
       const title = await page.title();
       const screenshot = await page.screenshot({ fullPage: true, type: "png" });
-      const screenshotBase64 = screenshot.toString("base64");
-      screenshotRows.push({ name: viewport.name, dataUrl: `data:image/png;base64,${screenshotBase64}` });
-      receipts.push({
-        ...viewport,
-        statusCode: response?.status() ?? null,
-        title,
-        consoleErrors,
-        screenshotBytes: screenshot.byteLength
-      });
+      screenshotRows.push({ name: viewport.name, dataUrl: `data:image/png;base64,${screenshot.toString("base64")}` });
+      receipts.push({ ...viewport, statusCode: response?.status() ?? null, title, consoleErrors, screenshotBytes: screenshot.byteLength });
       await page.close();
     }
   } finally {
@@ -143,48 +146,64 @@ async function captureScreenshots(task: BrowserTask) {
   return { receipts, screenshotRows };
 }
 
-async function submitNrwLead(task: BrowserTask, email: string) {
+async function verifyLead(email: string) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("nrw_leads")
+    .select("*")
+    .eq("email", email)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return { rowFound: Array.isArray(data) && data.length > 0, row: Array.isArray(data) ? data[0] ?? null : null };
+}
+
+async function submitNrwLeadWithBrowser(task: BrowserTask, email: string) {
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
     await page.goto(`${task.target.replace(/\/$/, "")}/#estimate`, { waitUntil: "networkidle", timeout: 60000 });
-
     await page.fill("input[name='fullName']", "AUTO BUILDER Bridge QA");
     await page.fill("input[name='phone']", "772-209-0266");
     await page.fill("input[name='email']", email);
-    await page.selectOption("select[name='projectType']", { label: "Metallic Epoxy" }).catch(async () => {
-      await page.selectOption("select[name='projectType']", { index: 1 });
-    });
+    await page.selectOption("select[name='projectType']", { label: "Metallic Epoxy" }).catch(async () => page.selectOption("select[name='projectType']", { index: 1 }));
     await page.selectOption("select[name='squareFootage']", { index: 1 }).catch(() => undefined);
     await page.selectOption("select[name='surfaceCondition']", { index: 1 }).catch(() => undefined);
-
-    await Promise.all([
-      page.waitForURL(/thank-you|\/thank-you|#estimate/, { timeout: 60000 }).catch(() => undefined),
-      page.click("button[type='submit']")
-    ]);
-
+    await Promise.all([page.waitForLoadState("networkidle", { timeout: 60000 }).catch(() => undefined), page.click("button[type='submit']")]);
     await page.waitForLoadState("networkidle", { timeout: 60000 }).catch(() => undefined);
-    const currentUrl = page.url();
-
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("nrw_leads")
-      .select("*")
-      .eq("email", email)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (error) throw error;
-
-    return {
-      email,
-      currentUrl,
-      rowFound: Array.isArray(data) && data.length > 0,
-      row: Array.isArray(data) ? data[0] ?? null : null
-    };
+    return { method: "browser", email, currentUrl: page.url(), ...(await verifyLead(email)) };
   } finally {
     await browser.close();
   }
+}
+
+async function submitNrwLeadWithHttp(task: BrowserTask, email: string) {
+  const form = new URLSearchParams({
+    fullName: "AUTO BUILDER Bridge QA",
+    phone: "772-209-0266",
+    email,
+    projectType: "Metallic Epoxy",
+    squareFootage: "Under 250 sq ft",
+    surfaceCondition: "New concrete",
+    source: "auto-builder-browser-processor-fallback"
+  });
+
+  const response = await fetch(`${task.target.replace(/\/$/, "")}/api/leads`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: form
+  });
+
+  const responseText = await response.text();
+  return {
+    method: "server_http_fallback",
+    email,
+    statusCode: response.status,
+    ok: response.ok,
+    responseText: responseText.slice(0, 500),
+    ...(await verifyLead(email))
+  };
 }
 
 async function writeEvidence(task: BrowserTask, status: "success" | "blocked", evidence: Record<string, unknown>, blocker?: string) {
@@ -202,7 +221,7 @@ async function writeEvidence(task: BrowserTask, status: "success" | "blocked", e
     await insertTelemetry("browser_blockers", {
       task_ref: task.id,
       blocker,
-      severity: status === "blocked" ? "high" : "medium",
+      severity: "high",
       state: "open",
       created_at: new Date().toISOString()
     });
@@ -212,79 +231,51 @@ async function writeEvidence(task: BrowserTask, status: "success" | "blocked", e
 export async function GET(request: NextRequest) {
   const worker = request.nextUrl.searchParams.get("worker") ?? "auto_builder_browser_processor";
   const selected = await selectTask();
-  if (!selected.ok) {
-    return NextResponse.json({ ok: false, error: selected.error, detail: selected.detail }, { status: 503 });
-  }
-
-  if (!selected.task) {
-    return NextResponse.json({ ok: true, processed: false, reason: "No claimed browser task without evidence." });
-  }
+  if (!selected.ok) return NextResponse.json({ ok: false, error: selected.error, detail: selected.detail }, { status: 503 });
+  if (!selected.task) return NextResponse.json({ ok: true, processed: false, reason: "No claimed browser task without evidence." });
 
   const task = selected.task;
   const startedAt = new Date().toISOString();
+  await insertTelemetry("worker_heartbeats", { worker_name: worker, surface: "browser_tasks", status: "running", last_seen_at: startedAt, created_at: startedAt });
 
-  await insertTelemetry("worker_heartbeats", {
-    worker_name: worker,
-    surface: "browser_tasks",
-    status: "running",
-    last_seen_at: startedAt,
-    created_at: startedAt
-  });
+  let screenshotResult: Awaited<ReturnType<typeof captureScreenshots>> | null = null;
+  let screenshotBlocker: string | null = null;
+  let leadResult: Record<string, unknown> | null = null;
 
   try {
     const email = parseEmailFromPrompt(task.task_prompt);
-    const screenshotResult = await captureScreenshots(task);
-
-    for (const screenshot of screenshotResult.screenshotRows) {
-      await insertTelemetry("browser_screenshots", {
-        task_ref: task.id,
-        screenshot_ref: JSON.stringify({ name: screenshot.name, dataUrl: screenshot.dataUrl }),
-        created_at: new Date().toISOString()
-      });
+    try {
+      screenshotResult = await captureScreenshots(task);
+      for (const screenshot of screenshotResult.screenshotRows) {
+        await insertTelemetry("browser_screenshots", { task_ref: task.id, screenshot_ref: JSON.stringify({ name: screenshot.name, dataUrl: screenshot.dataUrl }), created_at: new Date().toISOString() });
+      }
+    } catch (error) {
+      screenshotBlocker = error instanceof Error ? error.message : String(error);
     }
 
-    const leadResult = task.task_prompt.includes("nrw_leads") || task.target.includes("nashvilleresinworx")
-      ? await submitNrwLead(task, email)
-      : null;
+    if (isNrwTask(task)) {
+      try {
+        leadResult = screenshotBlocker ? await submitNrwLeadWithHttp(task, email) : await submitNrwLeadWithBrowser(task, email);
+      } catch (error) {
+        leadResult = { error: error instanceof Error ? error.message : String(error), email };
+      }
+    }
 
-    const blocker = leadResult && !leadResult.rowFound ? `Lead submission did not create Supabase row for ${email}` : undefined;
-    await writeEvidence(
-      task,
-      blocker ? "blocked" : "success",
-      {
-        worker,
-        startedAt,
-        completedAt: new Date().toISOString(),
-        taskId: task.id,
-        target: task.target,
-        screenshots: screenshotResult.receipts,
-        lead: leadResult
-      },
-      blocker
-    );
+    const leadMissing = Boolean(leadResult && "rowFound" in leadResult && !leadResult.rowFound);
+    const blockerParts = [screenshotBlocker ? `Screenshot QA blocked: ${screenshotBlocker}` : null, leadMissing ? `Lead row missing for ${email}` : null].filter(Boolean);
+    const blocker = blockerParts.length ? blockerParts.join(" | ") : undefined;
+    const status = blocker && !leadResult ? "blocked" : blocker ? "blocked" : "success";
 
+    await writeEvidence(task, status, { worker, startedAt, completedAt: new Date().toISOString(), taskId: task.id, target: task.target, screenshots: screenshotResult?.receipts ?? [], screenshotBlocker, lead: leadResult }, blocker);
     await updateTelemetry("browser_tasks", { state: blocker ? "blocked" : "completed" }, { id: `eq.${task.id}` });
+    await insertTelemetry("worker_heartbeats", { worker_name: worker, surface: "browser_tasks", status: blocker ? "blocked" : "completed", last_seen_at: new Date().toISOString(), created_at: new Date().toISOString() });
 
-    await insertTelemetry("worker_heartbeats", {
-      worker_name: worker,
-      surface: "browser_tasks",
-      status: blocker ? "blocked" : "completed",
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    });
-
-    return NextResponse.json({ ok: !blocker, processed: true, taskId: task.id, screenshots: screenshotResult.receipts, lead: leadResult, blocker });
+    return NextResponse.json({ ok: !blocker, processed: true, taskId: task.id, screenshots: screenshotResult?.receipts ?? [], screenshotBlocker, lead: leadResult, blocker });
   } catch (error) {
     const blocker = error instanceof Error ? error.message : String(error);
     await writeEvidence(task, "blocked", { worker, taskId: task.id, target: task.target, error: blocker }, blocker);
     await updateTelemetry("browser_tasks", { state: "blocked" }, { id: `eq.${task.id}` });
-    await insertTelemetry("worker_heartbeats", {
-      worker_name: worker,
-      surface: "browser_tasks",
-      status: "error",
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    });
+    await insertTelemetry("worker_heartbeats", { worker_name: worker, surface: "browser_tasks", status: "error", last_seen_at: new Date().toISOString(), created_at: new Date().toISOString() });
     return NextResponse.json({ ok: false, processed: true, taskId: task.id, error: blocker }, { status: 500 });
   }
 }
