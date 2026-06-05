@@ -1,0 +1,91 @@
+{
+  "name": "EDEN_SKYE_OS_RUNTIME_COMPLETION_PASS_DRAFT_ONLY",
+  "active": false,
+  "version": "0.1.0-scaffold",
+  "description": "Disabled n8n import packet for Eden Skye OS. Import only after approval; do not activate until final activation gate passes.",
+  "governance": {
+    "mutationBoundary": "No deployment, schema application, publishing, scheduling, Shopify mutation, Stripe mutation, billing change, or workflow activation is authorized by this packet.",
+    "defaultState": "disabled",
+    "requiresApprovalForActivation": true,
+    "killSwitchRequiredClear": true
+  },
+  "nodes": [
+    {
+      "name": "Manual Intake - Draft Only",
+      "type": "n8n-nodes-base.manualTrigger",
+      "parameters": {},
+      "notes": "Manual disabled intake for proposed content, Shopify website updates, or route bridge actions."
+    },
+    {
+      "name": "Normalize Request Envelope",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "return [{ json: { system: 'eden_skye_os', mode: 'draft', approval_required: true, publish_disabled: true, payload: $json } }];"
+      }
+    },
+    {
+      "name": "Approval Router - Dry Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://example.invalid/api/eden-skye/approval-router",
+        "sendBody": true,
+        "bodyParametersJson": "={{ JSON.stringify($json) }}"
+      },
+      "notes": "Replace URL only after Vercel route exists. Dry-run only until approval."
+    },
+    {
+      "name": "Route Content Draft",
+      "type": "n8n-nodes-base.switch",
+      "parameters": {
+        "rules": [
+          { "operation": "equal", "value1": "={{$json.target_platform}}", "value2": "shopify" },
+          { "operation": "equal", "value1": "={{$json.target_platform}}", "value2": "xyla" },
+          { "operation": "equal", "value1": "={{$json.target_platform}}", "value2": "metricool" }
+        ]
+      },
+      "notes": "Draft-routing only. Publishing and scheduling remain blocked."
+    },
+    {
+      "name": "Shopify Draft Request - Disabled",
+      "type": "n8n-nodes-base.noOp",
+      "parameters": {},
+      "notes": "Future Shopify draft/page request. No live Shopify mutation in this packet."
+    },
+    {
+      "name": "Xyla Draft/Post Queue - Disabled",
+      "type": "n8n-nodes-base.noOp",
+      "parameters": {},
+      "notes": "Future Xyla routing path after connector capability is verified. No posting in this packet."
+    },
+    {
+      "name": "Metricool Draft Queue - Disabled",
+      "type": "n8n-nodes-base.noOp",
+      "parameters": {},
+      "notes": "Future Metricool draft or schedule queue after approval. No scheduling in this packet."
+    },
+    {
+      "name": "Readiness Audit - Dry Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://example.invalid/api/eden-skye/readiness-audit",
+        "sendBody": true,
+        "bodyParametersJson": "={{ JSON.stringify($json) }}"
+      },
+      "notes": "Replace URL only after route deployment is separately approved."
+    },
+    {
+      "name": "Evidence Receipt - Disabled",
+      "type": "n8n-nodes-base.noOp",
+      "parameters": {},
+      "notes": "Future Supabase evidence write after schema and route approvals."
+    }
+  ],
+  "connections": {},
+  "activationGate": {
+    "required": true,
+    "status": "blocked_until_operator_approval",
+    "blockedActions": ["activate_workflow", "publish", "schedule", "shopify_mutation", "stripe_mutation", "supabase_schema_apply", "deploy"]
+  }
+}
