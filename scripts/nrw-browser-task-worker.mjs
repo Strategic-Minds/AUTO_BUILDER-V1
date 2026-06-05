@@ -1,36 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
 import { chromium } from 'playwright';
 
 const DEFAULT_TARGET = 'https://nashvilleresinworx-strategic-minds-advisory.vercel.app';
 const DEFAULT_WORKER = 'github_actions_playwright_nrw_worker';
-
-function requiredEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required env ${name}`);
-  return value;
-}
-
-function getSupabaseClient() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
+const DEFAULT_EVIDENCE_ENDPOINT = 'https://auto-builder-git-auto-builder-n-6f3dfe-strategic-minds-advisory.vercel.app/api/browser/evidence';
+const OIDC_AUDIENCE = 'auto-builder-browser-evidence';
 
 function parseEmailFromPrompt(prompt = '') {
   const match = prompt.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   return match?.[0] ?? null;
-}
-
-function isNrwTask(task) {
-  const target = task?.target ?? '';
-  const prompt = task?.task_prompt ?? '';
-  return target.includes('nashvilleresinworx') || prompt.includes('NRW') || prompt.includes('nrw_leads');
 }
 
 function makeQaEmail() {
@@ -38,51 +15,48 @@ function makeQaEmail() {
   return `nrw-gha-browser-qa-${stamp}@example.com`;
 }
 
-async function insertRow(supabase, table, row) {
-  const { data, error } = await supabase.from(table).insert(row).select('*').single();
-  if (error) throw new Error(`${table} insert failed: ${error.message}`);
-  return data;
-}
+async function getAuthToken() {
+  if (process.env.BROWSER_WORKER_TOKEN) return process.env.BROWSER_WORKER_TOKEN;
+  if (process.env.AUTO_BUILDER_WORKER_TOKEN) return process.env.AUTO_BUILDER_WORKER_TOKEN;
 
-async function updateTaskState(supabase, taskId, state) {
-  const { error } = await supabase.from('browser_tasks').update({ state }).eq('id', taskId);
-  if (error) throw new Error(`browser_tasks update failed: ${error.message}`);
-}
-
-async function selectTask(supabase) {
-  const explicitTaskId = process.env.NRW_BROWSER_TASK_ID || process.env.BROWSER_TASK_ID;
-  if (explicitTaskId) {
-    const { data, error } = await supabase.from('browser_tasks').select('*').eq('id', explicitTaskId).single();
-    if (error) throw new Error(`Explicit browser task lookup failed: ${error.message}`);
-    return data;
+  const requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+  const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+  if (!requestUrl || !requestToken) {
+    throw new Error('Missing GitHub OIDC request env. Ensure workflow permissions include id-token: write.');
   }
 
-  const states = (process.env.NRW_BROWSER_TASK_STATES || 'queued,claimed,blocked')
-    .split(',')
-    .map((state) => state.trim())
-    .filter(Boolean);
-
-  const { data, error } = await supabase
-    .from('browser_tasks')
-    .select('*')
-    .eq('approved', true)
-    .eq('safe', true)
-    .in('state', states)
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  if (error) throw new Error(`browser_tasks select failed: ${error.message}`);
-  return (data ?? []).find(isNrwTask) ?? null;
+  const url = new URL(requestUrl);
+  url.searchParams.set('audience', OIDC_AUDIENCE);
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${requestToken}` } });
+  if (!response.ok) throw new Error(`GitHub OIDC token request failed: ${response.status} ${await response.text()}`);
+  const body = await response.json();
+  if (!body.value) throw new Error('GitHub OIDC token response did not include value.');
+  return body.value;
 }
 
-async function claimTask(supabase, task, worker) {
-  const claim = await insertRow(supabase, 'browser_claims', {
-    task_ref: task.id,
-    worker,
-    claimed_at: new Date().toISOString()
-  });
-  await updateTaskState(supabase, task.id, 'claimed');
-  return claim;
+async function evidenceFetch(endpoint, token, options = {}) {
+  const headers = new Headers(options.headers ?? {});
+  headers.set('Authorization', `Bearer ${token}`);
+  if (options.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
+
+  const response = await fetch(endpoint, { ...options, headers });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text };
+  }
+  if (!response.ok) throw new Error(`Evidence bridge request failed: ${response.status} ${text}`);
+  return body;
+}
+
+async function claimTask(endpoint, token, worker) {
+  const url = new URL(endpoint);
+  url.searchParams.set('worker', worker);
+  const taskId = process.env.NRW_BROWSER_TASK_ID || process.env.BROWSER_TASK_ID;
+  if (taskId) url.searchParams.set('taskId', taskId);
+  return evidenceFetch(url, token);
 }
 
 async function captureViewport(browser, target, viewport) {
@@ -138,53 +112,26 @@ async function submitLeadWithBrowser(browser, target, email) {
   }
 }
 
-async function verifyLead(supabase, email) {
-  const { data, error } = await supabase
-    .from('nrw_leads')
-    .select('*')
-    .eq('email', email)
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  if (error) throw new Error(`nrw_leads verification failed: ${error.message}`);
-  return { rowFound: Array.isArray(data) && data.length > 0, row: Array.isArray(data) ? data[0] ?? null : null };
-}
-
 async function main() {
   const worker = process.env.BROWSER_WORKER_NAME || DEFAULT_WORKER;
-  const targetOverride = process.env.NRW_TARGET_URL || '';
-  const supabase = getSupabaseClient();
+  const endpoint = process.env.BROWSER_EVIDENCE_ENDPOINT || DEFAULT_EVIDENCE_ENDPOINT;
+  const token = await getAuthToken();
   const startedAt = new Date().toISOString();
+  const claimed = await claimTask(endpoint, token, worker);
 
-  await insertRow(supabase, 'worker_heartbeats', {
-    worker_name: worker,
-    surface: 'browser_tasks',
-    status: 'running',
-    last_seen_at: startedAt,
-    created_at: startedAt
-  }).catch((error) => console.warn(error.message));
-
-  const task = await selectTask(supabase);
-  if (!task) {
-    console.log('No approved safe NRW browser task found.');
-    await insertRow(supabase, 'worker_heartbeats', {
-      worker_name: worker,
-      surface: 'browser_tasks',
-      status: 'idle',
-      last_seen_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    }).catch((error) => console.warn(error.message));
+  if (!claimed?.task) {
+    console.log(JSON.stringify({ ok: true, processed: false, reason: claimed?.reason ?? 'No task returned.' }, null, 2));
     return;
   }
 
-  const target = targetOverride || task.target || DEFAULT_TARGET;
+  const task = claimed.task;
+  const target = process.env.NRW_TARGET_URL || task.target || DEFAULT_TARGET;
   const qaEmail = process.env.NRW_QA_EMAIL || parseEmailFromPrompt(task.task_prompt) || makeQaEmail();
-  const claim = await claimTask(supabase, task, worker);
-  const browser = await chromium.launch({ headless: true });
-  const blockerParts = [];
   const screenshots = [];
   let lead = null;
+  const blockerParts = [];
 
+  const browser = await chromium.launch({ headless: true });
   try {
     for (const viewport of [
       { name: 'desktop', width: 1440, height: 1200 },
@@ -192,80 +139,38 @@ async function main() {
     ]) {
       const receipt = await captureViewport(browser, target, viewport);
       screenshots.push(receipt);
-      await insertRow(supabase, 'browser_screenshots', {
-        task_ref: task.id,
-        screenshot_ref: JSON.stringify({
-          name: receipt.name,
-          width: receipt.width,
-          height: receipt.height,
-          statusCode: receipt.statusCode,
-          title: receipt.title,
-          consoleErrors: receipt.consoleErrors,
-          pageErrors: receipt.pageErrors,
-          screenshotBytes: receipt.screenshotBytes,
-          dataUrl: receipt.dataUrl
-        }),
-        created_at: new Date().toISOString()
-      });
-
       if (receipt.statusCode && receipt.statusCode >= 400) blockerParts.push(`${receipt.name} returned HTTP ${receipt.statusCode}`);
       if (receipt.consoleErrors.length) blockerParts.push(`${receipt.name} console errors: ${receipt.consoleErrors.slice(0, 3).join(' | ')}`);
       if (receipt.pageErrors.length) blockerParts.push(`${receipt.name} page errors: ${receipt.pageErrors.slice(0, 3).join(' | ')}`);
     }
 
     lead = await submitLeadWithBrowser(browser, target, qaEmail);
-    const leadVerification = await verifyLead(supabase, qaEmail);
-    lead = { ...lead, ...leadVerification };
-    if (!leadVerification.rowFound) blockerParts.push(`Lead row missing for ${qaEmail}`);
   } catch (error) {
     blockerParts.push(error instanceof Error ? error.message : String(error));
   } finally {
     await browser.close();
   }
 
-  const blocker = blockerParts.length ? blockerParts.join(' | ') : null;
-  const status = blocker ? 'blocked' : 'success';
   const completedAt = new Date().toISOString();
+  const payload = {
+    taskId: task.id,
+    claimId: claimed.claim?.id,
+    worker,
+    target,
+    startedAt,
+    completedAt,
+    screenshots,
+    lead,
+    blocker: blockerParts.length ? blockerParts.join(' | ') : null
+  };
 
-  await insertRow(supabase, 'browser_evidence', {
-    task_ref: task.id,
-    claim_ref: claim.id,
-    status,
-    evidence: JSON.stringify({
-      worker,
-      taskId: task.id,
-      target,
-      startedAt,
-      completedAt,
-      screenshots: screenshots.map(({ dataUrl, ...receipt }) => receipt),
-      lead
-    }),
-    source_url: target,
-    created_at: completedAt
+  const result = await evidenceFetch(endpoint, token, {
+    method: 'POST',
+    body: JSON.stringify(payload)
   });
 
-  if (blocker) {
-    await insertRow(supabase, 'browser_blockers', {
-      task_ref: task.id,
-      blocker,
-      severity: 'high',
-      state: 'open',
-      created_at: completedAt
-    });
-  }
-
-  await updateTaskState(supabase, task.id, blocker ? 'blocked' : 'completed');
-  await insertRow(supabase, 'worker_heartbeats', {
-    worker_name: worker,
-    surface: 'browser_tasks',
-    status,
-    last_seen_at: completedAt,
-    created_at: completedAt
-  }).catch((error) => console.warn(error.message));
-
-  console.log(JSON.stringify({ ok: !blocker, taskId: task.id, target, status, screenshots: screenshots.map(({ dataUrl, ...receipt }) => receipt), lead, blocker }, null, 2));
-
-  if (blocker) process.exitCode = 1;
+  console.log(JSON.stringify({ ok: result.ok, taskId: task.id, target, result, screenshots: screenshots.map(({ dataUrl, ...receipt }) => receipt), lead }, null, 2));
+  if (!result.ok) process.exitCode = 1;
 }
 
 main().catch((error) => {
