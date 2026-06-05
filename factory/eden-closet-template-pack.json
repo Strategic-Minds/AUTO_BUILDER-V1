@@ -1,0 +1,14 @@
+{
+  "id": "TPL-EDEN-001",
+  "name": "Eden Closet Black Card Control Plane",
+  "useCase": "Luxury fictional AI creator app with customer PWA, admin control plane, wardrobe media generation, approval theater, social content factory, and Black Card subscription gates.",
+  "extends": ["TPL-001", "TPL-002", "TPL-004", "TPL-005"],
+  "frontendModules": ["customer-pwa", "admin-command-center", "model-vault", "model-profile-drawer", "wardrobe-editor", "approval-theater", "content-factory", "social-calendar", "voice-avatar-panel", "subscription-gate", "workflow-monitor", "receipt-log", "analytics-winner-cloning"],
+  "backendModules": ["model_profiles", "wardrobe_states", "media_assets", "approval_requests", "social_drafts", "model_voice_profiles", "chat_sessions", "avatar_sessions", "subscriptions", "agent_runs", "tool_receipts", "analytics_snapshots"],
+  "queueModules": ["eden_readiness_queue", "eden_media_queue", "eden_social_queue", "eden_approval_queue", "eden_handoff_queue", "eden_analytics_queue", "eden_slack_digest_queue"],
+  "apiRoutes": ["/api/eden/chat", "/api/eden/realtime-session", "/api/wardrobe/change-look", "/api/media/generate-preview", "/api/social/generate-drafts", "/api/approvals/decision", "/api/n8n/webhook/:workflow", "/api/heygen/avatar-session", "/api/slack/approval-event"],
+  "status": "Draft",
+  "reuseScore": 97,
+  "hardeningRequired": ["Strict RLS", "approval bypass tests", "media safety checks", "mobile screenshot QA", "queue idempotency", "Vercel preview smoke"],
+  "approvalGates": ["production deploy", "Shopify mutation", "Supabase production migration", "public publishing", "Metricool live schedule activation", "Klaviyo send", "live HeyGen session", "payment/subscription/pricing change"]
+}
