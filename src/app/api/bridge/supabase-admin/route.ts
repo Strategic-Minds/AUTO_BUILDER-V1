@@ -8,6 +8,8 @@ type BridgeAction = "select" | "insert" | "upsert" | "update" | "delete" | "rpc"
 const defaultTableAllowlist = [
   "bridge_tasks",
   "bridge_receipts",
+  "bridge_events",
+  "bridge_connections",
   "browser_evidence",
   "browser_screenshots",
   "nrw_leads",
