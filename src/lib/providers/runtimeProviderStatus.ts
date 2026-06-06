@@ -21,6 +21,21 @@ function readiness(provider: string, requiredEnv: string[], notes: string): Runt
   };
 }
 
+function githubWorkflowReadiness(): RuntimeProviderReadiness {
+  const configuredEnv = {
+    GITHUB_WORKFLOW_TOKEN: envPresent('GITHUB_WORKFLOW_TOKEN'),
+    GITHUB_TOKEN: envPresent('GITHUB_TOKEN')
+  };
+
+  return {
+    provider: 'github_workflows',
+    ready: configuredEnv.GITHUB_WORKFLOW_TOKEN || configuredEnv.GITHUB_TOKEN,
+    requiredEnv: ['GITHUB_WORKFLOW_TOKEN or GITHUB_TOKEN'],
+    configuredEnv,
+    notes: 'Required for GPT to list workflow runs, read jobs/logs, and dispatch workflow_dispatch runs through the governed GitHub workflow bridge.'
+  };
+}
+
 function edenVercelReadiness(): RuntimeProviderReadiness {
   const configuredEnv = {
     VERCEL_TOKEN: envPresent('VERCEL_TOKEN'),
@@ -58,6 +73,7 @@ function autoBuilderRedeployReadiness(): RuntimeProviderReadiness {
 export function getRuntimeProviderStatus() {
   const providers = [
     readiness('supabase', ['SUPABASE_SERVICE_ROLE_KEY'], 'Uses SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL plus service role through telemetry-store.'),
+    githubWorkflowReadiness(),
     edenVercelReadiness(),
     autoBuilderRedeployReadiness(),
     readiness('metricool', ['METRICOOL_API_URL', 'METRICOOL_API_TOKEN'], 'Required for Metricool Facebook and Instagram draft/write bridge.'),
