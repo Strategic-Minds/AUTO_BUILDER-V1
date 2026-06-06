@@ -21,6 +21,29 @@ function readiness(provider: string, requiredEnv: string[], notes: string): Runt
   };
 }
 
+function edenUniversalRuntimeReadiness(): RuntimeProviderReadiness {
+  const configuredEnv = {
+    EDEN_RUNTIME_BRIDGE_TOKEN: envPresent('EDEN_RUNTIME_BRIDGE_TOKEN'),
+    GITHUB_WORKFLOW_TOKEN: envPresent('GITHUB_WORKFLOW_TOKEN'),
+    GITHUB_TOKEN: envPresent('GITHUB_TOKEN'),
+    VERCEL_TOKEN: envPresent('VERCEL_TOKEN'),
+    SUPABASE_SERVICE_ROLE_KEY: envPresent('SUPABASE_SERVICE_ROLE_KEY'),
+    GOOGLE_CLIENT_EMAIL: envPresent('GOOGLE_CLIENT_EMAIL'),
+    GOOGLE_PRIVATE_KEY: envPresent('GOOGLE_PRIVATE_KEY'),
+    SHOPIFY_ADMIN_TOKEN: envPresent('SHOPIFY_ADMIN_TOKEN'),
+    SHOPIFY_SHOP: envPresent('SHOPIFY_SHOP'),
+    HEYGEN_API_KEY: envPresent('HEYGEN_API_KEY')
+  };
+
+  return {
+    provider: 'eden_universal_runtime',
+    ready: configuredEnv.EDEN_RUNTIME_BRIDGE_TOKEN && (configuredEnv.GITHUB_WORKFLOW_TOKEN || configuredEnv.GITHUB_TOKEN || configuredEnv.VERCEL_TOKEN || configuredEnv.SUPABASE_SERVICE_ROLE_KEY),
+    requiredEnv: ['EDEN_RUNTIME_BRIDGE_TOKEN', 'provider-specific env for GitHub, Vercel, Supabase, Drive, Shopify, or HeyGen'],
+    configuredEnv,
+    notes: 'Single governed route for Eden GPT runtimes to read, queue, write, and execute across provider bridges. External writes require bearer auth and approval phrase.'
+  };
+}
+
 function githubWorkflowReadiness(): RuntimeProviderReadiness {
   const configuredEnv = {
     GITHUB_WORKFLOW_TOKEN: envPresent('GITHUB_WORKFLOW_TOKEN'),
@@ -73,6 +96,7 @@ function autoBuilderRedeployReadiness(): RuntimeProviderReadiness {
 export function getRuntimeProviderStatus() {
   const providers = [
     readiness('supabase', ['SUPABASE_SERVICE_ROLE_KEY'], 'Uses SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL plus service role through telemetry-store.'),
+    edenUniversalRuntimeReadiness(),
     githubWorkflowReadiness(),
     edenVercelReadiness(),
     autoBuilderRedeployReadiness(),
