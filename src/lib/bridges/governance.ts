@@ -7,7 +7,7 @@ export type BridgePolicyDecision = {
   reason: string;
 };
 
-const productionMutationSystems = new Set(["vercel", "supabase", "shopify", "stripe", "slack", "social", "browser_credentialed"]);
+const productionMutationSystems = new Set(["vercel", "supabase", "shopify", "stripe", "google_chat", "social", "browser_credentialed"]);
 
 export function classifyBridgeAction(input: { riskClass: RiskClass; mutation: boolean; system: string; approvalState?: ApprovalState }): BridgePolicyDecision {
   if (input.riskClass <= 1 && !input.mutation) return { allowed: true, approvalRequired: false, reason: "read_or_local_sandbox" };
