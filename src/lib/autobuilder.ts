@@ -59,6 +59,7 @@ export const factorySurfaces = [
   "/api/factory/reverse-engineering",
   "/api/bridge/providers/runtime-status",
   "/api/bridge/vercel/eden-preview",
+  "/api/bridge/vercel/redeploy",
   "/api/cron/factory-readiness",
   "/api/cron/reverse-engineering-passive"
 ] as const;
@@ -73,7 +74,8 @@ export const readiness = {
     "GPT alignment docs exist",
     "one-hour build factory runtime surfaces now exist",
     "passive reverse-engineering and capability test routes now exist",
-    "Eden Skye Studios Vercel preview executor bridge exists"
+    "Eden Skye Studios Vercel preview executor bridge exists",
+    "Governed Vercel redeploy bridge exists"
   ],
   nextActions: [
     "Add production environment variables in Vercel",
@@ -93,7 +95,8 @@ export const audit = {
     "frontend delivery surface",
     "one-hour build factory",
     "passive reverse-engineering system",
-    "Eden Vercel preview executor"
+    "Eden Vercel preview executor",
+    "Governed Vercel redeploy executor"
   ],
   status: "factory-scaffold-ready"
 } as const;
