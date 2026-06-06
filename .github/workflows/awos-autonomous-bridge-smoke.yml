@@ -1,0 +1,77 @@
+name: AWOS Autonomous Bridge Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      auto_builder_url:
+        description: AUTO_BUILDER preview or production URL
+        required: false
+        default: https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app
+      v0_url:
+        description: v0 frontend preview URL for browser screenshot only
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - "src/app/api/bridge/**"
+      - "src/app/api/google-chat/**"
+      - "src/app/api/workflows/**"
+      - "src/app/api/sandbox/**"
+      - "src/app/api/agents/**"
+      - "src/app/api/social/**"
+      - "src/lib/bridge/**"
+      - "src/lib/autobuilder/**"
+      - "src/lib/social/**"
+      - "scripts/bridge-smoke.mjs"
+      - "scripts/bridge-browser-screenshot.mjs"
+      - ".github/workflows/awos-autonomous-bridge-smoke.yml"
+
+jobs:
+  bridge-smoke:
+    name: Bridge POST + browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app' }}
+      V0_URL: ${{ github.event.inputs.v0_url || '' }}
+      BRIDGE_ADMIN_BEARER_TOKEN: ${{ secrets.BRIDGE_ADMIN_BEARER_TOKEN }}
+      BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
+      BRIDGE_SMOKE_ARTIFACT_DIR: bridge-smoke-artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run bridge POST smoke
+        run: node scripts/bridge-smoke.mjs
+
+      - name: Run browser screenshot smoke
+        shell: bash
+        run: |
+          urls=("$AUTO_BUILDER_URL/api/bridge/policy-check")
+          if [ -n "$V0_URL" ]; then
+            urls+=("$V0_URL")
+          fi
+          node scripts/bridge-browser-screenshot.mjs "${urls[@]}"
+
+      - name: Capture git status
+        run: git status --short > bridge-smoke-artifacts/git-status.txt
+
+      - name: Upload smoke artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: awos-autonomous-bridge-smoke
+          path: bridge-smoke-artifacts
+          if-no-files-found: warn
