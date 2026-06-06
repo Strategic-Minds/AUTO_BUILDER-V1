@@ -11,6 +11,17 @@ https://drive.google.com/drive/folders/1UbkNznxlUcdeJi8NGgMIIGXbuA6BcDu-?usp=dri
 Primary Ops Sheet:
 https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOryfao/edit?usp=drive_link
 
+## Active Eden Skye Shopify V1 Submission
+
+Current active Eden Skye website packet:
+
+- `docs/eden-skye/SHOPIFY_V1_APPROVED_MOCKUP_AUTOBUILDER_SUBMISSION.md`
+- `docs/eden-skye/SHOPIFY_V1_VERCEL_WORKFLOW_BUILD_PACKET.md`
+- `factory/eden-skye-shopify-v1-submission.json`
+- `.github/workflows/eden-skye-shopify-v1-vercel-preview.yml`
+
+Rule: the approved Drive mockup `EDENSKYEWEBSITEV2.png` is the source of truth for the Shopify V1 public storefront. Auto Builder must submit this through the Vercel preview workflow/sandbox and validate with receipts. Do not manually paste the screenshot and do not merge the admin/control-plane design into the storefront.
+
 ## First Read Order
 1. `docs/gpt/PROJECT_FOLDER_SYSTEM_INSTRUCTIONS.md`
 2. `SYSTEM_SOURCE_OF_TRUTH.md`
@@ -18,6 +29,7 @@ https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOry
 4. Runtime evidence
 5. Drive canon
 6. Ops Sheet continuity ledger
+7. Active Eden Skye packet when working on Eden Skye
 
 ## Locked Stack
 1. Google Workspace, Drive, and Sheets are first-class operating, canon, file, artifact, and continuity layers.
