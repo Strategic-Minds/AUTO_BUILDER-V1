@@ -26,6 +26,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/bridge/retry",
+      "schedule": "*/2 * * * *"
+    },
+    {
       "path": "/api/cron/social-bridge",
       "schedule": "*/5 * * * *"
     },
