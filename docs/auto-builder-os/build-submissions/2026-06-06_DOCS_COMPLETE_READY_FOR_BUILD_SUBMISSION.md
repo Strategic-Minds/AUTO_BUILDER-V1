@@ -1,13 +1,14 @@
-# AUTO BUILDER OS Docs Complete - Ready For Build Submission
+# AUTO BUILDER OS Docs Complete - Ready For Vercel Build Submission
 
 Date: 2026-06-06
 Branch: `auto-builder/os-v1-backend-bridge-clean-20260606`
-Status: DOCS COMPLETE FOR BUILD SUBMISSION
+Status: DOCS COMPLETE FOR VERCEL BUILD SUBMISSION
 Production status: NOT PRODUCTION COMPLETE
+Builder boundary: Vercel is the system build/execution layer. GPT, Codex, AUTO BUILDER, agents, and workflows are orchestration, packet, handoff, validation, and receipt layers only.
 
 ## PHASE / STEP
 
-DOC ALIGNMENT / STEP 1: final docs-complete receipt and implementation gate list.
+DOC ALIGNMENT / STEP 2: final docs-complete receipt with Vercel builder boundary.
 
 ## TODO
 
@@ -18,10 +19,11 @@ DOC ALIGNMENT / STEP 1: final docs-complete receipt and implementation gate list
 - [x] Verify Auto Social implementation packet exists.
 - [x] Verify GPT Business account docs exist.
 - [x] Verify Git + Drive + autonomous GPT bridge source rule exists.
-- [x] Mark docs as ready for build submission.
-- [ ] Implement backend routes.
-- [ ] Implement Supabase dev-branch schema/RLS.
-- [ ] Implement v0/frontend panels.
+- [x] Add mandatory Vercel builder boundary.
+- [x] Mark docs as ready for Vercel build submission.
+- [ ] Submit packet to Vercel Workflow/Sandbox/Agents for build execution.
+- [ ] Implement Supabase dev-branch schema/RLS through approved build path.
+- [ ] Implement v0/frontend panels through approved build path.
 - [ ] Configure approved env values through secret channels.
 - [ ] Run full smoke and screenshot evidence.
 - [ ] Move PR out of draft only after implementation evidence is clean.
@@ -33,10 +35,12 @@ PR #15 contains these docs and packet files:
 
 - `docs/auto-builder-os/build-submissions/2026-06-06_FULL_AUTO_BUILDER_OS_V1_BUILD_SUBMISSION.md`
 - `docs/auto-builder-os/build-submissions/2026-06-06_AUTO_SOCIAL_IMPLEMENTATION_PACKET.md`
+- `docs/auto-builder-os/build-submissions/2026-06-06_DOCS_COMPLETE_READY_FOR_BUILD_SUBMISSION.md`
 - `factory/build-packets/auto-social-system-20260606.json`
 - `docs/auto-builder-os/operating-protocols/2026-06-06_MANDATORY_IDEA_PHASE_LOCK.md`
 - `docs/auto-builder-os/operating-protocols/2026-06-06_AUTO_SOCIAL_PHASE_LOCK.md`
 - `docs/auto-builder-os/operating-protocols/2026-06-06_MANDATORY_GIT_DRIVE_GPT_BRIDGE_SOURCE_RULE.md`
+- `docs/auto-builder-os/operating-protocols/2026-06-06_MANDATORY_VERCEL_BUILDER_BOUNDARY.md`
 - `docs/gpt-business-account/MANDATORY_READ_CUSTOM_INSTRUCTIONS_UNDER_1499.md`
 - `docs/gpt-business-account/MANDATORY_READ_README_UNDER_1499.md`
 - `docs/gpt-business-account/START_EVERY_REQUEST_HERE.md`
@@ -53,10 +57,11 @@ Drive search confirmed matching source-truth concepts and operating surfaces:
 - Drive source docs include env status names with values hidden.
 - Drive source docs preserve production locks and approval gates.
 - Drive source docs confirm draft-first operation, sandbox/preview first, and release firewall behavior.
+- Drive source docs include Vercel, GitHub, Supabase, Google Drive, and workflow control surfaces.
 
 ## Bridge Rule Verification
 
-The docs now explicitly require:
+The docs explicitly require:
 
 - GitHub/repo truth search.
 - Google Drive/source-doc search.
@@ -65,9 +70,18 @@ The docs now explicitly require:
 - Autonomous GPT bridge is the default command/event/audit/queue/receipt/handoff path.
 - Bridge unavailability must create a repair/self-heal TODO.
 
+## Builder Boundary Verification
+
+The docs explicitly require:
+
+- Vercel is the system build/execution layer.
+- GPT, Codex, AUTO BUILDER, agents, and workflows are not system builders.
+- GPT/agents may plan, document, inspect, queue, hand off, validate, and collect receipts.
+- Build execution is submitted to Vercel Workflow/Sandbox/Agents.
+
 ## Docs Done Means
 
-Docs are complete for build submission when the repo has:
+Docs are complete for Vercel build submission when the repo has:
 
 - The full OS build submission.
 - The Auto Social implementation packet.
@@ -75,6 +89,7 @@ Docs are complete for build submission when the repo has:
 - The GPT Business account operating instructions.
 - Mandatory phase-lock protocols.
 - Mandatory Git + Drive + GPT bridge source protocol.
+- Mandatory Vercel builder boundary protocol.
 - Env names/placeholders without secret values.
 - Provider/factory capability updates.
 - Remaining build gates clearly separated from docs status.
@@ -83,7 +98,7 @@ This condition is met in PR #15.
 
 ## Not Done Yet
 
-The system is not production complete until these are implemented and verified:
+The system is not production complete until Vercel build execution and verification complete:
 
 - Backend bridge/generator/event-bus routes.
 - Google Chat bridge route.
@@ -116,18 +131,19 @@ The docs do not authorize:
 
 ## Build Submission Decision
 
-Decision: READY TO SUBMIT FOR BUILD EXECUTION.
+Decision: READY TO SUBMIT TO VERCEL BUILD EXECUTION.
 
-Meaning: the documentation and packet layer is sufficiently aligned for AUTO BUILDER, Vercel workflow, Codex, n8n, Supabase, GitHub, Drive, v0/frontend, and Auto Social implementation work to begin from PR #15.
+Meaning: the documentation and packet layer is sufficiently aligned for Vercel Workflow/Sandbox/Agents to execute the AUTO BUILDER OS build path from PR #15.
 
-Not meaning: the live system is finished, smoke-tested, merged, deployed, or approved for production.
+Not meaning: GPT, Codex, AUTO BUILDER, or agents are the system builder. They are orchestration and handoff layers. It also does not mean the live system is finished, smoke-tested, merged, deployed, or approved for production.
 
 ## Next Build TODO
 
-1. Implement Supabase dev migration/RLS repair.
-2. Implement draft-first backend routes and bridge event receipts.
-3. Implement Google Chat route and remove remaining Slack assumptions.
-4. Implement Vercel Workflow/Sandbox/Agents/AI Gateway/Codex/n8n packets as code routes.
-5. Implement v0 frontend panels for queue, approvals, receipts, social, agents, workflow, screenshots, release holds.
-6. Run smoke order: heartbeat, secret names only, harmless read/write/command, browser screenshot, Git status, workflow dry run, social draft, Supabase branch receipt, n8n replay, AI Gateway receipt.
-7. Move PR #15 out of draft only after clean evidence.
+1. Submit packet to Vercel Workflow/Sandbox/Agents.
+2. Implement Supabase dev migration/RLS repair through approved build path.
+3. Implement draft-first backend/social routes through approved build path.
+4. Implement Google Chat route and remove remaining Slack assumptions.
+5. Implement Vercel Workflow/Sandbox/Agents/AI Gateway/Codex/n8n packets as code routes.
+6. Implement v0 frontend panels for queue, approvals, receipts, social, agents, workflow, screenshots, release holds.
+7. Run smoke order: heartbeat, secret names only, harmless read/write/command, browser screenshot, Git status, workflow dry run, social draft, Supabase branch receipt, n8n replay, AI Gateway receipt.
+8. Move PR #15 out of draft only after clean evidence.
