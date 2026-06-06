@@ -19,10 +19,14 @@ const expected = [
   "GITHUB_TOKEN",
   "BROWSER_WORKER_TOKEN",
   "SHOPIFY_ADMIN_TOKEN",
-  "STRIPE_SECRET_KEY",
-  "SLACK_BOT_TOKEN"
+  "GOOGLE_CHAT_WEBHOOK_URL",
+  "GOOGLE_CHAT_SPACE_ID",
+  "GOOGLE_CHAT_BOT_TOKEN",
+  "STRIPE_SECRET_KEY"
 ];
 
+const deferred = ["STRIPE_SECRET_KEY"];
+const removed = ["SLACK_BOT_TOKEN"];
 const vercelInjectedPrefixes = ["VERCEL", "VERCEL_", "NEXT_RUNTIME"];
 
 export async function GET() {
@@ -34,7 +38,16 @@ export async function GET() {
     mutation: false,
     source: "vercel_runtime_process_env_names_only",
     warning: "This route never returns secret values. It only returns names and present/missing booleans.",
-    expected: expected.map((name) => ({ name, present: Boolean(process.env[name]) })),
+    operatorMessaging: {
+      primary: "google_chat_operator_bridge",
+      removed: "slack_operator_bridge"
+    },
+    payments: {
+      primaryForNow: "shopify_payments",
+      stripe: "deferred_until_payday_phase"
+    },
+    expected: expected.map((name) => ({ name, present: Boolean(process.env[name]), deferred: deferred.includes(name) })),
+    removed: removed.map((name) => ({ name, present: Boolean(process.env[name]), shouldRemainUnused: true })),
     vercelRuntimeNames,
     counts: {
       expected: expected.length,
