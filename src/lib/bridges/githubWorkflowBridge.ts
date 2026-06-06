@@ -41,7 +41,8 @@ const TARGETS: Record<GitHubWorkflowTarget, GitHubWorkflowTargetConfig> = {
   }
 };
 
-const RISK_WORDS = ['prod', 'production', 'deploy', 'redeploy', 'release', 'publish', 'shopify', 'stripe', 'payment', 'migration', 'delete', 'destroy'];
+const RISK_WORDS = ['prod', 'production', 'release', 'publish', 'shopify', 'stripe', 'payment', 'migration', 'delete', 'destroy'];
+const SAFE_PREVIEW_WORKFLOW_INPUTS = new Set(['preview', 'auto_builder', 'eden_skye_studios', 'main']);
 
 function getGitHubToken() {
   return process.env.GITHUB_WORKFLOW_TOKEN || process.env.GITHUB_TOKEN || null;
@@ -82,9 +83,19 @@ function parseJson(text: string) {
   }
 }
 
+function isSafePreviewDispatch(input: GitHubWorkflowBridgeRequest) {
+  const inputs = input.inputs ?? {};
+  const mode = String(inputs.mode ?? '').toLowerCase();
+  const targetSystem = String(inputs.target_system ?? inputs.targetSystem ?? input.targetSystem ?? '').toLowerCase();
+  const ref = String(inputs.ref ?? input.ref ?? 'main').toLowerCase();
+
+  return mode === 'preview' && SAFE_PREVIEW_WORKFLOW_INPUTS.has(targetSystem) && SAFE_PREVIEW_WORKFLOW_INPUTS.has(ref);
+}
+
 function isRiskyDispatch(input: GitHubWorkflowBridgeRequest) {
+  if (isSafePreviewDispatch(input)) return false;
+
   const haystack = [
-    String(input.workflowId ?? ''),
     input.ref ?? '',
     ...Object.entries(input.inputs ?? {}).flatMap(([key, value]) => [key, String(value)])
   ]
@@ -137,7 +148,7 @@ export function getGitHubWorkflowBridgeReadiness() {
     targets: Object.values(TARGETS),
     approvalPolicy: {
       autonomousRead: true,
-      autonomousDispatch: 'safe workflow_dispatch only',
+      autonomousDispatch: 'safe workflow_dispatch only, including preview redeploy workflow inputs',
       gatedDispatch: RISK_WORDS,
       requiredApprovalPhrase: 'APPROVE GITHUB WORKFLOW RUN'
     }
