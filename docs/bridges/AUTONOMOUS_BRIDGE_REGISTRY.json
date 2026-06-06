@@ -9,18 +9,29 @@
     "Consequential mutations require explicit approval.",
     "Every bridge action emits an audit receipt."
   ],
+  "operatorMessagingDecision": {
+    "primary": "google_chat_operator_bridge",
+    "removed": "slack_operator_bridge",
+    "reason": "The operating stack is Google-first, so operator alerts and approvals should route through Google Chat rather than Slack."
+  },
+  "paymentDecision": {
+    "stripe": "deferred_until_payday_phase",
+    "shopifyPayments": "primary_commerce_payment_surface_for_now",
+    "reason": "Stripe is connected to GPT for later finance work, but Shopify already covers commerce payments for the current operating phase."
+  },
   "bridges": [
     { "id": "gpt_cloud_control_plane", "status": "partially_verified", "autonomous": ["health_check", "read_registry", "submit_sandbox_task", "read_receipts"], "gated": ["production_deploy", "env_mutation", "authority_file_mutation"] },
+    { "id": "frontend_control_bridge", "status": "ui_surface_ready_command_post_pending", "autonomous": ["read_registry", "read_repo_visibility", "read_smoke_status", "display_action_surfaces"], "gated": ["submit_mutating_command", "store_operator_token", "change_live_bridge_state"] },
     { "id": "local_device_relay", "status": "installed_scaffold", "autonomous": ["snapshot", "git_status", "git_diff", "read_allowed_file", "run_read_only_command"], "gated": ["write_file", "install_dependency", "run_mutating_command", "git_commit", "git_push"] },
-    { "id": "github_repo_bridge", "status": "verified_read_and_permission_surface", "autonomous": ["repo_metadata_read", "file_read", "pr_status_read", "workflow_log_read"], "gated": ["create_branch", "commit", "push", "merge_pr", "workflow_with_external_writes"] },
-    { "id": "vercel_runtime_bridge", "status": "verified_read_surface", "autonomous": ["project_read", "deployment_read", "preview_fetch", "build_log_read"], "gated": ["production_deploy", "env_add_update_delete", "domain_alias"] },
-    { "id": "supabase_state_bridge", "status": "verified_read_surface_hardening_needed", "autonomous": ["project_read", "schema_read", "advisor_read", "select_bridge_queue", "select_receipts"], "gated": ["apply_migration", "update_rls_policy", "insert_live_task", "delete_data"] },
+    { "id": "github_repo_bridge", "status": "verified_read_and_permission_surface", "autonomous": ["repo_metadata_read", "file_read", "pr_status_read", "workflow_log_read", "repo_visibility_summary"], "gated": ["create_branch", "commit", "push", "merge_pr", "workflow_with_external_writes"] },
+    { "id": "vercel_runtime_bridge", "status": "verified_read_surface", "autonomous": ["project_read", "deployment_read", "preview_fetch", "build_log_read", "env_names_only"], "gated": ["production_deploy", "env_add_update_delete", "domain_alias"] },
+    { "id": "supabase_state_bridge", "status": "admin_route_installed_writes_disabled", "autonomous": ["project_read", "schema_read", "advisor_read", "select_bridge_queue", "select_receipts", "names_only_config"], "gated": ["apply_migration", "update_rls_policy", "insert_live_task", "delete_data", "admin_write"] },
     { "id": "drive_sheets_source_truth_bridge", "status": "verified_read_surface", "autonomous": ["profile_read", "drive_search", "doc_read", "sheet_read"], "gated": ["create_doc", "update_doc", "update_sheet", "move_or_delete_files"] },
-    { "id": "shopify_commerce_bridge", "status": "verified_read_surface", "autonomous": ["shop_info_read", "product_search", "collection_read", "order_read"], "gated": ["create_product", "update_product", "publish_product", "create_discount"] },
-    { "id": "stripe_finance_bridge", "status": "tool_surface_available_names_only", "autonomous": ["account_info_read", "product_read", "price_read", "invoice_read"], "gated": ["create_customer", "create_price", "create_payment_link", "finalize_invoice", "refund"] },
+    { "id": "shopify_commerce_bridge", "status": "verified_read_surface_payments_primary_for_now", "autonomous": ["shop_info_read", "product_search", "collection_read", "order_read"], "gated": ["create_product", "update_product", "publish_product", "create_discount", "payment_setting_changes"] },
+    { "id": "stripe_finance_bridge", "status": "deferred_until_payday_phase", "autonomous": ["connected_to_gpt_for_later", "names_only"], "gated": ["create_customer", "create_price", "create_payment_link", "finalize_invoice", "refund", "subscription_change"] },
     { "id": "browser_qa_bridge", "status": "promoted_full_screenshot_evidence_pending", "autonomous": ["public_page_visit", "preview_page_visit", "screenshot_capture", "console_error_capture"], "gated": ["credentialed_browser_action", "form_submission", "purchase", "publish"] },
     { "id": "social_distribution_bridge", "status": "route_map_exists_platform_verification_needed", "autonomous": ["draft_content", "queue_content", "read_metrics"], "gated": ["live_publish", "mass_outreach", "ad_spend"] },
-    { "id": "slack_operator_bridge", "status": "verified_read_surface", "autonomous": ["profile_read", "channel_search", "message_search", "draft_message"], "gated": ["send_message", "reply_in_thread"] },
+    { "id": "google_chat_operator_bridge", "status": "selected_operator_channel_secret_pending", "autonomous": ["draft_operator_update", "format_approval_card", "queue_notification_receipt"], "gated": ["send_google_chat_message", "reply_to_thread", "change_space_configuration"] },
     { "id": "audit_receipt_recovery_bridge", "status": "installed_schema", "autonomous": ["record_read_receipt", "record_validation_receipt", "record_blocker", "classify_risk"], "gated": ["execute_rollback", "delete_receipts", "override_gate"] }
   ]
 }
