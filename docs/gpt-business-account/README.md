@@ -6,7 +6,7 @@ Use these files when creating the dedicated AUTO BUILDER OS GPT Business account
 
 `MANDATORY_READ_CUSTOM_INSTRUCTIONS_UNDER_1499.md`
 
-Character count: 1,475.
+Character count: 927.
 
 ## Add As Account / Project README
 
