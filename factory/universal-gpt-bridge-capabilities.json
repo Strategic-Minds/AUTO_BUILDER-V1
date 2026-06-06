@@ -1,19 +1,48 @@
 {
   "bridge": "Universal GPT to Codex / Connector Execution Bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "sessionBound": false,
   "auth": {
     "required": true,
     "env": [
       "AUTO_BUILDER_UNIVERSAL_BRIDGE_ENABLED",
       "AUTO_BUILDER_UNIVERSAL_BRIDGE_TOKEN",
+      "AUTO_BUILDER_POST_RELAY_ENABLED",
+      "AUTO_BUILDER_POST_RELAY_TOKEN",
+      "AUTO_BUILDER_PHONE_BRIDGE_ENABLED",
+      "AUTO_BUILDER_PHONE_BRIDGE_TOKEN",
       "BRIDGE_WORKSPACE_ROOT"
     ],
     "secretValuePolicy": "GPT may read secret names and presence metadata only. Values are never returned."
   },
+  "routes": [
+    {
+      "path": "/api/bridge/universal",
+      "purpose": "Universal authenticated GPT/Codex/connector execution route."
+    },
+    {
+      "path": "/api/bridge/post",
+      "purpose": "Authenticated server-side POST relay for POST-capable bridge operations."
+    },
+    {
+      "path": "/api/bridge/phone",
+      "purpose": "Phone-authorized dispatcher that can call the universal bridge or POST relay without exposing bridge tokens to the phone client."
+    }
+  ],
   "workspace": {
     "rootEnv": "BRIDGE_WORKSPACE_ROOT",
     "boundary": "All Codex file and command operations are constrained to BRIDGE_WORKSPACE_ROOT."
+  },
+  "postRelay": {
+    "actions": ["postRelay.forward"],
+    "requiredEnv": ["AUTO_BUILDER_POST_RELAY_ENABLED", "AUTO_BUILDER_POST_RELAY_TOKEN", "POST_RELAY_ALLOWED_HOSTS"],
+    "defaultMethod": "POST",
+    "defaultPolicy": "HTTPS only, host allowlist required, private/local hosts blocked unless explicitly enabled."
+  },
+  "phoneBridge": {
+    "actions": ["phone.dispatchUniversal", "phone.dispatchPostRelay"],
+    "requiredEnv": ["AUTO_BUILDER_PHONE_BRIDGE_ENABLED", "AUTO_BUILDER_PHONE_BRIDGE_TOKEN"],
+    "purpose": "Operate approved bridge actions from a phone-controlled client while preserving route auth, workspace boundaries, and receipts."
   },
   "connectors": [
     {
@@ -81,6 +110,7 @@
     "billing/spend",
     "public publishing",
     "mass outreach",
-    "credential changes"
+    "credential changes",
+    "GPT account or browser-account operation"
   ]
 }
