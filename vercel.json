@@ -22,6 +22,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/autobuilder-generator",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/social-bridge",
       "schedule": "*/5 * * * *"
     },
