@@ -1,0 +1,293 @@
+name: Eden Mockup Visual Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: "Vercel preview URL to validate"
+        required: true
+      backend_base_url:
+        description: "Backend base URL. Defaults to preview_url when empty."
+        required: false
+      approved_mockup_url:
+        description: "Approved mockup image URL. Defaults to EDEN_APPROVED_MOCKUP_URL."
+        required: false
+      validation_mode:
+        description: "Validation mode"
+        required: true
+        default: "strict"
+        type: choice
+        options:
+          - strict
+          - evidence-only
+      threshold_percent:
+        description: "Maximum allowed pixel mismatch percent"
+        required: true
+        default: "0.5"
+      request_id:
+        description: "Auto Builder request id"
+        required: false
+        default: "eden-mockup-validation"
+  workflow_call:
+    inputs:
+      preview_url:
+        required: true
+        type: string
+      backend_base_url:
+        required: false
+        type: string
+      approved_mockup_url:
+        required: false
+        type: string
+      validation_mode:
+        required: false
+        type: string
+        default: "strict"
+      threshold_percent:
+        required: false
+        type: string
+        default: "0.5"
+      request_id:
+        required: false
+        type: string
+        default: "eden-mockup-validation"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate:
+    name: Validate Frontend, Backend, and Mockup Match
+    runs-on: ubuntu-latest
+    env:
+      PREVIEW_URL: ${{ inputs.preview_url }}
+      BACKEND_BASE_URL: ${{ inputs.backend_base_url || inputs.preview_url }}
+      APPROVED_MOCKUP_URL: ${{ inputs.approved_mockup_url || vars.EDEN_APPROVED_MOCKUP_URL || secrets.EDEN_APPROVED_MOCKUP_URL }}
+      VALIDATION_MODE: ${{ inputs.validation_mode }}
+      THRESHOLD_PERCENT: ${{ inputs.threshold_percent }}
+      REQUEST_ID: ${{ inputs.request_id }}
+      PRODUCTION_LOCKED: "true"
+      SHOPIFY_MUTATION_LOCKED: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required inputs
+        run: |
+          test -n "$PREVIEW_URL"
+          test -n "$APPROVED_MOCKUP_URL"
+          case "$PREVIEW_URL" in
+            http://*|https://*) ;;
+            *) echo "preview_url must be http(s)"; exit 1 ;;
+          esac
+          case "$APPROVED_MOCKUP_URL" in
+            http://*|https://*) ;;
+            *) echo "approved_mockup_url must be http(s)"; exit 1 ;;
+          esac
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install validation dependencies
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright sharp pixelmatch pngjs >/dev/null
+          npx playwright install --with-deps chromium
+
+      - name: Capture screenshot and compare to approved mockup
+        run: |
+          mkdir -p validation-artifacts
+          cat > validation-artifacts/validate-eden-mockup.mjs <<'EOF'
+          import fs from "node:fs";
+          import { chromium } from "playwright";
+          import sharp from "sharp";
+          import pixelmatch from "pixelmatch";
+          import { PNG } from "pngjs";
+
+          const previewUrl = process.env.PREVIEW_URL;
+          const mockupUrl = process.env.APPROVED_MOCKUP_URL;
+          const thresholdPercent = Number(process.env.THRESHOLD_PERCENT || "0.5");
+          const validationMode = process.env.VALIDATION_MODE || "strict";
+
+          const requiredText = [
+            "CREATOR EXPERIENCE",
+            "REAL. BEAUTIFUL",
+            "UNFORGETTABLE",
+            "CREATORS",
+            "DOWNLOADS",
+            "CHAT",
+            "VIDEO CHAT",
+            "LICENSES",
+            "PRODUCTS",
+            "SERVICES",
+            "MEET OUR CREATORS",
+            "POPULAR DOWNLOADS",
+            "TOP PRODUCTS",
+            "PREMIUM SERVICES"
+          ];
+
+          async function download(url, path) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to download ${url}: ${response.status}`);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            fs.writeFileSync(path, buffer);
+          }
+
+          await download(mockupUrl, "validation-artifacts/approved-mockup-source");
+          await sharp("validation-artifacts/approved-mockup-source")
+            .png()
+            .toFile("validation-artifacts/approved-mockup.png");
+
+          const browser = await chromium.launch();
+          const page = await browser.newPage({
+            viewport: { width: 1920, height: 1243 },
+            deviceScaleFactor: 1
+          });
+          await page.goto(previewUrl, { waitUntil: "networkidle", timeout: 90000 });
+          const text = (await page.locator("body").innerText()).toUpperCase();
+          await page.screenshot({ path: "validation-artifacts/actual-preview.png", fullPage: true });
+          await browser.close();
+
+          const approvedMeta = await sharp("validation-artifacts/approved-mockup.png").metadata();
+          await sharp("validation-artifacts/actual-preview.png")
+            .resize({ width: approvedMeta.width, height: approvedMeta.height, fit: "fill" })
+            .png()
+            .toFile("validation-artifacts/actual-preview-resized.png");
+
+          const approvedPng = PNG.sync.read(fs.readFileSync("validation-artifacts/approved-mockup.png"));
+          const actualPng = PNG.sync.read(fs.readFileSync("validation-artifacts/actual-preview-resized.png"));
+          const diffPng = new PNG({ width: approvedPng.width, height: approvedPng.height });
+          const mismatched = pixelmatch(
+            approvedPng.data,
+            actualPng.data,
+            diffPng.data,
+            approvedPng.width,
+            approvedPng.height,
+            { threshold: 0.1 }
+          );
+          fs.writeFileSync("validation-artifacts/visual-diff.png", PNG.sync.write(diffPng));
+
+          const totalPixels = approvedPng.width * approvedPng.height;
+          const mismatchPercent = (mismatched / totalPixels) * 100;
+          const sectionResults = requiredText.map((label) => ({ label, detected: text.includes(label) }));
+          const missingSections = sectionResults.filter((item) => !item.detected);
+          const passedVisual = mismatchPercent <= thresholdPercent && missingSections.length === 0;
+
+          const result = {
+            request_id: process.env.REQUEST_ID,
+            preview_url: previewUrl,
+            approved_mockup_url: mockupUrl,
+            validation_mode: validationMode,
+            threshold_percent: thresholdPercent,
+            mismatch_percent: Number(mismatchPercent.toFixed(4)),
+            mismatched_pixels: mismatched,
+            total_pixels: totalPixels,
+            required_sections: sectionResults,
+            missing_sections: missingSections,
+            passed_visual: passedVisual,
+            production_locked: true,
+            shopify_mutation_locked: true,
+            artifacts: {
+              approved_mockup: "approved-mockup.png",
+              actual_screenshot: "actual-preview.png",
+              actual_screenshot_resized: "actual-preview-resized.png",
+              visual_diff: "visual-diff.png"
+            }
+          };
+
+          fs.writeFileSync("validation-artifacts/frontend-validation.json", JSON.stringify(result, null, 2));
+
+          if (!passedVisual && validationMode === "strict") {
+            console.error(JSON.stringify(result, null, 2));
+            process.exit(2);
+          }
+          EOF
+          node validation-artifacts/validate-eden-mockup.mjs
+
+      - name: Validate backend routes
+        if: always()
+        run: |
+          cat > validation-artifacts/backend-validation.mjs <<'EOF'
+          import fs from "node:fs";
+
+          const base = process.env.BACKEND_BASE_URL || process.env.PREVIEW_URL;
+          const routes = [
+            "/api/health",
+            "/api/autobuilder/validate",
+            "/api/autobuilder/readiness",
+            "/api/bridge/registry",
+            "/api/bridge/github/workflows",
+            "/api/bridge/vercel/eden-preview",
+            "/api/bridge/vercel/redeploy"
+          ];
+
+          const results = [];
+          for (const route of routes) {
+            const url = new URL(route, base).toString();
+            try {
+              const response = await fetch(url, { method: "GET" });
+              results.push({
+                route,
+                url,
+                status: response.status,
+                ok: response.ok,
+                classification: response.status === 404 ? "not_present" : response.ok ? "passed" : "failed"
+              });
+            } catch (error) {
+              results.push({ route, url, ok: false, classification: "failed", error: String(error.message || error) });
+            }
+          }
+
+          const failedRequired = results.filter((item) => item.classification === "failed");
+          const output = {
+            request_id: process.env.REQUEST_ID,
+            backend_base_url: base,
+            results,
+            passed_backend: failedRequired.length === 0,
+            failed_required: failedRequired
+          };
+
+          fs.writeFileSync("validation-artifacts/backend-validation.json", JSON.stringify(output, null, 2));
+
+          if (failedRequired.length > 0 && process.env.VALIDATION_MODE === "strict") {
+            console.error(JSON.stringify(output, null, 2));
+            process.exit(3);
+          }
+          EOF
+          node validation-artifacts/backend-validation.mjs
+
+      - name: Build validation summary
+        if: always()
+        run: |
+          cat > validation-artifacts/VALIDATION_SUMMARY.md <<EOF
+          # Eden Mockup Validation Summary
+
+          Request: \`$REQUEST_ID\`
+
+          Preview URL: $PREVIEW_URL
+
+          Approved mockup URL: $APPROVED_MOCKUP_URL
+
+          Production locked: true
+
+          Shopify mutation locked: true
+
+          ## Artifacts
+
+          - \`approved-mockup.png\`
+          - \`actual-preview.png\`
+          - \`actual-preview-resized.png\`
+          - \`visual-diff.png\`
+          - \`frontend-validation.json\`
+          - \`backend-validation.json\`
+          EOF
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-mockup-validation-evidence
+          path: validation-artifacts/
