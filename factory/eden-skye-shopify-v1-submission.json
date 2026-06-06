@@ -1,0 +1,84 @@
+{
+  "packet_id": "eden-shopify-v1-approved-mockup-vercel-preview",
+  "created_at": "2026-06-06",
+  "owner": "Eden Skye Studios",
+  "mode": "preview_only",
+  "source_of_truth": {
+    "approved_mockup_name": "EDENSKYEWEBSITEV2.png",
+    "drive_file_id": "1xaDrBNIaXSwmtdothIZvZSczDjqX6qTR",
+    "drive_url": "https://drive.google.com/file/d/1xaDrBNIaXSwmtdothIZvZSczDjqX6qTR/view?usp=drivesdk",
+    "role": "approved_shopify_v1_storefront_mockup"
+  },
+  "targets": {
+    "auto_builder_repo": "Strategic-Minds/AUTO_BUILDER",
+    "eden_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+    "eden_branch": "shopify/v1-website-preview",
+    "vercel_project_id": "prj_mtmJQYYqRodNnH2UrDqwaK2MHgoA",
+    "environment": "preview"
+  },
+  "locks": {
+    "production_deploy_locked": true,
+    "shopify_mutation_locked": true,
+    "payment_change_locked": true,
+    "social_publish_locked": true
+  },
+  "autobuilder_route_sequence": [
+    "GET /api/factory/readiness",
+    "POST /api/factory/build-packet",
+    "GET /api/bridge/github/workflows",
+    "POST /api/bridge/github/workflows/dispatch",
+    "GET /api/bridge/github/workflows/runs",
+    "GET /api/bridge/github/workflows/runs/:run_id/jobs",
+    "GET /api/bridge/vercel/eden-preview",
+    "GET /api/autobuilder/validate",
+    "GET /api/autobuilder/audit"
+  ],
+  "required_sections": [
+    "header_nav",
+    "hero",
+    "right_action_rail",
+    "feature_strip",
+    "meet_our_creators",
+    "popular_downloads",
+    "top_products",
+    "premium_services",
+    "trust_footer_strip"
+  ],
+  "explicit_rejections": [
+    "screenshot_only_page",
+    "admin_control_plane_collage",
+    "eden_closet_as_public_storefront",
+    "generic_saas_dashboard",
+    "generic_landing_page",
+    "missing_right_action_rail",
+    "missing_product_prices",
+    "missing_visual_proof",
+    "production_deploy",
+    "shopify_mutation"
+  ],
+  "validation_receipts_required": [
+    "github_commit_receipt",
+    "github_workflow_run_receipt",
+    "github_workflow_jobs_receipt",
+    "vercel_preview_url",
+    "desktop_screenshot",
+    "mobile_screenshot",
+    "section_text_validation",
+    "mockup_visual_match_audit",
+    "production_lock_receipt",
+    "shopify_lock_receipt"
+  ],
+  "workflow": {
+    "file": ".github/workflows/eden-skye-shopify-v1-vercel-preview.yml",
+    "dispatch_inputs": {
+      "packet_id": "eden-shopify-v1-approved-mockup-vercel-preview",
+      "target_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+      "target_branch": "shopify/v1-website-preview",
+      "vercel_project_id": "prj_mtmJQYYqRodNnH2UrDqwaK2MHgoA",
+      "environment": "preview",
+      "production_locked": "true",
+      "shopify_mutation_locked": "true"
+    }
+  },
+  "status": "submitted_to_autobuilder_docs_branch"
+}
