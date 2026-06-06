@@ -251,11 +251,11 @@ export async function handleEdenUniversalRuntimeBridge(input: EdenRuntimeBridgeR
   }
 
   if (input.provider === 'github') {
-    return handleGitHubWorkflowBridge(input.payload as GitHubWorkflowBridgeRequest);
+    return handleGitHubWorkflowBridge((input.payload ?? {}) as GitHubWorkflowBridgeRequest);
   }
 
   if (input.provider === 'vercel') {
-    return triggerVercelRedeploy(input.payload as VercelRedeployRequest);
+    return triggerVercelRedeploy((input.payload ?? {}) as VercelRedeployRequest);
   }
 
   if (input.provider === 'supabase') {
