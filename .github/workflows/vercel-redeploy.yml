@@ -1,7 +1,31 @@
-name: Vercel Production Redeploy
+name: Governed Vercel Redeploy Bridge
 
 on:
   workflow_dispatch:
+    inputs:
+      target_system:
+        description: "Which Vercel project to redeploy"
+        required: true
+        default: "auto_builder"
+        type: choice
+        options:
+          - auto_builder
+          - eden_skye_studios
+      mode:
+        description: "Deploy mode"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - production
+      ref:
+        description: "Git ref to deploy"
+        required: false
+        default: "main"
+      approval_phrase:
+        description: "Required only for production: APPROVE PRODUCTION DEPLOY"
+        required: false
   push:
     branches:
       - main
@@ -9,34 +33,114 @@ on:
 permissions:
   contents: read
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
-  deploy-production:
-    name: Deploy latest main to Vercel production
+  governed-vercel-redeploy:
+    name: Governed Vercel redeploy
     runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+      AUTO_BUILDER_VERCEL_PROJECT_ID: ${{ secrets.AUTO_BUILDER_VERCEL_PROJECT_ID || secrets.VERCEL_PROJECT_ID }}
+      EDEN_SKYE_VERCEL_PROJECT_ID: ${{ secrets.EDEN_SKYE_VERCEL_PROJECT_ID }}
+      AUTO_BUILDER_REPO_ID: "1249596503"
+      EDEN_SKYE_REPO_ID: "1256557688"
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Validate Vercel secrets
+      - name: Validate redeploy secrets
         run: |
-          test -n "${{ secrets.VERCEL_TOKEN }}" || (echo "Missing VERCEL_TOKEN" && exit 1)
-          test -n "${{ secrets.VERCEL_ORG_ID }}" || (echo "Missing VERCEL_ORG_ID" && exit 1)
-          test -n "${{ secrets.VERCEL_PROJECT_ID }}" || (echo "Missing VERCEL_PROJECT_ID" && exit 1)
+          test -n "$VERCEL_TOKEN" || (echo "Missing VERCEL_TOKEN" && exit 1)
 
-      - name: Pull Vercel environment
-        run: npx vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Resolve governed redeploy target
+        id: target
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TARGET_SYSTEM="auto_builder"
+            MODE="preview"
+            REF="${{ github.ref_name }}"
+            APPROVAL_PHRASE=""
+          else
+            TARGET_SYSTEM="${{ inputs.target_system }}"
+            MODE="${{ inputs.mode }}"
+            REF="${{ inputs.ref }}"
+            APPROVAL_PHRASE="${{ inputs.approval_phrase }}"
+          fi
 
-      - name: Build Vercel artifact
-        run: npx vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+          if [ "$MODE" = "production" ] && [ "$APPROVAL_PHRASE" != "APPROVE PRODUCTION DEPLOY" ]; then
+            echo "Production redeploy blocked. Exact approval phrase required."
+            exit 1
+          fi
 
-      - name: Deploy Vercel artifact to production
-        run: npx vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+          if [ "$TARGET_SYSTEM" = "eden_skye_studios" ]; then
+            PROJECT_ID="$EDEN_SKYE_VERCEL_PROJECT_ID"
+            REPO_ID="$EDEN_SKYE_REPO_ID"
+            DEPLOY_NAME="eden-skye-studios-$MODE-redeploy"
+          else
+            PROJECT_ID="$AUTO_BUILDER_VERCEL_PROJECT_ID"
+            REPO_ID="$AUTO_BUILDER_REPO_ID"
+            DEPLOY_NAME="auto-builder-$MODE-redeploy"
+          fi
+
+          test -n "$PROJECT_ID" || (echo "Missing Vercel project id for $TARGET_SYSTEM" && exit 1)
+
+          echo "target_system=$TARGET_SYSTEM" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          echo "repo_id=$REPO_ID" >> "$GITHUB_OUTPUT"
+          echo "deploy_name=$DEPLOY_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create Vercel deployment through cloud API
+        id: deploy
+        shell: bash
+        run: |
+          TEAM_QUERY=""
+          if [ -n "$VERCEL_TEAM_ID" ]; then
+            TEAM_QUERY="?teamId=$VERCEL_TEAM_ID"
+          fi
+
+          TARGET_FIELD=""
+          if [ "${{ steps.target.outputs.mode }}" = "production" ]; then
+            TARGET_FIELD=',"target":"production"'
+          fi
+
+          cat > payload.json <<JSON
+          {
+            "name": "${{ steps.target.outputs.deploy_name }}",
+            "project": "${{ steps.target.outputs.project_id }}",
+            "gitSource": {
+              "type": "github",
+              "repoId": "${{ steps.target.outputs.repo_id }}",
+              "ref": "${{ steps.target.outputs.ref }}"
+            },
+            "meta": {
+              "source": "github-actions-governed-vercel-redeploy",
+              "targetSystem": "${{ steps.target.outputs.target_system }}",
+              "mode": "${{ steps.target.outputs.mode }}",
+              "workflow": "${{ github.workflow }}",
+              "runId": "${{ github.run_id }}"
+            }
+            $TARGET_FIELD
+          }
+          JSON
+
+          RESPONSE_FILE="vercel-response.json"
+          STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" \
+            -X POST "https://api.vercel.com/v13/deployments$TEAM_QUERY" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @payload.json)
+
+          cat "$RESPONSE_FILE"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "Vercel deployment request failed with status $STATUS"
+            exit 1
+          fi
+
+      - name: Deployment receipt
+        run: |
+          echo "Target system: ${{ steps.target.outputs.target_system }}"
+          echo "Mode: ${{ steps.target.outputs.mode }}"
+          echo "Ref: ${{ steps.target.outputs.ref }}"
+          echo "Vercel API status: ${{ steps.deploy.outputs.status }}"
