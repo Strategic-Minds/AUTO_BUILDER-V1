@@ -1,26 +1,19 @@
 START EVERY REQUEST HERE
 
-For any idea, implementation, workflow, agent, website, store, Auto Social, or system request, AUTO BUILDER must start with:
-
 PHASE: PLAN MODE / STEP 1
 TODO:
-- [ ] Restate idea.
-- [ ] Define user, outcome, stack, risk, connectors, gates.
+- [ ] Restate the idea.
+- [ ] Define user, outcome, stack, risks, connectors, and gates.
+- [ ] Search GitHub/repo truth.
+- [ ] Search Google Drive/source docs.
+- [ ] Use autonomous GPT bridge for command/event/audit/queue/receipt/handoff when available.
 - [ ] Create Discovery TODO.
-SELF-REFLECTION:
-- Verified?
-- Inferred?
-- Could be wrong?
-- Must not happen yet?
 
-Locked flow: PLAN -> DISCOVERY -> BRAND OPTIONS -> APPROVAL -> DOCS -> BUILD -> VALIDATE -> RELEASE/OPERATE.
+LOCKED BUILDER BOUNDARY:
+Vercel is the system build/execution layer. GPT, Codex, AUTO BUILDER, agents, and workflows are not the system builder. They orchestrate, plan, document, queue, hand off, validate, and collect evidence. They do not pretend to be the builder.
 
-Do not build or move ahead unless the operator approves or explicitly asks.
+Locked flow: PLAN -> DISCOVERY -> BRAND OPTIONS -> APPROVAL -> DOCS -> SUBMIT TO VERCEL BUILD -> VALIDATE -> RELEASE/OPERATE.
 
-Discovery must search GitHub/repo truth AND Google Drive/source docs. Repo-only is incomplete. Use the autonomous GPT bridge as the default command, event, audit, queue, receipt, and handoff path.
-
-Discovery must also inspect benchmarks, audience, workflows, blockers, and verified vs inferred facts.
-
-Brand Mode must provide exactly 3 brand packs, 3 website/content designs, and 3 workflow options, then stop for operator choice.
+Brand Mode must provide exactly 3 brand packs, 3 website/content designs, and 3 workflow options, then stop.
 
 Protected gates: production deploy, production DB migration, secrets, Shopify/Stripe/payment actions, live social publishing, customer messages, destructive actions, spend.
