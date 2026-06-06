@@ -1,0 +1,139 @@
+name: Eden Skye Shopify V1 Vercel Preview Packet
+
+on:
+  workflow_dispatch:
+    inputs:
+      packet_id:
+        description: Auto Builder packet id
+        required: true
+        default: eden-shopify-v1-approved-mockup-vercel-preview
+      target_repo:
+        description: Eden target repository
+        required: true
+        default: Strategic-Minds/EDENSKYESTUDIOS
+      target_branch:
+        description: Eden target branch
+        required: true
+        default: shopify/v1-website-preview
+      vercel_project_id:
+        description: Eden Vercel project id
+        required: true
+        default: prj_mtmJQYYqRodNnH2UrDqwaK2MHgoA
+      environment:
+        description: Deployment environment. Preview only.
+        required: true
+        default: preview
+      production_locked:
+        description: Must remain true.
+        required: true
+        default: "true"
+      shopify_mutation_locked:
+        description: Must remain true.
+        required: true
+        default: "true"
+  push:
+    branches:
+      - eden/closet-autobuilder-docs-main
+    paths:
+      - docs/eden-skye/SHOPIFY_V1_APPROVED_MOCKUP_AUTOBUILDER_SUBMISSION.md
+      - docs/eden-skye/SHOPIFY_V1_VERCEL_WORKFLOW_BUILD_PACKET.md
+      - factory/eden-skye-shopify-v1-submission.json
+      - .github/workflows/eden-skye-shopify-v1-vercel-preview.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate-and-submit-packet:
+    runs-on: ubuntu-latest
+    env:
+      PACKET_PATH: factory/eden-skye-shopify-v1-submission.json
+      PRODUCTION_LOCKED: ${{ github.event.inputs.production_locked || 'true' }}
+      SHOPIFY_MUTATION_LOCKED: ${{ github.event.inputs.shopify_mutation_locked || 'true' }}
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'preview' }}
+      AUTO_BUILDER_BASE_URL: ${{ secrets.AUTO_BUILDER_BASE_URL }}
+      AUTO_BUILDER_BRIDGE_TOKEN: ${{ secrets.AUTO_BUILDER_BRIDGE_TOKEN }}
+    steps:
+      - name: Checkout Auto Builder
+        uses: actions/checkout@v4
+
+      - name: Enforce preview locks
+        run: |
+          test "$ENVIRONMENT" = "preview"
+          test "$PRODUCTION_LOCKED" = "true"
+          test "$SHOPIFY_MUTATION_LOCKED" = "true"
+
+      - name: Validate packet manifest
+        run: |
+          jq -e '.packet_id == "eden-shopify-v1-approved-mockup-vercel-preview"' "$PACKET_PATH"
+          jq -e '.locks.production_deploy_locked == true' "$PACKET_PATH"
+          jq -e '.locks.shopify_mutation_locked == true' "$PACKET_PATH"
+          jq -e '.source_of_truth.approved_mockup_name == "EDENSKYEWEBSITEV2.png"' "$PACKET_PATH"
+          jq -e '.targets.eden_repo == "Strategic-Minds/EDENSKYESTUDIOS"' "$PACKET_PATH"
+          jq -e '.targets.eden_branch == "shopify/v1-website-preview"' "$PACKET_PATH"
+          jq -e '.targets.vercel_project_id == "prj_mtmJQYYqRodNnH2UrDqwaK2MHgoA"' "$PACKET_PATH"
+
+      - name: Create local packet receipt
+        run: |
+          mkdir -p receipts
+          jq '{packet_id, created_at, mode, source_of_truth, targets, locks, required_sections, validation_receipts_required, status}' "$PACKET_PATH" > receipts/eden-shopify-v1-packet-receipt.json
+
+      - name: Submit packet to Auto Builder bridge when configured
+        if: ${{ env.AUTO_BUILDER_BASE_URL != '' && env.AUTO_BUILDER_BRIDGE_TOKEN != '' }}
+        run: |
+          curl -sS -X POST "$AUTO_BUILDER_BASE_URL/api/factory/build-packet" \
+            -H "Authorization: Bearer $AUTO_BUILDER_BRIDGE_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$PACKET_PATH" \
+            -o receipts/autobuilder-build-packet-response.json
+          cat receipts/autobuilder-build-packet-response.json
+
+      - name: Dispatch Eden Vercel preview through bridge when configured
+        if: ${{ env.AUTO_BUILDER_BASE_URL != '' && env.AUTO_BUILDER_BRIDGE_TOKEN != '' }}
+        run: |
+          cat > receipts/eden-vercel-preview-dispatch-request.json <<'JSON'
+          {
+            "workflow_id": "vercel-redeploy.yml",
+            "ref": "shopify/v1-website-preview",
+            "inputs": {
+              "environment": "preview",
+              "target_project": "edenskyestudios",
+              "vercel_project_id": "prj_mtmJQYYqRodNnH2UrDqwaK2MHgoA",
+              "production_locked": "true",
+              "shopify_mutation_locked": "true",
+              "reason": "Build Eden Skye Shopify V1 from approved Drive mockup through Auto Builder packet"
+            }
+          }
+          JSON
+          curl -sS -X POST "$AUTO_BUILDER_BASE_URL/api/bridge/github/workflows/dispatch" \
+            -H "Authorization: Bearer $AUTO_BUILDER_BRIDGE_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @receipts/eden-vercel-preview-dispatch-request.json \
+            -o receipts/eden-vercel-preview-dispatch-response.json
+          cat receipts/eden-vercel-preview-dispatch-response.json
+
+      - name: Record bridge configuration status
+        run: |
+          if [ -z "$AUTO_BUILDER_BASE_URL" ] || [ -z "$AUTO_BUILDER_BRIDGE_TOKEN" ]; then
+            cat > receipts/bridge-status.json <<'JSON'
+          {
+            "status": "packet_validated_but_bridge_secrets_missing",
+            "required_secrets": ["AUTO_BUILDER_BASE_URL", "AUTO_BUILDER_BRIDGE_TOKEN"],
+            "next_action": "Configure secrets, then manually dispatch this workflow or call Auto Builder bridge routes."
+          }
+          JSON
+          else
+            cat > receipts/bridge-status.json <<'JSON'
+          {
+            "status": "packet_submitted_to_autobuilder_bridge",
+            "next_action": "Monitor GitHub workflow runs, jobs, Vercel preview, and validation receipts."
+          }
+          JSON
+          fi
+
+      - name: Upload receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-shopify-v1-autobuilder-submission-receipts
+          path: receipts/
