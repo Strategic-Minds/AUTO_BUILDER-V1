@@ -21,6 +21,19 @@ function readiness(provider: string, requiredEnv: string[], notes: string): Runt
   };
 }
 
+function anyOfReadiness(provider: string, groups: string[][], notes: string): RuntimeProviderReadiness {
+  const requiredEnv = groups.map((group) => group.join(" or "));
+  const names = [...new Set(groups.flat())];
+  const configuredEnv = Object.fromEntries(names.map((name) => [name, envPresent(name)]));
+  return {
+    provider,
+    ready: groups.every((group) => group.some(envPresent)),
+    requiredEnv,
+    configuredEnv,
+    notes
+  };
+}
+
 function edenUniversalRuntimeReadiness(): RuntimeProviderReadiness {
   const configuredEnv = {
     EDEN_RUNTIME_BRIDGE_TOKEN: envPresent('EDEN_RUNTIME_BRIDGE_TOKEN'),
@@ -95,12 +108,17 @@ function autoBuilderRedeployReadiness(): RuntimeProviderReadiness {
 
 export function getRuntimeProviderStatus() {
   const providers = [
+    anyOfReadiness('bridge_event_bus', [['BRIDGE_SECRET', 'AUTO_BUILDER_BRIDGE_TOKEN', 'ADMIN_API_TOKEN', 'BRIDGE_API_KEY'], ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'], ['SUPABASE_SERVICE_ROLE_KEY']], 'Required for HMAC/bearer event bus writes, registry, retry, and receipts.'),
     readiness('supabase', ['SUPABASE_SERVICE_ROLE_KEY'], 'Uses SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL plus service role through telemetry-store.'),
     edenUniversalRuntimeReadiness(),
     githubWorkflowReadiness(),
     edenVercelReadiness(),
     autoBuilderRedeployReadiness(),
-    readiness('metricool', ['METRICOOL_API_URL', 'METRICOOL_API_TOKEN'], 'Required for Metricool Facebook and Instagram draft/write bridge.'),
+    readiness('google_chat', ['GOOGLE_CHAT_WEBHOOK_URL'], 'Draft route works without sending; live send also requires GOOGLE_CHAT_SEND_ENABLED=true and approval.'),
+    readiness('ai_gateway', ['AI_GATEWAY_API_KEY'], 'Required for AI Gateway model routing, budget caps, fallback, and cost receipts.'),
+    readiness('n8n', ['N8N_WEBHOOK_URL', 'N8N_API_KEY'], 'Required for n8n webhook replay and external workflow routing.'),
+    readiness('metricool', ['METRICOOL_API_URL', 'METRICOOL_API_TOKEN'], 'Required for Metricool social draft scheduling and analytics bridge.'),
+    readiness('heygen', ['HEYGEN_API_KEY'], 'Required for HeyGen avatar/video draft generation.'),
     readiness('meta_facebook', ['META_ACCESS_TOKEN', 'META_FACEBOOK_PAGE_ID'], 'Required for direct Meta Facebook Graph API writes.'),
     readiness('instagram', ['META_ACCESS_TOKEN', 'META_INSTAGRAM_BUSINESS_ACCOUNT_ID'], 'Required for direct Instagram Graph API writes.'),
     readiness('google_workspace', ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY'], 'Required for server-side Google Workspace writes from Vercel.'),

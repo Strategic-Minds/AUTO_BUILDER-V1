@@ -1,0 +1,115 @@
+{
+  "packet_id": "new-idea-sandbox-folder-system-20260606",
+  "status": "mandatory_locked",
+  "date": "2026-06-06",
+  "purpose": "Require every unrelated new idea to start in its own sandbox folder system, complete the locked AUTO BUILDER workflow, audit every TODO, and submit approved build packets to Vercel Workflow/Sandbox/Agents.",
+  "trigger_scope": [
+    "idea",
+    "new idea",
+    "business idea",
+    "new app",
+    "new workflow",
+    "new agent",
+    "new website",
+    "new store",
+    "new content system",
+    "new social system",
+    "unrelated system"
+  ],
+  "not_for": [
+    "AUTO_BUILDER repo work",
+    "AUTO_BUILDER OS infrastructure",
+    "Drive source-system maintenance",
+    "Supabase backend maintenance",
+    "Vercel build-system maintenance",
+    "related bridge/runtime system work"
+  ],
+  "required_folder_structure": [
+    "00_START_HERE.md",
+    "01_PLAN/",
+    "02_DISCOVERY/",
+    "03_BRAND_OPTIONS/",
+    "04_APPROVALS/",
+    "05_BUILDER_DOCS/",
+    "06_VERCEL_BUILD_PACKET/",
+    "07_ASSETS/",
+    "08_WORKFLOW_AND_AGENTS/",
+    "09_SOCIAL_AND_CONTENT/",
+    "10_VALIDATION_AND_SMOKE/",
+    "11_RELEASE_HANDOFF/",
+    "12_OPERATE_OPTIMIZE/",
+    "99_ARCHIVE/"
+  ],
+  "required_start_file": "00_START_HERE.md",
+  "required_start_file_fields": [
+    "idea_name",
+    "created_date",
+    "owner_operator",
+    "phase_status",
+    "source_classification",
+    "github_search_status",
+    "drive_search_status",
+    "autonomous_gpt_bridge_status",
+    "vercel_build_target",
+    "protected_gates",
+    "todo_audit_table",
+    "current_blockers",
+    "next_action"
+  ],
+  "todo_statuses": [
+    "Complete",
+    "Blocked",
+    "Not Applicable"
+  ],
+  "locked_flow": [
+    "PLAN",
+    "DISCOVERY",
+    "BRAND_OPTIONS",
+    "APPROVAL",
+    "DOCS",
+    "SUBMIT_TO_VERCEL_BUILD",
+    "VALIDATE",
+    "RELEASE_OPERATE"
+  ],
+  "brand_mode_stop_rule": {
+    "brand_packs": 3,
+    "website_or_content_designs": 3,
+    "workflow_options": 3,
+    "must_stop_for_selection": true
+  },
+  "vercel_handoff": [
+    "06_VERCEL_BUILD_PACKET/vercel-build-packet.json",
+    "06_VERCEL_BUILD_PACKET/VERCEL_WORKFLOW_HANDOFF.md"
+  ],
+  "required_source_search": [
+    "GitHub/repo truth",
+    "Google Drive/source docs"
+  ],
+  "bridge_requirement": "Use the autonomous GPT bridge for command/event/audit/queue/receipt/handoff when available. If unavailable, record blocker and self-heal workaround.",
+  "builder_boundary": "GPT/AUTO BUILDER orchestrates, documents, queues, validates, and collects receipts. Vercel is the build/execution layer.",
+  "protected_gates": [
+    "production deploy",
+    "production database migration",
+    "secret mutation",
+    "Shopify or Stripe/payment action",
+    "live social publishing",
+    "customer message",
+    "destructive action",
+    "capital spend"
+  ],
+  "fallbacks": {
+    "drive_folder_unavailable": "Create folder manifest and queue Drive folder creation request.",
+    "github_mutation_unapproved": "Create packet and stop before repo/branch mutation unless approved.",
+    "vercel_workflow_unavailable": "Create Vercel Workflow handoff docs and queue submission receipt.",
+    "bridge_unavailable": "Record blocker, produce local audit receipt, and create self-heal TODO."
+  },
+  "acceptance_criteria": [
+    "New idea recognized before normal planning continues.",
+    "Dedicated sandbox folder or folder manifest exists.",
+    "TODO audit table exists with Complete, Blocked, or Not Applicable status for every item.",
+    "GitHub and Drive search status is recorded.",
+    "Autonomous GPT bridge status is recorded.",
+    "Vercel Workflow handoff packet exists after approval.",
+    "Protected gates are preserved."
+  ]
+}

@@ -61,24 +61,24 @@ export type ReverseEngineeringLane = {
 };
 
 export const factoryReadiness = {
-  factoryReadinessScore: 47,
+  factoryReadinessScore: 52,
   templateCoverage: 68,
-  connectorReadiness: 4,
+  connectorReadiness: 5,
   hardeningCoverage: 68,
   oneHourEligibility: 18,
   operatingStandard:
-    "50 ideas/day triage, one-hour build packets for standard modules, governed releases, reusable assets, and rollback-first execution.",
+    "50 ideas/day triage, one-hour build packets for standard modules, governed releases, reusable assets, auto-social packs, and rollback-first execution.",
   blockers: [
     "Canonical repo still needs the one-hour factory installed end to end",
-    "Connector mutations are still uneven across GitHub, Vercel, Supabase, Shopify, Xyla, Opus, and Slack",
+    "Connector mutations are still uneven across GitHub, Vercel, Supabase, Shopify, Google Chat, HeyGen, Xyla, Metricool, n8n, AI Gateway, and Codex",
     "Secrets and sandbox mutation surfaces are not fully connected",
     "Template packs exist conceptually but not yet as installed repo modules"
   ],
   nextActions: [
     "Install core factory schema and queue runner",
-    "Add the first reusable template packs and build-packet router",
-    "Wire capability tests and passive reverse-engineering crons",
-    "Promote hardening and rollback evidence into release gates"
+    "Add reusable template packs and build-packet router",
+    "Wire Google Chat approvals, n8n replay, AI Gateway receipts, Vercel Workflow, Vercel Sandbox, and Vercel Agents",
+    "Promote hardening, browser evidence, auto-social receipts, and rollback evidence into release gates"
   ]
 } as const;
 
@@ -86,38 +86,38 @@ export const fastPathRoutes: FastPathRoute[] = [
   {
     ideaType: "Lead magnet funnel",
     classificationSignal: "Offer plus audience plus capture need",
-    defaultStackRoute: "Next.js landing + Supabase leads + email webhook",
-    requiredModules: ["landing", "form", "lead-table", "thank-you", "analytics"],
+    defaultStackRoute: "Next.js landing + Supabase leads + Google Chat approval + email/webhook handoff",
+    requiredModules: ["landing", "form", "lead-table", "thank-you", "analytics", "social-pack"],
     riskClass: "medium",
-    validationProfile: ["form smoke", "attribution event"],
+    validationProfile: ["form smoke", "attribution event", "approval gate"],
     speedPath: "Fast Path",
     humanApprovalTrigger: "External send or spend"
   },
   {
     ideaType: "Client dashboard",
     classificationSignal: "Metrics or control surface requirement",
-    defaultStackRoute: "Next.js dashboard + Supabase views",
-    requiredModules: ["auth", "kpi-cards", "tables", "exports"],
+    defaultStackRoute: "Next.js dashboard + Supabase views + browser evidence",
+    requiredModules: ["auth", "kpi-cards", "tables", "exports", "receipts"],
     riskClass: "medium",
-    validationProfile: ["auth test", "RLS test", "route smoke"],
+    validationProfile: ["auth test", "RLS test", "route smoke", "screenshot smoke"],
     speedPath: "Fast Path",
     humanApprovalTrigger: "Live client data exposure"
   },
   {
     ideaType: "Shopify growth app",
     classificationSignal: "Commerce or store optimization",
-    defaultStackRoute: "Shopify API + Next.js admin + Supabase logs",
-    requiredModules: ["product-sync", "recommendations", "events", "audit-log"],
+    defaultStackRoute: "Shopify API + Next.js admin + Supabase logs + gated store writes",
+    requiredModules: ["product-sync", "recommendations", "events", "audit-log", "approval-gate"],
     riskClass: "high",
-    validationProfile: ["API sandbox", "webhook replay"],
+    validationProfile: ["API sandbox", "webhook replay", "store mutation gate"],
     speedPath: "Sandbox First",
     humanApprovalTrigger: "Store write actions"
   },
   {
     ideaType: "AI voice workflow",
     classificationSignal: "Inbound or outbound call automation",
-    defaultStackRoute: "Voice provider + Supabase calls + agent scripts",
-    requiredModules: ["call-logs", "prompts", "escalation", "crm-sync"],
+    defaultStackRoute: "Voice provider + Supabase calls + agent scripts + Google Chat approvals",
+    requiredModules: ["call-logs", "prompts", "escalation", "crm-sync", "approval-gate"],
     riskClass: "high",
     validationProfile: ["consent review", "call safety eval"],
     speedPath: "Sandbox First",
@@ -125,38 +125,38 @@ export const fastPathRoutes: FastPathRoute[] = [
   },
   {
     ideaType: "Content engine",
-    classificationSignal: "Generate, repurpose, or publish assets",
-    defaultStackRoute: "Xyla or Opus + queue + approval UI",
-    requiredModules: ["asset-queue", "prompt-pack", "publishing-gate"],
+    classificationSignal: "Generate, repurpose, schedule, or publish assets",
+    defaultStackRoute: "HeyGen/Xyla/Metricool + queue + Google Chat approval UI",
+    requiredModules: ["asset-queue", "prompt-pack", "publishing-gate", "analytics-loop"],
     riskClass: "high",
-    validationProfile: ["approval test", "platform compliance"],
+    validationProfile: ["approval test", "platform compliance", "draft-only smoke"],
     speedPath: "Sandbox First",
     humanApprovalTrigger: "Auto-publish"
   },
   {
     ideaType: "Internal agent",
     classificationSignal: "Back-office reasoning or ops task",
-    defaultStackRoute: "OpenAI routing + Supabase state + Slack approval",
-    requiredModules: ["agent-config", "tools", "logs", "evals"],
+    defaultStackRoute: "AI Gateway routing + Supabase state + Google Chat approval",
+    requiredModules: ["agent-config", "tools", "logs", "evals", "cost-receipts"],
     riskClass: "medium",
-    validationProfile: ["tool-permission eval"],
+    validationProfile: ["tool-permission eval", "budget gate"],
     speedPath: "Fast Path",
     humanApprovalTrigger: "Irreversible tools"
   },
   {
     ideaType: "SaaS MVP",
     classificationSignal: "Reusable product with users",
-    defaultStackRoute: "Next.js + Supabase + billing + Vercel",
-    requiredModules: ["auth", "billing", "dashboard", "crud", "logs"],
+    defaultStackRoute: "Next.js + Supabase + Vercel + billing-ready gated payments",
+    requiredModules: ["auth", "billing", "dashboard", "crud", "logs", "social-pack"],
     riskClass: "high",
-    validationProfile: ["auth tests", "billing tests", "rollback tests"],
+    validationProfile: ["auth tests", "billing gate", "rollback tests"],
     speedPath: "Sandbox First",
     humanApprovalTrigger: "Payments or live users"
   },
   {
     ideaType: "Attribution ledger",
     classificationSignal: "Track source to revenue",
-    defaultStackRoute: "Supabase events + dashboard + UTM mapping",
+    defaultStackRoute: "Supabase events + dashboard + UTM mapping + analytics receipts",
     requiredModules: ["events", "mapping", "revenue-tables", "reports"],
     riskClass: "medium",
     validationProfile: ["data integrity tests"],
@@ -166,18 +166,18 @@ export const fastPathRoutes: FastPathRoute[] = [
   {
     ideaType: "Automation bridge",
     classificationSignal: "Connect tools, APIs, or workflows",
-    defaultStackRoute: "Queue runner + webhooks + receipts",
-    requiredModules: ["connector", "retries", "receipts", "dead-letter"],
+    defaultStackRoute: "Queue runner + webhooks + n8n replay + receipts",
+    requiredModules: ["connector", "retries", "receipts", "dead-letter", "hmac"],
     riskClass: "high",
-    validationProfile: ["replay test", "idempotency"],
+    validationProfile: ["replay test", "idempotency", "HMAC test"],
     speedPath: "Sandbox First",
     humanApprovalTrigger: "Live API mutation"
   },
   {
     ideaType: "Research or intelligence system",
     classificationSignal: "Market scan or scoring need",
-    defaultStackRoute: "Crawler or search + scoring + dashboard",
-    requiredModules: ["research-queue", "scoring", "decision-log"],
+    defaultStackRoute: "Search/crawler + scoring + dashboard + citation receipts",
+    requiredModules: ["research-queue", "scoring", "decision-log", "citations"],
     riskClass: "medium",
     validationProfile: ["source separation", "citation check"],
     speedPath: "Fast Path",
@@ -240,89 +240,150 @@ export const templateLibrary: TemplatePack[] = [
     status: "Ready",
     reuseScore: 91,
     hardeningRequired: "Assumption audit"
+  },
+  {
+    id: "TPL-020",
+    name: "Auto Social Launch Pack",
+    useCase: "System-in-a-box social launch and growth loop",
+    frontendModules: ["calendar", "asset-review", "approval-panel", "analytics"],
+    backendModules: ["social_assets", "social_calendar", "social_approvals", "social_receipts"],
+    queueModules: ["social_draft_queue", "social_approval_queue", "social_analytics_queue"],
+    status: "Draft",
+    reuseScore: 88,
+    hardeningRequired: "Publishing gates"
   }
 ];
 
 export const connectorOps: ConnectorOps[] = [
   {
     connector: "GitHub",
-    purpose: "Repo, branches, PRs, code reviews",
+    purpose: "Repo, branches, PRs, code reviews, and workflow dispatch",
     requiredSecrets: ["GITHUB_TOKEN"],
-    mutationSurface: "Create branch, PR, and file updates",
+    mutationSurface: "Create branch, PR, workflow dispatch, and file updates",
     fallbackReceiptMode: "Patch file export + manual PR",
-    readiness: "Blocked",
-    approvalGate: "Live repo writes",
+    readiness: "Partial",
+    approvalGate: "Merge or protected branch writes",
     testCommand: "Create sandbox branch"
   },
   {
     connector: "Vercel",
-    purpose: "Preview and production deploys",
+    purpose: "Preview deploys, workflows, sandbox, agents, logs, crons, and production-gated releases",
     requiredSecrets: ["VERCEL_TOKEN", "VERCEL_PROJECT_ID"],
-    mutationSurface: "Deploy, rollback, env vars",
+    mutationSurface: "Preview deploy, rollback, env vars, workflow/sandbox jobs",
     fallbackReceiptMode: "Manual dashboard deploy",
-    readiness: "Blocked",
-    approvalGate: "Production deploy",
+    readiness: "Partial",
+    approvalGate: "Production deploy or env mutation",
     testCommand: "Preview deploy smoke"
   },
   {
     connector: "Supabase",
-    purpose: "DB, auth, storage, queues, and logs",
+    purpose: "DB, auth, storage, queues, logs, advisors, and development branches",
     requiredSecrets: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY"],
-    mutationSurface: "Migrations, RLS, and functions",
+    mutationSurface: "Development branch migrations, RLS, functions, and receipt writes",
     fallbackReceiptMode: "SQL file handoff",
     readiness: "Blocked",
-    approvalGate: "Service role writes",
-    testCommand: "Run migration dry run"
+    approvalGate: "Production service-role writes or migrations",
+    testCommand: "Run development-branch migration dry run"
   },
   {
-    connector: "Shopify",
-    purpose: "Commerce source truth",
-    requiredSecrets: ["SHOPIFY_ADMIN_TOKEN", "SHOPIFY_SHOP"],
-    mutationSurface: "Products, orders, and webhooks",
-    fallbackReceiptMode: "CSV or export import",
+    connector: "Google Chat",
+    purpose: "Operator approvals and escalation notifications",
+    requiredSecrets: ["GOOGLE_CHAT_WEBHOOK_URL", "GOOGLE_CHAT_SPACE_ID", "GOOGLE_CHAT_BOT_TOKEN"],
+    mutationSurface: "Send approval messages and receive approval callbacks",
+    fallbackReceiptMode: "In-app approval queue",
     readiness: "Blocked",
-    approvalGate: "Store mutations",
-    testCommand: "Webhook sandbox event"
+    approvalGate: "External messages",
+    testCommand: "Send sandbox approval notification"
   },
   {
-    connector: "OpenAI Platform",
-    purpose: "Models, orchestration, and evals",
-    requiredSecrets: ["OPENAI_API_KEY"],
-    mutationSurface: "Responses, evals, and files",
-    fallbackReceiptMode: "Prompt-only fallback",
+    connector: "Google Drive",
+    purpose: "Source truth, builder docs, client delivery folders, and proof archives",
+    requiredSecrets: ["GOOGLE_CLIENT_EMAIL", "GOOGLE_PRIVATE_KEY"],
+    mutationSurface: "Create docs/folders and export proof packs",
+    fallbackReceiptMode: "Repo docs handoff",
     readiness: "Partial",
-    approvalGate: "Spend or model changes",
-    testCommand: "Eval smoke test"
+    approvalGate: "External sharing",
+    testCommand: "Create sandbox proof folder"
+  },
+  {
+    connector: "AI Gateway",
+    purpose: "Model routing, provider fallback, budget caps, and cost receipts",
+    requiredSecrets: ["AI_GATEWAY_API_KEY", "AI_GATEWAY_BASE_URL"],
+    mutationSurface: "Model calls and cost-ledger receipts",
+    fallbackReceiptMode: "OpenAI direct model route with cost logging",
+    readiness: "Blocked",
+    approvalGate: "Budget or provider widening",
+    testCommand: "Run harmless model route smoke"
   },
   {
     connector: "Codex",
-    purpose: "Code generation and patching",
+    purpose: "Branch-scoped code generation, patches, tests, and draft PR handoff",
     requiredSecrets: ["OPENAI_API_KEY"],
-    mutationSurface: "Code patches and tests",
+    mutationSurface: "Code patches, tests, and branch-only commits",
     fallbackReceiptMode: "Manual patch export",
     readiness: "Partial",
     approvalGate: "Merge or deploy",
     testCommand: "Patch dry run"
   },
   {
+    connector: "n8n",
+    purpose: "External workflow routing, webhook replay, retries, and receipts",
+    requiredSecrets: ["N8N_WEBHOOK_URL", "N8N_API_KEY"],
+    mutationSurface: "Webhook execution and workflow activation",
+    fallbackReceiptMode: "AUTO BUILDER internal bridge queue",
+    readiness: "Blocked",
+    approvalGate: "Live external workflow actions",
+    testCommand: "Replay harmless webhook event"
+  },
+  {
     connector: "Playwright",
-    purpose: "Browser automation and tests",
-    requiredSecrets: [],
-    mutationSurface: "Smoke tests and actions",
-    fallbackReceiptMode: "Screenshot receipts",
+    purpose: "Cloud/local browser automation and screenshot receipts",
+    requiredSecrets: ["BROWSER_WORKER_TOKEN"],
+    mutationSurface: "Smoke tests, screenshots, and UI checks",
+    fallbackReceiptMode: "Manual screenshot evidence",
     readiness: "Ready",
-    approvalGate: "External submissions",
-    testCommand: "Run e2e smoke"
+    approvalGate: "External submissions or purchases",
+    testCommand: "Run e2e screenshot smoke"
+  },
+  {
+    connector: "Shopify",
+    purpose: "Commerce source truth, store setup, products, and gated live mutations",
+    requiredSecrets: ["SHOPIFY_ADMIN_TOKEN", "SHOPIFY_SHOP"],
+    mutationSurface: "Products, orders, webhooks, and store configuration",
+    fallbackReceiptMode: "CSV or export import",
+    readiness: "Blocked",
+    approvalGate: "Store mutations",
+    testCommand: "Webhook sandbox event"
+  },
+  {
+    connector: "HeyGen",
+    purpose: "Avatar/video draft generation for auto-social systems",
+    requiredSecrets: ["HEYGEN_API_KEY"],
+    mutationSurface: "Draft video generation",
+    fallbackReceiptMode: "Script and storyboard handoff",
+    readiness: "Blocked",
+    approvalGate: "Paid generation or public delivery",
+    testCommand: "Generate sandbox video draft"
   },
   {
     connector: "Xyla",
-    purpose: "Creative and publishing engine",
+    purpose: "Creative generation and social asset drafting",
     requiredSecrets: ["XYLA_API_KEY"],
     mutationSurface: "Assets and publish jobs",
     fallbackReceiptMode: "Manual upload",
     readiness: "Blocked",
     approvalGate: "Auto-publish",
     testCommand: "Generate sandbox asset"
+  },
+  {
+    connector: "Metricool",
+    purpose: "Social scheduling, analytics, and draft post routing",
+    requiredSecrets: ["METRICOOL_API_URL", "METRICOOL_API_TOKEN"],
+    mutationSurface: "Schedule drafts, analytics pulls, and gated publishing",
+    fallbackReceiptMode: "Export social calendar",
+    readiness: "Blocked",
+    approvalGate: "Live publish",
+    testCommand: "Create draft-only social schedule"
   },
   {
     connector: "Opus",
@@ -333,16 +394,6 @@ export const connectorOps: ConnectorOps[] = [
     readiness: "Blocked",
     approvalGate: "Publishing",
     testCommand: "Repurpose test asset"
-  },
-  {
-    connector: "Slack",
-    purpose: "Approvals and escalation",
-    requiredSecrets: ["SLACK_BOT_TOKEN"],
-    mutationSurface: "Send and receive approvals",
-    fallbackReceiptMode: "Email or manual approval",
-    readiness: "Blocked",
-    approvalGate: "External messages",
-    testCommand: "Send sandbox approval"
   }
 ];
 
@@ -354,24 +405,24 @@ export const hardeningPipeline: HardeningTest[] = [
     passCondition: "No SQL errors",
     failureAction: "Block build",
     required: true,
-    automationSurface: "Supabase CLI",
+    automationSurface: "Supabase development branch",
     evidenceArtifact: "migration log"
   },
   {
     id: "H-002",
     layer: "Schema",
     test: "RLS policy audit",
-    passCondition: "All user tables protected",
+    passCondition: "All user tables protected or intentionally service-role only",
     failureAction: "Block release",
     required: true,
-    automationSurface: "SQL test",
+    automationSurface: "Supabase advisors and SQL tests",
     evidenceArtifact: "RLS report"
   },
   {
     id: "H-003",
     layer: "Backend",
     test: "API route smoke",
-    passCondition: "200 or expected errors only",
+    passCondition: "200 or expected auth errors only",
     failureAction: "Patch route",
     required: true,
     automationSurface: "API smoke",
@@ -381,7 +432,7 @@ export const hardeningPipeline: HardeningTest[] = [
     id: "H-004",
     layer: "Frontend",
     test: "Page render smoke",
-    passCondition: "No runtime crash",
+    passCondition: "No runtime crash and no secret exposure",
     failureAction: "Patch UI",
     required: true,
     automationSurface: "Playwright",
@@ -411,7 +462,7 @@ export const hardeningPipeline: HardeningTest[] = [
     id: "H-007",
     layer: "Governance",
     test: "Approval gate test",
-    passCondition: "High risk blocked",
+    passCondition: "High-risk action blocked without approval",
     failureAction: "Patch policy",
     required: true,
     automationSurface: "Unit or e2e",
@@ -441,7 +492,7 @@ export const hardeningPipeline: HardeningTest[] = [
     id: "H-010",
     layer: "Security",
     test: "Secrets scan",
-    passCondition: "No secrets committed",
+    passCondition: "No secrets committed or displayed",
     failureAction: "Rotate or remove",
     required: true,
     automationSurface: "GitHub action",
@@ -484,6 +535,13 @@ export const capabilityTests: CapabilityTest[] = [
     objective: "Run universal hardening profile before release recommendation",
     successSignal: "Required tests all pass or exact patch list produced",
     fallback: "Hold release"
+  },
+  {
+    id: "CAP-006",
+    surface: "Auto Social",
+    objective: "Generate draft-only social launch pack with approval gates",
+    successSignal: "Hooks, scripts, captions, asset prompts, calendar, and draft receipts created without live publishing",
+    fallback: "Export social pack"
   }
 ];
 
@@ -593,7 +651,7 @@ export function buildPacketFromIdea(idea: string) {
       status: template.status
     })),
     workflowPlan: {
-      queues: ["idea_intake_queue", "build_router_queue", "template_pull_queue", "hardening_queue"],
+      queues: ["idea_intake_queue", "build_router_queue", "template_pull_queue", "hardening_queue", "social_draft_queue"],
       approvalTrigger: route.humanApprovalTrigger
     },
     releasePlan: {
