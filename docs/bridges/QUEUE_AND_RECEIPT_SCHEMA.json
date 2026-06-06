@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://awos.local/schemas/bridge-task-and-receipt.schema.json",
+  "title": "AWOS Bridge Task And Receipt",
+  "type": "object",
+  "required": ["id", "kind", "created_at", "actor", "bridge_id", "operation", "risk_class", "approval_state", "mutation", "target", "payload"],
+  "properties": {
+    "id": { "type": "string" },
+    "kind": { "type": "string", "enum": ["task", "receipt", "blocker", "validation", "rollback"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "actor": { "type": "string" },
+    "bridge_id": { "type": "string" },
+    "operation": { "type": "string" },
+    "risk_class": { "type": "integer", "minimum": 0, "maximum": 5 },
+    "approval_state": { "type": "string", "enum": ["not_required", "pending", "approved", "rejected", "expired", "blocked"] },
+    "mutation": { "type": "boolean" },
+    "target": { "type": "object", "required": ["system"], "additionalProperties": true },
+    "payload": { "type": "object", "additionalProperties": true },
+    "result": { "type": "object", "additionalProperties": true },
+    "rollback_ref": { "type": "object", "additionalProperties": true },
+    "next_action": { "type": "string" }
+  },
+  "additionalProperties": false
+}
