@@ -19,9 +19,11 @@ The following bridge files exist or are expected in the runtime system:
 - `src/lib/providers/providerCatalog.ts`
 - `src/lib/providers/providerSafety.ts`
 - `src/lib/providers/runtimeProviderStatus.ts`
+- `src/lib/bridges/githubWorkflowBridge.ts`
 - `src/lib/bridges/edenVercelPreviewBridge.ts`
 - `src/lib/bridges/vercelRedeployBridge.ts`
 - `src/app/api/bridge/providers/runtime-status/route.ts`
+- `src/app/api/bridge/github/workflows/route.ts`
 - `src/app/api/bridge/social-media/draft/route.ts`
 - `src/app/api/bridge/vercel/eden-preview/route.ts`
 - `src/app/api/bridge/vercel/redeploy/route.ts`
@@ -32,6 +34,7 @@ The following bridge files exist or are expected in the runtime system:
 | Provider | Bridge Status | Write Path | Notes |
 |---|---|---|---|
 | GitHub | Active in ChatGPT and runtime-capable | Repo files, issues, PRs | Used for AUTO_BUILDER source mutation. |
+| GitHub Workflows | Runtime bridge scaffolded | List workflows, runs, jobs, logs; dispatch workflow_dispatch | Uses `GITHUB_WORKFLOW_TOKEN` or `GITHUB_TOKEN`; risky dispatches require approval phrase. |
 | Vercel Eden Preview | Runtime bridge scaffolded | Preview deployment only | Uses `VERCEL_TOKEN` plus `EDEN_SKYE_VERCEL_PROJECT_ID` or `TARGET_VERCEL_PROJECT_ID`; production is hard-blocked. |
 | Vercel Redeploy | Runtime bridge scaffolded | Auto Builder or Eden preview redeploy | Uses `VERCEL_TOKEN`; Auto Builder targets `AUTO_BUILDER_VERCEL_PROJECT_ID` or `VERCEL_PROJECT_ID`; production requires explicit approval phrase. |
 | Google Drive | Active in ChatGPT; runtime adapter needed for Vercel | Docs, Sheets, Slides | Use for evidence docs, operating packets, validation logs. |
@@ -58,6 +61,8 @@ Allowed autonomously:
 - Non-public document creation
 - Calendar checkpoints
 - Gmail drafts
+- GitHub workflow, run, job, and log reads
+- Safe workflow dispatches that do not trigger risk words
 - Preview deploys when the bridge is configured and the target is not production
 
 Approval-gated:
@@ -70,6 +75,54 @@ Approval-gated:
 - Authority/source-truth mutation
 - Production deployment
 - Database schema mutation
+- Risky GitHub workflow dispatches involving production, deploy, publish, store/payment, migration, delete, or release intent
+
+## GitHub Workflow Bridge Payloads
+
+Readiness and workflow list:
+
+```http
+GET /api/bridge/github/workflows
+GET /api/bridge/github/workflows?operation=list_workflows&targetSystem=auto_builder
+```
+
+Read recent workflow runs:
+
+```http
+GET /api/bridge/github/workflows?operation=list_runs&targetSystem=auto_builder&perPage=10
+```
+
+Read jobs for a run:
+
+```http
+GET /api/bridge/github/workflows?operation=list_jobs&targetSystem=auto_builder&runId=123456789
+```
+
+Dispatch a safe workflow:
+
+```json
+{
+  "operation": "dispatch",
+  "targetSystem": "auto_builder",
+  "workflowId": "vercel-redeploy.yml",
+  "ref": "main",
+  "inputs": {
+    "target_system": "eden_skye_studios",
+    "mode": "preview",
+    "ref": "main"
+  },
+  "requestedBy": "Eden Skye Runtime"
+}
+```
+
+Risky workflow dispatch requires:
+
+```json
+{
+  "approvedWorkflowRun": true,
+  "approvalPhrase": "APPROVE GITHUB WORKFLOW RUN"
+}
+```
 
 ## Eden Vercel Preview Payload
 
@@ -141,12 +194,14 @@ Production deploy requires:
 ## Validation Order
 
 1. `GET /api/bridge/providers/runtime-status`
-2. `GET /api/bridge/vercel/redeploy`
-3. `POST /api/bridge/vercel/redeploy` in preview mode
-4. `POST /api/bridge/social-media/draft`
-5. `GET /api/cron/social-bridge`
-6. Check bridge evidence and blockers.
+2. `GET /api/bridge/github/workflows`
+3. `GET /api/bridge/vercel/redeploy`
+4. `POST /api/bridge/github/workflows` to dispatch a preview workflow when configured
+5. `POST /api/bridge/vercel/redeploy` in preview mode
+6. `POST /api/bridge/social-media/draft`
+7. `GET /api/cron/social-bridge`
+8. Check bridge evidence and blockers.
 
 ## Next Required Runtime Step
 
-Deploy the latest AUTO_BUILDER repo state, verify runtime provider readiness, then run a single governed redeploy bridge cycle, a single Eden Vercel preview bridge cycle, and a single draft-only social bridge cycle before enabling recurring automation.
+Deploy the latest AUTO_BUILDER repo state, verify runtime provider readiness, then run a single GitHub workflow bridge read cycle, a single governed redeploy bridge cycle, a single Eden Vercel preview bridge cycle, and a single draft-only social bridge cycle before enabling recurring automation.
