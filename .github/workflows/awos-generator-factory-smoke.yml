@@ -1,0 +1,100 @@
+name: AWOS Generator Factory Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      auto_builder_url:
+        description: AUTO_BUILDER preview or production URL
+        required: false
+        default: https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app
+  pull_request:
+    paths:
+      - "src/app/api/cron/autobuilder-generator/**"
+      - "src/app/api/generator/**"
+      - "src/lib/autobuilder/generator.ts"
+      - "vercel.json"
+      - ".github/workflows/awos-generator-factory-smoke.yml"
+
+jobs:
+  generator-smoke:
+    name: Generator status + protected cron smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app' }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      ARTIFACT_DIR: generator-smoke-artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run generator smoke
+        shell: bash
+        run: |
+          mkdir -p "$ARTIFACT_DIR"
+          node <<'NODE'
+          import { writeFileSync } from 'node:fs';
+
+          const baseUrl = process.env.AUTO_BUILDER_URL?.replace(/\/$/, '');
+          const artifactDir = process.env.ARTIFACT_DIR || 'generator-smoke-artifacts';
+          const cronSecret = process.env.CRON_SECRET || '';
+
+          if (!baseUrl) {
+            throw new Error('AUTO_BUILDER_URL is required');
+          }
+
+          const receipts = [];
+
+          async function check(path, options = {}) {
+            const url = `${baseUrl}${path}`;
+            const response = await fetch(url, options);
+            const text = await response.text();
+            let body;
+            try {
+              body = JSON.parse(text);
+            } catch {
+              body = text.slice(0, 1000);
+            }
+            const receipt = { path, status: response.status, ok: response.ok, body };
+            receipts.push(receipt);
+            return receipt;
+          }
+
+          const status = await check('/api/generator/status');
+          if (!status.ok) {
+            throw new Error(`/api/generator/status failed with ${status.status}`);
+          }
+
+          const headers = cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {};
+          const cron = await check('/api/cron/autobuilder-generator', { headers });
+          const cronAccepted = cron.ok || (!cronSecret && cron.status === 401);
+          if (!cronAccepted) {
+            throw new Error(`/api/cron/autobuilder-generator unexpected status ${cron.status}`);
+          }
+
+          writeFileSync(`${artifactDir}/generator-smoke.json`, JSON.stringify({
+            generatedAt: new Date().toISOString(),
+            cronSecretProvided: Boolean(cronSecret),
+            receipts,
+          }, null, 2));
+          NODE
+
+      - name: Capture git status
+        run: git status --short > generator-smoke-artifacts/git-status.txt
+
+      - name: Upload smoke artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: awos-generator-factory-smoke
+          path: generator-smoke-artifacts
+          if-no-files-found: warn
