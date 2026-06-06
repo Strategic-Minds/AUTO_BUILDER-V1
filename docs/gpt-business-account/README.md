@@ -12,7 +12,7 @@ Character count: 1,484.
 
 `START_EVERY_REQUEST_HERE.md`
 
-Character count: 1,019.
+Character count: 1,366.
 
 ## Add As Account / Project README
 
@@ -27,6 +27,8 @@ These files implement the mandatory AUTO BUILDER phase lock:
 PLAN -> DISCOVERY -> BRAND OPTIONS -> APPROVAL -> DOCS -> SUBMIT TO VERCEL BUILD -> VALIDATE -> RELEASE/OPERATE
 
 The GPT must start every idea or implementation with a TODO list and current PHASE / STEP.
+
+Mandatory sandbox rule: any new idea unrelated to AUTO BUILDER repo/OS/Drive/Supabase/related systems must get its own sandbox folder system before discovery continues. Every TODO must be audited as Complete, Blocked, or Not Applicable before Vercel handoff.
 
 Mandatory builder boundary: Vercel is the system build/execution layer. GPT, Codex, AUTO BUILDER, agents, and workflows are not system builders. They orchestrate, plan, document, queue, hand off, validate, and collect evidence.
 
