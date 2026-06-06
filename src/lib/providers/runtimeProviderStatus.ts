@@ -21,9 +21,27 @@ function readiness(provider: string, requiredEnv: string[], notes: string): Runt
   };
 }
 
+function edenVercelReadiness(): RuntimeProviderReadiness {
+  const configuredEnv = {
+    VERCEL_TOKEN: envPresent('VERCEL_TOKEN'),
+    EDEN_SKYE_VERCEL_PROJECT_ID: envPresent('EDEN_SKYE_VERCEL_PROJECT_ID'),
+    TARGET_VERCEL_PROJECT_ID: envPresent('TARGET_VERCEL_PROJECT_ID'),
+    VERCEL_TEAM_ID: envPresent('VERCEL_TEAM_ID')
+  };
+
+  return {
+    provider: 'vercel_eden_preview',
+    ready: configuredEnv.VERCEL_TOKEN && (configuredEnv.EDEN_SKYE_VERCEL_PROJECT_ID || configuredEnv.TARGET_VERCEL_PROJECT_ID),
+    requiredEnv: ['VERCEL_TOKEN', 'EDEN_SKYE_VERCEL_PROJECT_ID or TARGET_VERCEL_PROJECT_ID'],
+    configuredEnv,
+    notes: 'Required for Auto Builder to trigger Eden Skye Studios preview deployments. Production deploys remain approval-gated.'
+  };
+}
+
 export function getRuntimeProviderStatus() {
   const providers = [
     readiness('supabase', ['SUPABASE_SERVICE_ROLE_KEY'], 'Uses SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL plus service role through telemetry-store.'),
+    edenVercelReadiness(),
     readiness('metricool', ['METRICOOL_API_URL', 'METRICOOL_API_TOKEN'], 'Required for Metricool Facebook and Instagram draft/write bridge.'),
     readiness('meta_facebook', ['META_ACCESS_TOKEN', 'META_FACEBOOK_PAGE_ID'], 'Required for direct Meta Facebook Graph API writes.'),
     readiness('instagram', ['META_ACCESS_TOKEN', 'META_INSTAGRAM_BUSINESS_ACCOUNT_ID'], 'Required for direct Instagram Graph API writes.'),
