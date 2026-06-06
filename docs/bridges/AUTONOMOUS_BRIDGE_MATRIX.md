@@ -20,9 +20,11 @@ The following bridge files exist or are expected in the runtime system:
 - `src/lib/providers/providerSafety.ts`
 - `src/lib/providers/runtimeProviderStatus.ts`
 - `src/lib/bridges/edenVercelPreviewBridge.ts`
+- `src/lib/bridges/vercelRedeployBridge.ts`
 - `src/app/api/bridge/providers/runtime-status/route.ts`
 - `src/app/api/bridge/social-media/draft/route.ts`
 - `src/app/api/bridge/vercel/eden-preview/route.ts`
+- `src/app/api/bridge/vercel/redeploy/route.ts`
 - `src/app/api/cron/social-bridge/route.ts`
 
 ## Provider Matrix
@@ -31,6 +33,7 @@ The following bridge files exist or are expected in the runtime system:
 |---|---|---|---|
 | GitHub | Active in ChatGPT and runtime-capable | Repo files, issues, PRs | Used for AUTO_BUILDER source mutation. |
 | Vercel Eden Preview | Runtime bridge scaffolded | Preview deployment only | Uses `VERCEL_TOKEN` plus `EDEN_SKYE_VERCEL_PROJECT_ID` or `TARGET_VERCEL_PROJECT_ID`; production is hard-blocked. |
+| Vercel Redeploy | Runtime bridge scaffolded | Auto Builder or Eden preview redeploy | Uses `VERCEL_TOKEN`; Auto Builder targets `AUTO_BUILDER_VERCEL_PROJECT_ID` or `VERCEL_PROJECT_ID`; production requires explicit approval phrase. |
 | Google Drive | Active in ChatGPT; runtime adapter needed for Vercel | Docs, Sheets, Slides | Use for evidence docs, operating packets, validation logs. |
 | Google Calendar | Active in ChatGPT; runtime adapter needed for Vercel | Events, review checkpoints | Use for validation checkpoints and approval windows. |
 | Gmail | Active in ChatGPT; runtime adapter needed for Vercel | Drafts and labels | Use drafts for operational handoff; no send without explicit approval. |
@@ -86,6 +89,40 @@ Validation route:
 3. `POST /api/bridge/vercel/eden-preview`
 4. Check returned `deploymentUrl` and bridge evidence.
 
+## Governed Redeploy Payload
+
+Preview redeploy of Auto Builder:
+
+```json
+{
+  "targetSystem": "auto_builder",
+  "mode": "preview",
+  "ref": "main",
+  "requestedBy": "Eden Skye Runtime"
+}
+```
+
+Preview redeploy of Eden Skye Studios:
+
+```json
+{
+  "targetSystem": "eden_skye_studios",
+  "mode": "preview",
+  "ref": "main",
+  "requestedBy": "Eden Skye Runtime"
+}
+```
+
+Production deploy requires:
+
+```json
+{
+  "mode": "production",
+  "approvedProductionDeploy": true,
+  "approvalPhrase": "APPROVE PRODUCTION DEPLOY"
+}
+```
+
 ## Social Bridge Test Payload
 
 ```json
@@ -104,10 +141,12 @@ Validation route:
 ## Validation Order
 
 1. `GET /api/bridge/providers/runtime-status`
-2. `POST /api/bridge/social-media/draft`
-3. `GET /api/cron/social-bridge`
-4. Check bridge evidence and blockers.
+2. `GET /api/bridge/vercel/redeploy`
+3. `POST /api/bridge/vercel/redeploy` in preview mode
+4. `POST /api/bridge/social-media/draft`
+5. `GET /api/cron/social-bridge`
+6. Check bridge evidence and blockers.
 
 ## Next Required Runtime Step
 
-Deploy the latest AUTO_BUILDER repo state, verify runtime provider readiness, then run a single Eden Vercel preview bridge cycle and a single draft-only social bridge cycle before enabling recurring automation.
+Deploy the latest AUTO_BUILDER repo state, verify runtime provider readiness, then run a single governed redeploy bridge cycle, a single Eden Vercel preview bridge cycle, and a single draft-only social bridge cycle before enabling recurring automation.
