@@ -136,6 +136,8 @@ The core governance layer for this repo is:
 - `/api/bridge/registry`
 - `/api/bridge/http`
 - `/api/bridge/webhook`
+- `/api/bridge/providers/runtime-status`
+- `/api/bridge/vercel/eden-preview`
 
 ## Factory Docs
 - `docs/ONE_HOUR_BUILD_FACTORY.md`
