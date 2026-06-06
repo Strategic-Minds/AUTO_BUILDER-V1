@@ -1,0 +1,77 @@
+name: Eden 24/7 Ops Tick
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+      reason:
+        description: "Reason for manual tick"
+        required: false
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  tick:
+    name: Governed 24/7 Operating Tick
+    runs-on: ubuntu-latest
+    env:
+      AUTO_BUILDER_MODE: preview
+      PRODUCTION_LOCKED: "true"
+      SHOPIFY_MUTATION_LOCKED: "true"
+      SOCIAL_PUBLISHING_LOCKED: "true"
+      PAYMENT_CHANGES_LOCKED: "true"
+      EDEN_REPO: Strategic-Minds/EDENSKYESTUDIOS
+      EDEN_SHOPIFY_BRANCH: shopify/v1-website-preview
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build tick receipt
+        run: |
+          mkdir -p eden-247-receipts
+          cat > eden-247-receipts/eden-247-tick.json <<EOF
+          {
+            "workflow": "eden-247-ops-tick",
+            "mode": "preview",
+            "production_locked": true,
+            "shopify_mutation_locked": true,
+            "social_publishing_locked": true,
+            "payment_changes_locked": true,
+            "eden_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+            "eden_shopify_branch": "shopify/v1-website-preview",
+            "required_lanes": [
+              "git",
+              "drive",
+              "supabase",
+              "vercel",
+              "shopify",
+              "metricool_or_xyla",
+              "heygen"
+            ],
+            "next_actions": [
+              "check latest Vercel preview receipt",
+              "dispatch mockup validation if preview exists",
+              "check Shopify V1 branch status",
+              "check content/video draft queues",
+              "record approval-held items"
+            ],
+            "run_id": "${{ github.run_id }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+
+      - name: Upload tick receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-247-tick-receipt
+          path: eden-247-receipts/
