@@ -1,0 +1,66 @@
+openapi: 3.1.0
+info:
+  title: AWOS Autonomous Bridge Contract
+  version: 2026-06-06
+  description: Portable local/cloud bridge API for governed GPT execution without manual copy/paste.
+servers:
+  - url: http://127.0.0.1:8795
+    description: Local device relay
+security:
+  - bearerAuth: []
+paths:
+  /snapshot:
+    post:
+      operationId: snapshot
+      x-risk-class: 0
+      responses:
+        '200': { description: Snapshot receipt }
+  /git/status:
+    post:
+      operationId: gitStatus
+      x-risk-class: 0
+      responses:
+        '200': { description: Git status receipt }
+  /git/diff:
+    post:
+      operationId: gitDiff
+      x-risk-class: 0
+      responses:
+        '200': { description: Git diff receipt }
+  /files/read:
+    post:
+      operationId: readAllowedFile
+      x-risk-class: 0
+      responses:
+        '200': { description: File content receipt }
+  /files/write:
+    post:
+      operationId: writeApprovedFile
+      x-risk-class: 2
+      responses:
+        '200': { description: Write receipt }
+        '403': { description: Approval required }
+  /verify:
+    post:
+      operationId: verifyCommand
+      x-risk-class: 1
+      responses:
+        '200': { description: Command receipt }
+  /execute-approved:
+    post:
+      operationId: executeApproved
+      x-risk-class: 2
+      responses:
+        '200': { description: Execution receipt }
+        '403': { description: Approval required or policy denied }
+  /receipts:
+    get:
+      operationId: listReceipts
+      x-risk-class: 0
+      responses:
+        '200': { description: Receipt list }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

@@ -1,0 +1,52 @@
+name: AWOS Autonomous Bridge Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      auto_builder_url:
+        description: AUTO_BUILDER preview or production URL
+        required: true
+        default: https://auto-builder-g6kfnw2zz-strategic-minds-advisory.vercel.app
+      v0_bridge_url:
+        description: v0 bridge command center URL
+        required: false
+        default: https://v0-auto-builder-v2-kyulx651f-strategic-minds-advisory.vercel.app/bridges
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  bridge-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run bridge smoke
+        env:
+          AUTO_BUILDER_URL: ${{ inputs.auto_builder_url }}
+          V0_BRIDGE_URL: ${{ inputs.v0_bridge_url }}
+        run: node scripts/bridge-smoke.mjs
+
+      - name: Run browser screenshots
+        run: node scripts/bridge-browser-screenshot.mjs "${{ inputs.auto_builder_url }}/api/bridge/registry" "${{ inputs.v0_bridge_url }}"
+
+      - name: Upload smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: awos-bridge-smoke-artifacts
+          path: bridge-smoke-artifacts
+          if-no-files-found: error

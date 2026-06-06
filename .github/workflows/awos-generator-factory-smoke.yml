@@ -1,0 +1,78 @@
+name: AWOS Generator Factory Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      auto_builder_url:
+        description: AUTO_BUILDER preview or production URL
+        required: true
+        default: https://auto-builder-git-auto-builder-a-0246ab-strategic-minds-advisory.vercel.app
+      v0_bridge_url:
+        description: v0 bridge command center URL
+        required: false
+        default: https://v0-auto-builder-v2-git-ui-auton-1647a8-strategic-minds-advisory.vercel.app/bridges
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  generator-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke generator route
+        env:
+          AUTO_BUILDER_URL: ${{ inputs.auto_builder_url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          mkdir -p generator-smoke-artifacts
+          node - <<'NODE'
+          const fs = await import('node:fs/promises');
+          const base = process.env.AUTO_BUILDER_URL.replace(/\/$/, '');
+          const url = `${base}/api/cron/autobuilder-generator`;
+          const headers = process.env.CRON_SECRET ? { authorization: `Bearer ${process.env.CRON_SECRET}` } : {};
+          const res = await fetch(url, { headers });
+          const text = await res.text();
+          await fs.writeFile('generator-smoke-artifacts/generator-route.json', text);
+          const json = JSON.parse(text);
+          if (res.status === 401 && !process.env.CRON_SECRET) {
+            console.log(JSON.stringify({ ok: true, protected: true, status: res.status, reason: json.error }, null, 2));
+            process.exit(0);
+          }
+          if (!res.ok) throw new Error(`Generator route failed ${res.status}: ${text.slice(0, 500)}`);
+          const required = ['sourceTruth', 'featureGroups', 'generatorAgents', 'workflowSteps', 'sandboxPlan'];
+          for (const key of required) {
+            if (!json.plan?.[key]) throw new Error(`Missing generator key: ${key}`);
+          }
+          console.log(JSON.stringify({ ok: true, protected: false, status: res.status, keys: required }, null, 2));
+          NODE
+
+      - name: Browser screenshot evidence
+        env:
+          AUTO_BUILDER_URL: ${{ inputs.auto_builder_url }}
+          V0_BRIDGE_URL: ${{ inputs.v0_bridge_url }}
+        run: node scripts/bridge-browser-screenshot.mjs "$AUTO_BUILDER_URL/api/cron/autobuilder-generator" "$V0_BRIDGE_URL"
+
+      - name: Upload generator smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: awos-generator-factory-smoke-artifacts
+          path: |
+            generator-smoke-artifacts
+            bridge-smoke-artifacts
+          if-no-files-found: error
