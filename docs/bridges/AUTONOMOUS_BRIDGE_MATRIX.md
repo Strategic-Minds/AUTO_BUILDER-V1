@@ -19,10 +19,12 @@ The following bridge files exist or are expected in the runtime system:
 - `src/lib/providers/providerCatalog.ts`
 - `src/lib/providers/providerSafety.ts`
 - `src/lib/providers/runtimeProviderStatus.ts`
+- `src/lib/bridges/edenUniversalRuntimeBridge.ts`
 - `src/lib/bridges/githubWorkflowBridge.ts`
 - `src/lib/bridges/edenVercelPreviewBridge.ts`
 - `src/lib/bridges/vercelRedeployBridge.ts`
 - `src/app/api/bridge/providers/runtime-status/route.ts`
+- `src/app/api/bridge/eden/runtime/route.ts`
 - `src/app/api/bridge/github/workflows/route.ts`
 - `src/app/api/bridge/social-media/draft/route.ts`
 - `src/app/api/bridge/vercel/eden-preview/route.ts`
@@ -33,6 +35,7 @@ The following bridge files exist or are expected in the runtime system:
 
 | Provider | Bridge Status | Write Path | Notes |
 |---|---|---|---|
+| Eden Universal Runtime | Runtime bridge scaffolded | Central governed read/write/execute router for GitHub, Vercel, Supabase, Drive, Shopify, HeyGen | Uses `EDEN_RUNTIME_BRIDGE_TOKEN`; writes and executions require approval phrase; Drive/Shopify/HeyGen remain queue-first until adapters are installed. |
 | GitHub | Active in ChatGPT and runtime-capable | Repo files, issues, PRs | Used for AUTO_BUILDER source mutation. |
 | GitHub Workflows | Runtime bridge scaffolded | List workflows, runs, jobs, logs; dispatch workflow_dispatch | Uses `GITHUB_WORKFLOW_TOKEN` or `GITHUB_TOKEN`; risky dispatches require approval phrase. |
 | Vercel Eden Preview | Runtime bridge scaffolded | Preview deployment only | Uses `VERCEL_TOKEN` plus `EDEN_SKYE_VERCEL_PROJECT_ID` or `TARGET_VERCEL_PROJECT_ID`; production is hard-blocked. |
@@ -40,7 +43,9 @@ The following bridge files exist or are expected in the runtime system:
 | Google Drive | Active in ChatGPT; runtime adapter needed for Vercel | Docs, Sheets, Slides | Use for evidence docs, operating packets, validation logs. |
 | Google Calendar | Active in ChatGPT; runtime adapter needed for Vercel | Events, review checkpoints | Use for validation checkpoints and approval windows. |
 | Gmail | Active in ChatGPT; runtime adapter needed for Vercel | Drafts and labels | Use drafts for operational handoff; no send without explicit approval. |
-| Supabase | Runtime-backed through telemetry-store | Telemetry tables | Existing REST write path when env is configured. |
+| Supabase | Runtime-backed through telemetry-store | Telemetry tables and safe REST bridge operations | Schema changes and arbitrary table writes remain blocked. |
+| Shopify | ChatGPT connector active; runtime adapter env checked | Queue-first store action packets | Product, price, discount, inventory, media, and theme writes remain approval-gated. |
+| HeyGen | ChatGPT connector active; runtime adapter env checked | Queue-first avatar/video/speech packets | Live avatar sessions and media production actions remain approval-gated. |
 | Metricool | Runtime bridge scaffolded | Facebook/Instagram draft flow | Requires Metricool runtime env and API confirmation. |
 | Facebook | Via Metricool or Meta provider | Draft or publish depending policy | Live post requires provider readiness and approval policy. |
 | Instagram | Via Metricool or Meta provider | Draft or publish depending policy | Connected-to-Facebook target label exists; live account ID must be verified. |
@@ -76,6 +81,68 @@ Approval-gated:
 - Production deployment
 - Database schema mutation
 - Risky GitHub workflow dispatches involving production, deploy, publish, store/payment, migration, delete, or release intent
+
+## Eden Universal Runtime Payloads
+
+Readiness:
+
+```http
+GET /api/bridge/eden/runtime
+```
+
+GitHub workflow execution through the universal route:
+
+```json
+{
+  "provider": "github",
+  "intent": "execute",
+  "action": "dispatch_workflow",
+  "approvedExternalWrite": true,
+  "approvalPhrase": "APPROVE EDEN RUNTIME EXECUTE",
+  "payload": {
+    "operation": "dispatch",
+    "targetSystem": "auto_builder",
+    "workflowId": "vercel-redeploy.yml",
+    "ref": "main",
+    "inputs": {
+      "target_system": "eden_skye_studios",
+      "mode": "preview",
+      "ref": "main"
+    },
+    "requestedBy": "Eden Skye Runtime"
+  }
+}
+```
+
+Supabase read through the universal route:
+
+```json
+{
+  "provider": "supabase",
+  "intent": "read",
+  "action": "select",
+  "payload": {
+    "table": "bridge_evidence",
+    "method": "GET",
+    "select": "*",
+    "limit": 10
+  }
+}
+```
+
+Drive, Shopify, and HeyGen queue-first packets:
+
+```json
+{
+  "provider": "shopify",
+  "intent": "queue",
+  "action": "prepare_product_update",
+  "payload": {
+    "title": "Eden Skye Black Card",
+    "approvalRequired": true
+  }
+}
+```
 
 ## GitHub Workflow Bridge Payloads
 
@@ -194,14 +261,15 @@ Production deploy requires:
 ## Validation Order
 
 1. `GET /api/bridge/providers/runtime-status`
-2. `GET /api/bridge/github/workflows`
-3. `GET /api/bridge/vercel/redeploy`
-4. `POST /api/bridge/github/workflows` to dispatch a preview workflow when configured
-5. `POST /api/bridge/vercel/redeploy` in preview mode
-6. `POST /api/bridge/social-media/draft`
-7. `GET /api/cron/social-bridge`
-8. Check bridge evidence and blockers.
+2. `GET /api/bridge/eden/runtime`
+3. `GET /api/bridge/github/workflows`
+4. `GET /api/bridge/vercel/redeploy`
+5. `POST /api/bridge/github/workflows` to dispatch a preview workflow when configured
+6. `POST /api/bridge/vercel/redeploy` in preview mode
+7. `POST /api/bridge/social-media/draft`
+8. `GET /api/cron/social-bridge`
+9. Check bridge evidence and blockers.
 
 ## Next Required Runtime Step
 
-Deploy the latest AUTO_BUILDER repo state, verify runtime provider readiness, then run a single GitHub workflow bridge read cycle, a single governed redeploy bridge cycle, a single Eden Vercel preview bridge cycle, and a single draft-only social bridge cycle before enabling recurring automation.
+Deploy the latest AUTO_BUILDER repo state, set `EDEN_RUNTIME_BRIDGE_TOKEN`, verify runtime provider readiness, then run a single universal runtime bridge readiness check, GitHub workflow bridge read cycle, governed redeploy bridge cycle, Eden Vercel preview bridge cycle, and draft-only social bridge cycle before enabling recurring automation.
