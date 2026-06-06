@@ -1,0 +1,106 @@
+{
+  "id": "BUILD-EDEN-SKYE-STUDIOS-SHOPIFY-PREVIEW-20260605",
+  "createdAt": "2026-06-05T21:10:00-04:00",
+  "source": "Eden Skye / ChatGPT Agent",
+  "objective": "Use the Auto Builder autonomous GPT bridge to produce a preview-only review flow for the Eden Skye Studios Shopify-style storefront before any further backend wiring.",
+  "targetRepo": {
+    "repository": "Strategic-Minds/EDENSKYESTUDIOS",
+    "branch": "main",
+    "routesToReview": [
+      "/",
+      "/login",
+      "/payment",
+      "/closet",
+      "/admin/eden",
+      "/api/readiness"
+    ]
+  },
+  "bridgeSurface": {
+    "controlPlaneRepo": "Strategic-Minds/AUTO_BUILDER",
+    "preferredRouter": "/api/factory/router",
+    "preferredBuildPacketEndpoint": "/api/factory/build-packet",
+    "readinessEndpoint": "/api/factory/readiness",
+    "note": "Direct curl to the deployed Auto Builder router was blocked from the current container by CONNECT 403, so this packet is the durable bridge handoff for the autonomous GPT/router lane."
+  },
+  "templates": [
+    {
+      "id": "TPL-001",
+      "name": "Landing + Lead Capture",
+      "use": "Shopify-style storefront, Black Card CTA, creator/shop lanes"
+    },
+    {
+      "id": "TPL-002",
+      "name": "Auth Dashboard",
+      "use": "Member login portal and model selection preview"
+    },
+    {
+      "id": "TPL-005",
+      "name": "Workflow Queue Runner",
+      "use": "Approval-control flow, receipts, and gate visibility"
+    }
+  ],
+  "requiredPreviewScope": {
+    "frontendOnly": true,
+    "mustRender": [
+      "black/champagne storefront direction from Drive mockup",
+      "Black Card membership payment preview",
+      "member login portal preview",
+      "model selection before Edens Closet",
+      "Edens Closet behind-the-scenes room preview",
+      "admin/eden alias into closet",
+      "approval gates for production, payment, Shopify, and public publishing"
+    ],
+    "mustNotDo": [
+      "production deploy",
+      "Shopify mutation",
+      "Stripe or payment processor mutation",
+      "real payment collection",
+      "Supabase production migration",
+      "public social publishing",
+      "live HeyGen session"
+    ]
+  },
+  "approvalControlPlane": {
+    "spreadsheet": "https://docs.google.com/spreadsheets/d/1D-2NTRPkvHfItlQ2LoDrrUNUrDZg9Iy1DvZ8GrxlrYg/edit?usp=drivesdk",
+    "reviewRows": [
+      "WEB-003",
+      "WEB-004",
+      "PAY-001"
+    ],
+    "decisionRule": "Jeremy must review visual preview links and mark approval, denial, or requested alterations before backend/payment/store wiring begins."
+  },
+  "connectorPolicy": {
+    "github": {
+      "allowed": "read repo, prepare patch or preview branch if explicitly approved",
+      "blocked": "merge or destructive overwrite without approval"
+    },
+    "vercel": {
+      "allowed": "preview deployment smoke only when available",
+      "blocked": "production deploy, env mutation, rollback, or domain change without approval"
+    },
+    "shopify": {
+      "allowed": "read-only store context after user connects Shopify",
+      "blocked": "products, prices, discounts, collections, checkout, or theme mutation without approval"
+    },
+    "stripe": {
+      "allowed": "read-only pricing/payment planning",
+      "blocked": "prices, subscriptions, payment links, coupons, refunds, or live collection without approval"
+    },
+    "supabase": {
+      "allowed": "draft schema and auth plan",
+      "blocked": "production migrations or service-role writes without approval"
+    },
+    "xyla": {
+      "allowed": "draft content packet generation",
+      "blocked": "auto-publish or live distribution without approval"
+    }
+  },
+  "expectedOutput": {
+    "previewUrl": "Return the Vercel preview URL if the bridge can deploy preview safely.",
+    "routeSmoke": "Return pass/fail for /, /login, /payment, /closet, /admin/eden, /api/readiness.",
+    "screenshots": "Attach or link screenshots/visual evidence for storefront, login, payment, and closet.",
+    "blockers": "If preview deployment is unavailable, return exact blocker and manual Vercel dashboard action.",
+    "nextInstruction": "Do not continue backend work until Jeremy reviews the frontend and updates the Approval Control Plane."
+  },
+  "status": "queued_for_autonomous_gpt_bridge"
+}
