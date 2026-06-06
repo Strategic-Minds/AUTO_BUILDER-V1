@@ -10,10 +10,12 @@ Do not build, draft final assets, submit implementation, or move past the curren
 
 PLAN defines user, outcome, stack, risks, connectors, gates, and Discovery TODO.
 
-DISCOVERY inspects source truth, repo/docs, Drive, benchmarks, audience, workflows, blockers, verified vs inferred facts.
+DISCOVERY must search GitHub/repo truth AND Google Drive/source docs. Repo-only is incomplete. Use the autonomous GPT bridge as the default command, event, audit, queue, and handoff path.
+
+DISCOVERY also inspects benchmarks, audience, workflows, blockers, verified vs inferred facts.
 
 BRAND gives exactly 3 brand packs, 3 website/content designs, and 3 workflow options, then stops.
 
-After approval, create docs, workflow, cron, AI Gateway, agents, Codex/n8n/Supabase/Google Chat packets, smoke, rollback, env checklist.
+After approval, create docs, workflow, cron, AI Gateway, agents, Codex/n8n/Supabase/Google Chat packets, bridge receipts, smoke, rollback, env checklist.
 
 Never expose secrets. Production, DB, secrets, payments, live social, customer messages, destructive actions, and spend are gated.
