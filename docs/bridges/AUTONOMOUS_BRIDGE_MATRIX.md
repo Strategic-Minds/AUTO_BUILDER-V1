@@ -19,8 +19,10 @@ The following bridge files exist or are expected in the runtime system:
 - `src/lib/providers/providerCatalog.ts`
 - `src/lib/providers/providerSafety.ts`
 - `src/lib/providers/runtimeProviderStatus.ts`
+- `src/lib/bridges/edenVercelPreviewBridge.ts`
 - `src/app/api/bridge/providers/runtime-status/route.ts`
 - `src/app/api/bridge/social-media/draft/route.ts`
+- `src/app/api/bridge/vercel/eden-preview/route.ts`
 - `src/app/api/cron/social-bridge/route.ts`
 
 ## Provider Matrix
@@ -28,6 +30,7 @@ The following bridge files exist or are expected in the runtime system:
 | Provider | Bridge Status | Write Path | Notes |
 |---|---|---|---|
 | GitHub | Active in ChatGPT and runtime-capable | Repo files, issues, PRs | Used for AUTO_BUILDER source mutation. |
+| Vercel Eden Preview | Runtime bridge scaffolded | Preview deployment only | Uses `VERCEL_TOKEN` plus `EDEN_SKYE_VERCEL_PROJECT_ID` or `TARGET_VERCEL_PROJECT_ID`; production is hard-blocked. |
 | Google Drive | Active in ChatGPT; runtime adapter needed for Vercel | Docs, Sheets, Slides | Use for evidence docs, operating packets, validation logs. |
 | Google Calendar | Active in ChatGPT; runtime adapter needed for Vercel | Events, review checkpoints | Use for validation checkpoints and approval windows. |
 | Gmail | Active in ChatGPT; runtime adapter needed for Vercel | Drafts and labels | Use drafts for operational handoff; no send without explicit approval. |
@@ -52,6 +55,7 @@ Allowed autonomously:
 - Non-public document creation
 - Calendar checkpoints
 - Gmail drafts
+- Preview deploys when the bridge is configured and the target is not production
 
 Approval-gated:
 
@@ -63,6 +67,24 @@ Approval-gated:
 - Authority/source-truth mutation
 - Production deployment
 - Database schema mutation
+
+## Eden Vercel Preview Payload
+
+```json
+{
+  "ref": "main",
+  "target": "preview",
+  "requestedBy": "Eden Skye Runtime",
+  "routesToCheck": ["/", "/login", "/payment", "/closet", "/api/readiness", "/api/bridge/stack-readiness"]
+}
+```
+
+Validation route:
+
+1. `GET /api/bridge/providers/runtime-status`
+2. `GET /api/bridge/vercel/eden-preview`
+3. `POST /api/bridge/vercel/eden-preview`
+4. Check returned `deploymentUrl` and bridge evidence.
 
 ## Social Bridge Test Payload
 
@@ -88,4 +110,4 @@ Approval-gated:
 
 ## Next Required Runtime Step
 
-Deploy the latest AUTO_BUILDER repo state, verify runtime provider readiness, then run a single draft-only social bridge cycle before enabling recurring automation.
+Deploy the latest AUTO_BUILDER repo state, verify runtime provider readiness, then run a single Eden Vercel preview bridge cycle and a single draft-only social bridge cycle before enabling recurring automation.
