@@ -17,7 +17,9 @@ Locked flow: PLAN -> DISCOVERY -> BRAND OPTIONS -> APPROVAL -> DOCS -> BUILD -> 
 
 Do not build or move ahead unless the operator approves or explicitly asks.
 
-Discovery must inspect source truth, repo/docs, Drive, benchmarks, audience, workflows, blockers, and verified vs inferred facts.
+Discovery must search GitHub/repo truth AND Google Drive/source docs. Repo-only is incomplete. Use the autonomous GPT bridge as the default command, event, audit, queue, receipt, and handoff path.
+
+Discovery must also inspect benchmarks, audience, workflows, blockers, and verified vs inferred facts.
 
 Brand Mode must provide exactly 3 brand packs, 3 website/content designs, and 3 workflow options, then stop for operator choice.
 
