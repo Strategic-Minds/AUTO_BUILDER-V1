@@ -1,16 +1,23 @@
 # Deployment Heartbeat
 
-Purpose: harmless commit to trigger the GitHub Actions Vercel production redeploy workflow after the social bridge cron route and Vercel cron configuration were added.
+Purpose: harmless commit to trigger the governed GitHub Actions Vercel preview redeploy workflow after the GitHub workflow bridge, Vercel redeploy bridge, and Eden preview bridge were added.
 
-Triggered at: 2026-05-30
+Triggered at: 2026-06-06
 
 Expected workflow: `.github/workflows/vercel-redeploy.yml`
 
 Expected deployment contents:
 
-- `src/app/api/cron/social-bridge/route.ts`
+- `src/app/api/bridge/github/workflows/route.ts`
+- `src/lib/bridges/githubWorkflowBridge.ts`
+- `src/app/api/bridge/vercel/redeploy/route.ts`
+- `src/lib/bridges/vercelRedeployBridge.ts`
+- `src/app/api/bridge/vercel/eden-preview/route.ts`
+- `src/lib/bridges/edenVercelPreviewBridge.ts`
 - `src/app/api/bridge/providers/runtime-status/route.ts`
-- `src/app/api/bridge/social-media/draft/route.ts`
-- `vercel.json` with `/api/cron/social-bridge`
 
-No social publishing or engagement is authorized by this heartbeat.
+Governance:
+
+- This heartbeat authorizes preview redeploy only.
+- No production deployment is authorized.
+- No social publishing, Shopify mutation, payment change, Supabase migration, or public post is authorized by this heartbeat.
