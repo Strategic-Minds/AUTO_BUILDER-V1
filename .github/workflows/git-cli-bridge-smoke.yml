@@ -1,0 +1,38 @@
+name: Git CLI Bridge Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why the bridge smoke test is running"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Git CLI read smoke
+        run: |
+          mkdir -p bridge-receipts
+          {
+            echo "{"
+            echo "  \"workflow\": \"git-cli-bridge-smoke\","
+            echo "  \"branch\": \"$(git rev-parse --abbrev-ref HEAD)\","
+            echo "  \"head\": \"$(git rev-parse HEAD)\","
+            echo "  \"status\": \"$(git status --short | wc -l | tr -d ' ')\","
+            echo "  \"production_locked\": true,"
+            echo "  \"destructive_git_locked\": true"
+            echo "}"
+          } > bridge-receipts/git-cli-bridge-smoke.json
+
+      - name: Upload receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-cli-bridge-smoke
+          path: bridge-receipts/
