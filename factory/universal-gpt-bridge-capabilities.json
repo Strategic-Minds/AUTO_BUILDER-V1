@@ -1,0 +1,86 @@
+{
+  "bridge": "Universal GPT to Codex / Connector Execution Bridge",
+  "version": "0.1.0",
+  "sessionBound": false,
+  "auth": {
+    "required": true,
+    "env": [
+      "AUTO_BUILDER_UNIVERSAL_BRIDGE_ENABLED",
+      "AUTO_BUILDER_UNIVERSAL_BRIDGE_TOKEN",
+      "BRIDGE_WORKSPACE_ROOT"
+    ],
+    "secretValuePolicy": "GPT may read secret names and presence metadata only. Values are never returned."
+  },
+  "workspace": {
+    "rootEnv": "BRIDGE_WORKSPACE_ROOT",
+    "boundary": "All Codex file and command operations are constrained to BRIDGE_WORKSPACE_ROOT."
+  },
+  "connectors": [
+    {
+      "id": "codex",
+      "read": ["list files", "read files", "inspect code", "run status commands"],
+      "write": ["create files", "edit files", "patch code", "generate artifacts"],
+      "execute": ["run shell commands", "run tests", "run build commands"],
+      "actions": ["codex.listFiles", "codex.readFile", "codex.writeFile", "codex.execute"]
+    },
+    {
+      "id": "git",
+      "read": ["status", "diff", "log", "branch inspection"],
+      "write": ["branch", "add", "commit", "merge preparation"],
+      "execute": ["git commands through approved bridge"],
+      "actions": ["git.status", "git.execute"]
+    },
+    {
+      "id": "vercel",
+      "read": ["project/deployment inspection", "logs when available"],
+      "write": ["deploy", "env changes", "domain changes", "rollback"],
+      "execute": ["vercel CLI/API commands through approved bridge"],
+      "actions": ["vercel.execute"]
+    },
+    {
+      "id": "supabase",
+      "read": ["project/schema/table/query/log inspection"],
+      "write": ["migrations", "SQL execution", "edge function deploys", "storage operations"],
+      "execute": ["supabase CLI/API commands through approved bridge"],
+      "actions": ["supabase.execute"]
+    },
+    {
+      "id": "drive",
+      "read": ["files", "folders", "metadata", "docs/sheets/slides export"],
+      "write": ["create", "move", "edit", "delete files and folders", "upload images/videos/docs/code artifacts"],
+      "execute": ["Drive API/CLI commands through approved bridge"],
+      "actions": ["drive.execute"]
+    },
+    {
+      "id": "shopify",
+      "read": ["products", "orders", "customers", "collections", "inventory", "analytics"],
+      "write": ["products", "collections", "media", "inventory", "discounts", "store content"],
+      "execute": ["Shopify Admin GraphQL/API commands through approved bridge"],
+      "actions": ["shopify.execute"]
+    },
+    {
+      "id": "heygen",
+      "read": ["avatars", "voices", "videos", "sessions"],
+      "write": ["create sessions", "generate videos", "retrieve assets"],
+      "execute": ["HeyGen API commands through approved bridge"],
+      "actions": ["heygen.execute"]
+    },
+    {
+      "id": "metricool",
+      "read": ["social content queues", "analytics", "calendar state"],
+      "write": ["draft posts", "schedule posts", "edit/delete scheduled posts"],
+      "execute": ["Metricool API commands through approved bridge"],
+      "actions": ["metricool.execute"]
+    }
+  ],
+  "approvalGates": [
+    "external writes",
+    "deletes",
+    "production deployments",
+    "database mutations",
+    "billing/spend",
+    "public publishing",
+    "mass outreach",
+    "credential changes"
+  ]
+}
