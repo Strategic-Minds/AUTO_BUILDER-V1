@@ -8,6 +8,14 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+type BridgeResult = Awaited<ReturnType<typeof handleGitHubWorkflowBridge>>;
+
+function responseStatus(result: BridgeResult) {
+  const maybeBlocked = 'blocked' in result && result.blocked === true;
+  if (maybeBlocked) return 423;
+  return result.ok ? 200 : result.status || 500;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const targetSystem = searchParams.get('targetSystem') as GitHubWorkflowBridgeRequest['targetSystem'];
@@ -37,12 +45,11 @@ export async function GET(request: NextRequest) {
     perPage
   });
 
-  return NextResponse.json(result, { status: result.ok ? 200 : result.status || 500 });
+  return NextResponse.json(result, { status: responseStatus(result) });
 }
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as GitHubWorkflowBridgeRequest;
   const result = await handleGitHubWorkflowBridge(body);
-  const status = result.blocked ? 423 : result.ok ? 200 : result.status || 500;
-  return NextResponse.json(result, { status });
+  return NextResponse.json(result, { status: responseStatus(result) });
 }
