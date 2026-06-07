@@ -10,8 +10,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  workflow-206-canary:
+  workflow-runtime-canary:
+    name: workflow@${{ matrix.workflow-version }} runtime canary
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workflow-version:
+          - "3"
+          - "latest"
+          - "2.0.6"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,8 +32,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install audit-suggested workflow version without saving
-        run: npm install workflow@2.0.6 --no-save
+      - name: Install workflow canary version without saving
+        run: npm install workflow@${{ matrix.workflow-version }} --no-save
+
+      - name: Show resolved workflow package
+        run: npm ls workflow --depth=0
+
+      - name: Verify workflow API import
+        run: node -e "import('workflow/api').then((m) => { if (typeof m.start !== 'function') throw new Error('workflow/api start export missing'); console.log('workflow/api start export verified'); })"
 
       - name: Lint
         run: npm run lint
