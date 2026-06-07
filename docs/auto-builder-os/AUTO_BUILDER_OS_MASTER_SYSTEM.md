@@ -1,5 +1,15 @@
 # AUTO BUILDER OS v1.0 - Master System
 
+## MASTER COMPLETION LOCK
+
+Before any other work, every agent must read:
+
+1. `docs/auto-builder-os/START_HERE_MASTER_COMPLETION_LOCK.md`
+2. `docs/auto-builder-os/MASTER_SYSTEM_COMPLETION_TODO.md`
+3. `docs/auto-builder-os/FINAL_DEFINITION_OF_DONE.md`
+
+Until the master TODO is complete or explicitly superseded by the operator, all work must complete, validate, evidence, or unblock that checklist. No unrelated planning, redesign, architecture replacement, production mutation, secret mutation, social publishing, commerce/billing mutation, or customer messaging is allowed.
+
 ## Purpose
 AUTO BUILDER OS is Jeremy's trademark AI consulting and automation system. It converts an idea into a profitable, benchmarked, governed, automated business system using a repeatable workflow.
 
