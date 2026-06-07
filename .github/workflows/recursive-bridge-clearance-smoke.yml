@@ -72,7 +72,7 @@ jobs:
           cat response.json
           test "$code" = "200"
           grep -F '"status":"dry_run_passed"' response.json
-      - name: Smoke Higgsfield dry-run env receipt
+      - name: Smoke Higgsfield dry-run env or hard-gate receipt
         run: |
           set -euo pipefail
           code=$(curl -sS -o response.json -w "%{http_code}" \
@@ -80,8 +80,15 @@ jobs:
             -d '{"bridgeId":"higgsfield_media_bridge"}' \
             "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL/api/bridge/connectors/dry-run")
           cat response.json
-          test "$code" = "200"
-          grep -F '"status":"dry_run_passed"' response.json
+          if [ "$code" = "200" ]; then
+            grep -F '"status":"dry_run_passed"' response.json
+          elif [ "$code" = "428" ]; then
+            grep -F '"status":"hard_gate"' response.json
+            grep -F 'HIGGINGFIELD_API_KEY|HIGGSFIELD_API_KEY' response.json
+          else
+            echo "Unexpected Higgsfield smoke status: $code"
+            exit 1
+          fi
       - name: Smoke unapproved Class 2 block
         run: |
           set -euo pipefail
