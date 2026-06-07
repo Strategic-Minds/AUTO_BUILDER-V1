@@ -5,25 +5,15 @@
   "source_truth": {
     "verified_from_memory_files": [
       "AUTONOMOUS_BRIDGE_REGISTRY.json",
-      "QUEUE_AND_RECEIPT_SCHEMA.json",
-      "OPENAPI_BRIDGE_CONTRACT.yaml",
-      "VALIDATION_CHECKLIST.md",
-      "NEXT_REPO_PROMOTION_PACKET.md"
-    ],
-    "synthesized_from_operator_handoff": [
-      "Gmail connector bridge",
-      "Google Calendar connector bridge",
-      "Metricool connector bridge",
-      "Google Chat connector bridge",
-      "n8n connector bridge",
-      "Playwright external runner bridge",
-      "Connector Unblock Router bridge"
-    ],
-    "missing_named_source_files": [
       "CONNECTOR_BRIDGE_ENV_CONTRACT.json",
       "BLOCKER_BRIDGE_QUEUE.json",
+      "OPENAPI_BRIDGE_CONTRACT.yaml",
       "RECURSIVE_BRIDGE_CLEARANCE_REPORT.md",
       "receipts/recursive-bridge-validation-2026-06-07.json"
+    ],
+    "operator_updates": [
+      "HeyGen API key added to Vercel env",
+      "Higgingfield/Higgsfield API key added to Vercel env"
     ]
   },
   "principles": [
@@ -48,7 +38,8 @@
     { "id": "playwright_external_runner_bridge", "name": "Playwright External Runner Bridge", "class": "browser_evidence", "status": "hard_gate_approved_runner_required" },
     { "id": "local_device_relay", "name": "Local Device Relay Bridge", "class": "local_execution", "status": "hard_gate_local_runner_availability_required" },
     { "id": "metricool_connector_bridge", "name": "Metricool Connector Bridge", "class": "social_analytics", "status": "hard_gate_api_key_brand_profile_allowlist_required" },
-    { "id": "heygen_video_bridge", "name": "HeyGen Video Bridge", "class": "content_generation", "status": "contract_promoted_secret_status_pending" },
+    { "id": "heygen_video_bridge", "name": "HeyGen Video Bridge", "class": "content_generation", "status": "env_status_pending_live_generation_gated" },
+    { "id": "higgsfield_media_bridge", "name": "Higgsfield/Higgingfield Media Bridge", "class": "content_generation", "status": "env_status_pending_live_generation_gated" },
     { "id": "shopify_commerce_bridge", "name": "Shopify Commerce Bridge", "class": "commerce", "status": "read_allowed_mutation_gated" },
     { "id": "stripe_finance_bridge", "name": "Stripe Finance Bridge", "class": "payments", "status": "deferred_payment_gate" },
     { "id": "connector_unblock_router", "name": "Connector Unblock Router", "class": "governance", "status": "promoted_for_preview_smoke" },
