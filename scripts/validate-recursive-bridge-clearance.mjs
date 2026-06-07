@@ -22,7 +22,9 @@ const requiredBridgeIds = [
   "google_chat_operator_bridge",
   "n8n_connector_bridge",
   "playwright_external_runner_bridge",
-  "connector_unblock_router"
+  "connector_unblock_router",
+  "heygen_video_bridge",
+  "higgsfield_media_bridge"
 ];
 
 const errors = [];
@@ -43,7 +45,7 @@ function readJson(path) {
 const registry = readJson("docs/bridges/recursive-clearance/AUTONOMOUS_BRIDGE_REGISTRY.json");
 if (registry) {
   const ids = new Set((registry.bridges || []).map((bridge) => bridge.id));
-  if ((registry.bridges || []).length !== 19) errors.push(`Expected 19 bridges, found ${(registry.bridges || []).length}.`);
+  if ((registry.bridges || []).length !== 20) errors.push(`Expected 20 bridges, found ${(registry.bridges || []).length}.`);
   for (const id of requiredBridgeIds) {
     if (!ids.has(id)) errors.push(`Registry missing bridge id: ${id}`);
   }
@@ -58,6 +60,13 @@ if (blockerQueue) {
       errors.push(`Blocker ${blocker.id || "unknown"} missing owner, required_action, or next_test.`);
     }
   }
+}
+
+const statusRoute = existsSync("src/app/api/bridge/connectors/status/route.ts")
+  ? readFileSync("src/app/api/bridge/connectors/status/route.ts", "utf8")
+  : "";
+for (const marker of ["HEYGEN_API_KEY", "HIGGINGFIELD_API_KEY", "HIGGSFIELD_API_KEY"]) {
+  if (!statusRoute.includes(marker)) errors.push(`status route missing env marker: ${marker}`);
 }
 
 const executeRoute = existsSync("src/app/api/bridge/connectors/execute-approved/route.ts")
@@ -84,7 +93,7 @@ if (errors.length > 0) {
 
 console.log(JSON.stringify({
   ok: true,
-  bridgeCount: 19,
+  bridgeCount: 20,
   routeScaffolds: 5,
   blockersMapped: (blockerQueue?.blockers || []).length,
   mutation: false,
