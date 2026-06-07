@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "npm run validate:factory",
+    "typecheck": "tsc --noEmit --pretty false",
     "validate:factory": "node scripts/validate-factory.mjs",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs"
   },
