@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 const packetPath = process.env.SUBMISSION_PACKET || 'factory/workflow-submissions/master-system-completion-vercel-workflow-20260607.json';
 const defaultTarget = 'https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app/api/factory/build-packet';
