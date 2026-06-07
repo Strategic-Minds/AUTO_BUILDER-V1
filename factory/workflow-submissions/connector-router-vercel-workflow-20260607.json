@@ -1,0 +1,148 @@
+{
+  "submission_id": "connector-router-vercel-workflow-20260607",
+  "created_at": "2026-06-07T08:05:00Z",
+  "phase": "DOCS_TO_VERCEL_WORKFLOW_SUBMISSION",
+  "status": "ready_for_vercel_preview_factory_intake_contract",
+  "production_mutation_executed": false,
+  "source_truth": {
+    "github_repo": "Strategic-Minds/AUTO_BUILDER",
+    "pull_request": 19,
+    "branch": "auto-builder/uploaded-frontend-completion-audit-20260607",
+    "preview_url": "https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app",
+    "verified_receipts": [
+      "generator_tick_artifact_7461773179",
+      "bridge_policy_smoke_artifact_7461814915",
+      "runtime_telemetry_dev_branch_receipt",
+      "connector_dry_run_receipt_2026_06_07"
+    ]
+  },
+  "workflow_intake": {
+    "target_route": "https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app/api/factory/build-packet",
+    "method": "POST",
+    "content_type": "application/json",
+    "payload": {
+      "idea": "AUTO BUILDER OS CONNECTOR ROUTER FINALIZATION: Implement the missing connector-specific dry-run router and 5-minute non-mutating Vercel cron validator. Required routes: GET /api/bridge/connectors/status, POST /api/bridge/connectors/dry-run, POST /api/bridge/connectors/execute-approved, GET /api/bridge/unblock/scan, GET /api/cron/connector-router-validator. Required connectors: Google Chat, n8n, Metricool, HeyGen, Higgsfield, Playwright runner. Required behavior: secret names/status only, no secret values, no production mutation, no outbound messages, no social publish, no paid render, no commerce/payment action, no credentialed browser action. execute-approved must block without approval proof. Use Vercel Workflow as durable orchestrator and Vercel Cron schedule */5 * * * * for the non-mutating connector validator. Preserve the frontend visual design. Vercel builds; GPT/AUTO BUILDER orchestrates, documents, validates, and gates."
+    },
+    "expected_response": {
+      "status": "ok",
+      "buildPacket": "object"
+    }
+  },
+  "builder_docs": [
+    "docs/auto-builder-os/vercel/CONNECTOR_ROUTER_VERCEL_WORKFLOW_BUILDER_DOC_2026-06-07.md",
+    "docs/auto-builder-os/connectors/CONNECTOR_DRY_RUN_RECEIPT_2026-06-07.md",
+    "docs/auto-builder-os/supabase/RUNTIME_TELEMETRY_EVENTS_DEV_BRANCH_RECEIPT_2026-06-07.md",
+    "docs/auto-builder-os/SYSTEM_STATUS_MATRIX.md",
+    "docs/auto-builder-os/PROTECTED_ACTION_POLICY.md",
+    "docs/auto-builder-os/AUTONOMOUS_BRIDGE_REQUIREMENTS.md",
+    "docs/auto-builder-os/BUILD_EVIDENCE_REQUIREMENTS.md"
+  ],
+  "implementation_targets": {
+    "routes": [
+      "src/app/api/bridge/connectors/status/route.ts",
+      "src/app/api/bridge/connectors/dry-run/route.ts",
+      "src/app/api/bridge/connectors/execute-approved/route.ts",
+      "src/app/api/bridge/unblock/scan/route.ts",
+      "src/app/api/cron/connector-router-validator/route.ts"
+    ],
+    "libraries": [
+      "src/lib/bridge/connector-registry.ts",
+      "src/lib/bridge/connector-dry-run.ts",
+      "src/lib/bridge/connector-receipts.ts"
+    ],
+    "config": [
+      "vercel.json"
+    ],
+    "receipts": [
+      "docs/auto-builder-os/connectors/CONNECTOR_ROUTER_IMPLEMENTATION_RECEIPT.md",
+      "docs/auto-builder-os/vercel/CONNECTOR_ROUTER_VERCEL_WORKFLOW_RECEIPT.md"
+    ]
+  },
+  "connector_registry": [
+    {
+      "id": "google_chat",
+      "env_names": ["GOOGLE_CHAT_WEBHOOK_URL", "GOOGLE_CHAT_BOT_TOKEN"],
+      "dry_run": "secret names/status only; do not send message",
+      "mutation_default": "blocked"
+    },
+    {
+      "id": "n8n",
+      "env_names": ["N8N_BASE_URL", "N8N_API_KEY", "N8N_WEBHOOK_SECRET"],
+      "dry_run": "secret names/status only; do not trigger workflow",
+      "mutation_default": "blocked"
+    },
+    {
+      "id": "metricool",
+      "env_names": ["METRICOOL_API_KEY", "METRICOOL_BRAND_ID", "METRICOOL_PROFILE_ALLOWLIST"],
+      "dry_run": "secret names/status only; do not schedule or publish",
+      "mutation_default": "blocked"
+    },
+    {
+      "id": "heygen",
+      "env_names": ["HEYGEN_API_KEY"],
+      "dry_run": "secret names/status only; do not render or publish",
+      "mutation_default": "blocked"
+    },
+    {
+      "id": "higgsfield",
+      "env_names": ["HIGGSFIELD_API_KEY", "HIGGINGFIELD_API_KEY"],
+      "dry_run": "secret names/status only; do not render or publish",
+      "mutation_default": "blocked"
+    },
+    {
+      "id": "playwright_runner",
+      "env_names": ["PLAYWRIGHT_RUNNER_URL", "PLAYWRIGHT_RUNNER_SECRET"],
+      "dry_run": "runner config/status only; no credentialed browser action",
+      "mutation_default": "blocked"
+    }
+  ],
+  "five_minute_trigger": {
+    "route": "/api/cron/connector-router-validator",
+    "schedule": "*/5 * * * *",
+    "auth": "Authorization Bearer CRON_SECRET",
+    "mode": "non_mutating_names_only",
+    "vercel_json_shape": {
+      "crons": [
+        {
+          "path": "/api/cron/connector-router-validator",
+          "schedule": "*/5 * * * *"
+        }
+      ]
+    }
+  },
+  "validation_order": [
+    "GET /api/bridge/connectors/status",
+    "POST /api/bridge/connectors/dry-run connector=all mode=names_only",
+    "POST /api/bridge/connectors/execute-approved without approval proof and expect block",
+    "GET /api/bridge/unblock/scan",
+    "GET /api/cron/connector-router-validator with cron auth",
+    "browser screenshot receipt",
+    "git status receipt",
+    "artifact upload receipt"
+  ],
+  "protected_gates": [
+    "production_deploy",
+    "production_database_migration",
+    "secret_mutation",
+    "outbound_message",
+    "n8n_live_trigger_or_mutation",
+    "metricool_schedule_or_publish",
+    "heygen_paid_render_or_publish",
+    "higgsfield_paid_render_or_publish",
+    "credentialed_browser_action",
+    "commerce_payment_action",
+    "customer_message",
+    "destructive_action",
+    "capital_spend"
+  ],
+  "acceptance_evidence_required": [
+    "factory_build_packet_response",
+    "connector_status_receipt",
+    "connector_dry_run_receipt_all_connectors",
+    "execute_approved_block_receipt",
+    "unblock_scan_receipt",
+    "five_minute_cron_validator_receipt",
+    "browser_screenshot_receipt",
+    "git_status_receipt"
+  ]
+}
