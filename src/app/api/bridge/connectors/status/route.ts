@@ -4,7 +4,9 @@ export const dynamic = "force-dynamic";
 
 type ConnectorContract = {
   bridgeId: string;
-  requiredEnvNames: string[];
+  requiredEnvNames?: string[];
+  requiredAnyEnvNameGroups?: string[][];
+  optionalEnvNames?: string[];
   approvalGate: string;
 };
 
@@ -15,20 +17,44 @@ const connectorContracts: ConnectorContract[] = [
   { bridgeId: "google_chat_operator_bridge", requiredEnvNames: ["GOOGLE_CHAT_WEBHOOK_URL", "GOOGLE_CHAT_SPACE_ID", "GOOGLE_CHAT_BOT_TOKEN"], approvalGate: "send operator message" },
   { bridgeId: "n8n_connector_bridge", requiredEnvNames: ["N8N_BASE_URL", "N8N_API_KEY", "N8N_WEBHOOK_SECRET"], approvalGate: "execute external workflow" },
   { bridgeId: "playwright_external_runner_bridge", requiredEnvNames: ["BROWSER_WORKER_TOKEN", "PLAYWRIGHT_RUNNER_URL", "PLAYWRIGHT_SCREENSHOT_BUCKET"], approvalGate: "credentialed browser action" },
-  { bridgeId: "supabase_state_bridge", requiredEnvNames: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_BRIDGE_TABLE_ALLOWLIST", "SUPABASE_BRIDGE_RPC_ALLOWLIST", "AUTO_BUILDER_ADMIN_WRITE_ENABLED"], approvalGate: "schema, RLS, writes, RPC" }
+  { bridgeId: "supabase_state_bridge", requiredEnvNames: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_BRIDGE_TABLE_ALLOWLIST", "SUPABASE_BRIDGE_RPC_ALLOWLIST", "AUTO_BUILDER_ADMIN_WRITE_ENABLED"], approvalGate: "schema, RLS, writes, RPC" },
+  { bridgeId: "heygen_video_bridge", requiredEnvNames: ["HEYGEN_API_KEY"], optionalEnvNames: ["HEYGEN_AVATAR_ID_ALLOWLIST"], approvalGate: "video generation spend or publish" },
+  { bridgeId: "higgsfield_media_bridge", requiredAnyEnvNameGroups: [["HIGGINGFIELD_API_KEY", "HIGGSFIELD_API_KEY"]], optionalEnvNames: ["HIGGSFIELD_MODEL_ALLOWLIST"], approvalGate: "image/video generation spend or publish" }
 ];
 
-function envStatus(requiredEnvNames: string[]) {
-  const present = requiredEnvNames.filter((name) => Boolean(process.env[name]));
-  const missing = requiredEnvNames.filter((name) => !process.env[name]);
-  return { presentEnvNames: present, missingEnvNames: missing, ready: missing.length === 0 };
+function envStatus(contract: ConnectorContract) {
+  const requiredEnvNames = contract.requiredEnvNames || [];
+  const optionalEnvNames = contract.optionalEnvNames || [];
+  const anyGroups = contract.requiredAnyEnvNameGroups || [];
+  const presentEnvNames = requiredEnvNames.filter((name) => Boolean(process.env[name]));
+  const missingEnvNames = requiredEnvNames.filter((name) => !process.env[name]);
+  const presentOptionalEnvNames = optionalEnvNames.filter((name) => Boolean(process.env[name]));
+  const missingOptionalEnvNames = optionalEnvNames.filter((name) => !process.env[name]);
+  const anyGroupStatus = anyGroups.map((group) => ({
+    acceptedEnvNames: group,
+    presentEnvNames: group.filter((name) => Boolean(process.env[name])),
+    ready: group.some((name) => Boolean(process.env[name]))
+  }));
+  const missingAnyEnvNameGroups = anyGroupStatus
+    .filter((group) => !group.ready)
+    .map((group) => group.acceptedEnvNames);
+
+  return {
+    presentEnvNames,
+    missingEnvNames,
+    requiredAnyEnvNameGroups: anyGroupStatus,
+    missingAnyEnvNameGroups,
+    presentOptionalEnvNames,
+    missingOptionalEnvNames,
+    ready: missingEnvNames.length === 0 && missingAnyEnvNameGroups.length === 0
+  };
 }
 
 export async function GET() {
   const connectors = connectorContracts.map((contract) => ({
     bridgeId: contract.bridgeId,
     approvalGate: contract.approvalGate,
-    ...envStatus(contract.requiredEnvNames),
+    ...envStatus(contract),
     mutation: false
   }));
 
