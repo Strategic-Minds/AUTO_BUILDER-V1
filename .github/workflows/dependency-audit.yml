@@ -1,0 +1,28 @@
+name: dependency-audit
+
+on:
+  push:
+    branches:
+      - auto-builder/frontend-system-port-20260607
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  audit-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Audit dependencies
+        run: node scripts/audit-dependencies.mjs
