@@ -62,6 +62,26 @@ jobs:
           cat response.json
           test "$code" = "428"
           grep -F '"status":"hard_gate"' response.json
+      - name: Smoke HeyGen dry-run env receipt
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{"bridgeId":"heygen_video_bridge"}' \
+            "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL/api/bridge/connectors/dry-run")
+          cat response.json
+          test "$code" = "200"
+          grep -F '"status":"dry_run_passed"' response.json
+      - name: Smoke Higgsfield dry-run env receipt
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{"bridgeId":"higgsfield_media_bridge"}' \
+            "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL/api/bridge/connectors/dry-run")
+          cat response.json
+          test "$code" = "200"
+          grep -F '"status":"dry_run_passed"' response.json
       - name: Smoke unapproved Class 2 block
         run: |
           set -euo pipefail
