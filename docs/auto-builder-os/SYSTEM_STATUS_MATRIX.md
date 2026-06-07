@@ -15,7 +15,8 @@ Status: Required evidence tracker
 
 | Area | Status | Evidence | Blocker | Next Action |
 |---|---|---|---|---|
-| Master lock docs | in_progress | PR #19 docs | Remaining supporting docs | Finish control docs |
+| Master lock docs | in_progress | PR #19 docs | Remaining completion work | Continue master TODO |
+| Agent workflow lock | complete | `AGENT_WORKFLOW_LOCK.md`, `LEAN_SYSTEM_OUTPUT_CONTRACT.md`, `REPEATABLE_AGENT_RUNBOOK.md`, `WORKFLOW_RECEIPT_SCHEMA.json`, `LOCKED_FILES_MANIFEST.md` | None for docs | Use this as mandatory agent path |
 | Uploaded frontend port | pending | PR #19 audit | Needs implementation branch | Create frontend-port branch |
 | Build verification | pending | None | Needs port/install | Run install/lint/typecheck/build |
 | Supabase dev schema | pending | Schema in upload | Needs dev branch/RLS | Apply on dev branch only |
