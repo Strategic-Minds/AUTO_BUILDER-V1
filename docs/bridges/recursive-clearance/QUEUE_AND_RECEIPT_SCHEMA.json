@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autobuilderos.com/schemas/recursive-bridge-task-and-receipt.schema.json",
+  "title": "AWOS Recursive Bridge Task And Receipt",
+  "type": "object",
+  "required": ["id", "kind", "created_at", "actor", "bridge_id", "operation", "risk_class", "approval_state", "mutation", "target", "payload", "result"],
+  "properties": {
+    "id": { "type": "string" },
+    "kind": { "type": "string", "enum": ["task", "receipt", "blocker", "validation", "rollback", "hard_gate"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "actor": { "type": "string" },
+    "bridge_id": { "type": "string" },
+    "operation": { "type": "string" },
+    "risk_class": { "type": "integer", "minimum": 0, "maximum": 5 },
+    "approval_state": { "type": "string", "enum": ["not_required", "pending", "approved", "rejected", "expired", "blocked", "hard_gate"] },
+    "mutation": { "type": "boolean" },
+    "target": { "type": "object", "required": ["system"], "additionalProperties": true },
+    "payload": { "type": "object", "additionalProperties": true },
+    "result": { "type": "object", "required": ["status", "summary"], "properties": { "status": { "type": "string", "enum": ["queued", "processing", "completed", "failed", "blocked", "skipped", "hard_gate"] }, "summary": { "type": "string" }, "evidence_url": { "type": "string" }, "missing_env_names": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": true },
+    "owner": { "type": "string" },
+    "next_action": { "type": "string" },
+    "rollback_ref": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}
