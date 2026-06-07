@@ -1,5 +1,16 @@
 # AUTO BUILDER
 
+## MASTER COMPLETION LOCK
+
+Before doing any other work, agents must read:
+
+1. `AGENTS.md`
+2. `docs/auto-builder-os/START_HERE_MASTER_COMPLETION_LOCK.md`
+3. `docs/auto-builder-os/MASTER_SYSTEM_COMPLETION_TODO.md`
+4. `docs/auto-builder-os/FINAL_DEFINITION_OF_DONE.md`
+
+Until the master TODO is complete or explicitly superseded by the operator, all work must complete, validate, evidence, or unblock that checklist. No unrelated planning, redesign, architecture replacement, production mutation, secret mutation, social publishing, commerce/billing mutation, or customer messaging is allowed.
+
 AUTO BUILDER is the locked governed orchestration system for Strategic Minds Advisory. It exists to turn business ideas, brands, stores, offers, content systems, and operating workflows into governed, build-ready, validation-ready business systems.
 
 Primary GPT Project:
@@ -12,12 +23,16 @@ Primary Ops Sheet:
 https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOryfao/edit?usp=drive_link
 
 ## First Read Order
-1. `docs/gpt/PROJECT_FOLDER_SYSTEM_INSTRUCTIONS.md`
-2. `SYSTEM_SOURCE_OF_TRUTH.md`
-3. `AUTONOMY_AND_APPROVAL_MATRIX.md`
-4. Runtime evidence
-5. Drive canon
-6. Ops Sheet continuity ledger
+1. `AGENTS.md`
+2. `docs/auto-builder-os/START_HERE_MASTER_COMPLETION_LOCK.md`
+3. `docs/auto-builder-os/MASTER_SYSTEM_COMPLETION_TODO.md`
+4. `docs/auto-builder-os/FINAL_DEFINITION_OF_DONE.md`
+5. `docs/gpt/PROJECT_FOLDER_SYSTEM_INSTRUCTIONS.md`
+6. `SYSTEM_SOURCE_OF_TRUTH.md`
+7. `AUTONOMY_AND_APPROVAL_MATRIX.md`
+8. Runtime evidence
+9. Drive canon
+10. Ops Sheet continuity ledger
 
 ## Locked Stack
 1. Google Workspace, Drive, and Sheets are first-class operating, canon, file, artifact, and continuity layers.
