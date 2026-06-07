@@ -1,0 +1,57 @@
+{
+  "version": "2026-06-07",
+  "system": "AWOS Recursive Bridge Clearance Registry",
+  "mission": "Promote every bridgeable blocker into a governed, preview-first, receipt-backed bridge lane without claiming clearance until live evidence exists.",
+  "source_truth": {
+    "verified_from_memory_files": [
+      "AUTONOMOUS_BRIDGE_REGISTRY.json",
+      "QUEUE_AND_RECEIPT_SCHEMA.json",
+      "OPENAPI_BRIDGE_CONTRACT.yaml",
+      "VALIDATION_CHECKLIST.md",
+      "NEXT_REPO_PROMOTION_PACKET.md"
+    ],
+    "synthesized_from_operator_handoff": [
+      "Gmail connector bridge",
+      "Google Calendar connector bridge",
+      "Metricool connector bridge",
+      "Google Chat connector bridge",
+      "n8n connector bridge",
+      "Playwright external runner bridge",
+      "Connector Unblock Router bridge"
+    ],
+    "missing_named_source_files": [
+      "CONNECTOR_BRIDGE_ENV_CONTRACT.json",
+      "BLOCKER_BRIDGE_QUEUE.json",
+      "RECURSIVE_BRIDGE_CLEARANCE_REPORT.md",
+      "receipts/recursive-bridge-validation-2026-06-07.json"
+    ]
+  },
+  "principles": [
+    "AUTO_BUILDER is orchestration and governance, not unchecked production mutation.",
+    "Read-first, preview-first, sandbox-first, receipt-backed execution.",
+    "Secrets are never exposed; only names, presence, and status may be returned.",
+    "Class 2+ actions require explicit approval and live evidence receipts.",
+    "Hard external gates are classified, owned, and assigned a next test instead of being marked resolved."
+  ],
+  "bridges": [
+    { "id": "gpt_cloud_control_plane", "name": "GPT Cloud Control Plane", "class": "core", "status": "promoted_for_preview_smoke" },
+    { "id": "github_repo_bridge", "name": "GitHub Repo and Workflow Bridge", "class": "core", "status": "verified_write_surface_branch_only" },
+    { "id": "vercel_runtime_bridge", "name": "Vercel Runtime and Preview Bridge", "class": "runtime", "status": "read_surface_verified_preview_smoke_pending" },
+    { "id": "vercel_workflow_bridge", "name": "Vercel Workflow Bridge", "class": "runtime", "status": "contract_promoted_execution_pending" },
+    { "id": "vercel_sandbox_bridge", "name": "Vercel Sandbox Bridge", "class": "runtime", "status": "contract_promoted_execution_pending" },
+    { "id": "supabase_state_bridge", "name": "Supabase State, Queue, Telemetry, and Receipt Bridge", "class": "data", "status": "hardening_packet_required_before_writes" },
+    { "id": "drive_source_truth_bridge", "name": "Google Drive Source Truth Bridge", "class": "source_truth", "status": "read_surface_expected_write_gated" },
+    { "id": "gmail_connector_bridge", "name": "Gmail Connector Bridge", "class": "google_workspace", "status": "hard_gate_oauth_required" },
+    { "id": "google_calendar_connector_bridge", "name": "Google Calendar Connector Bridge", "class": "google_workspace", "status": "hard_gate_oauth_required" },
+    { "id": "google_chat_operator_bridge", "name": "Google Chat Operator Bridge", "class": "operator_notifications", "status": "hard_gate_webhook_or_bot_required" },
+    { "id": "n8n_connector_bridge", "name": "n8n Workflow Bridge", "class": "workflow", "status": "hard_gate_base_url_api_key_webhook_secret_required" },
+    { "id": "playwright_external_runner_bridge", "name": "Playwright External Runner Bridge", "class": "browser_evidence", "status": "hard_gate_approved_runner_required" },
+    { "id": "local_device_relay", "name": "Local Device Relay Bridge", "class": "local_execution", "status": "hard_gate_local_runner_availability_required" },
+    { "id": "metricool_connector_bridge", "name": "Metricool Connector Bridge", "class": "social_analytics", "status": "hard_gate_api_key_brand_profile_allowlist_required" },
+    { "id": "heygen_video_bridge", "name": "HeyGen Video Bridge", "class": "content_generation", "status": "contract_promoted_secret_status_pending" },
+    { "id": "shopify_commerce_bridge", "name": "Shopify Commerce Bridge", "class": "commerce", "status": "read_allowed_mutation_gated" },
+    { "id": "stripe_finance_bridge", "name": "Stripe Finance Bridge", "class": "payments", "status": "deferred_payment_gate" },
+    { "id": "connector_unblock_router", "name": "Connector Unblock Router", "class": "governance", "status": "promoted_for_preview_smoke" },
+    { "id": "audit_receipt_recovery_bridge", "name": "Audit, Receipt, Rollback, and Recovery Bridge", "class": "proof", "status": "schema_promoted_persistence_gated" }
+  ]
+}
