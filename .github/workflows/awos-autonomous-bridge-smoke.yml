@@ -65,7 +65,10 @@ jobs:
           node scripts/bridge-browser-screenshot.mjs "${urls[@]}"
 
       - name: Capture git status
-        run: git status --short > bridge-smoke-artifacts/git-status.txt
+        shell: bash
+        run: |
+          git status --short > bridge-smoke-artifacts/git-status-full.txt
+          git status --short -- ':!bridge-smoke-artifacts' ':!node_modules' ':!package-lock.json' > bridge-smoke-artifacts/git-status.txt
 
       - name: Upload smoke artifacts
         uses: actions/upload-artifact@v4
