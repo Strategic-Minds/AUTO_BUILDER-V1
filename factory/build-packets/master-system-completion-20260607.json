@@ -1,0 +1,47 @@
+{
+  "packet_id": "master-system-completion-20260607",
+  "status": "mandatory",
+  "mission": "Complete the AUTO BUILDER OS master completion TODO and do no unrelated work until it is complete or superseded by operator approval.",
+  "source_truth": [
+    "docs/auto-builder-os/START_HERE_MASTER_COMPLETION_LOCK.md",
+    "docs/auto-builder-os/MASTER_SYSTEM_COMPLETION_TODO.md",
+    "docs/auto-builder-os/FINAL_DEFINITION_OF_DONE.md",
+    "docs/auto-builder-os/generator/GENERATOR_MASTER_COMPLETION_PACKET.md",
+    "docs/auto-builder-os/vercel/VERCEL_WORKFLOW_MASTER_COMPLETION_PACKET.md",
+    "docs/auto-builder-os/vercel/VERCEL_SANDBOX_AND_5_MIN_CRON_COMPLETION_PACKET.md",
+    "docs/auto-builder-os/audits/2026-06-07/05_UPLOADED_FRONTEND_COMPLETION_AUDIT_AND_FINAL_HANDOFF.md"
+  ],
+  "protected_gates": [
+    "production_deploy",
+    "production_database_migration",
+    "secret_mutation",
+    "commerce_payment_mutation",
+    "live_social_publish",
+    "customer_message",
+    "destructive_action",
+    "external_spend",
+    "credentialed_browser_action"
+  ],
+  "workflow": {
+    "name": "auto-builder-master-completion",
+    "cron": {
+      "route": "app/api/cron/master-completion-validator/route.ts",
+      "interval_minutes": 5,
+      "default_mode": "non_mutating"
+    },
+    "stages": [
+      "rehydrate_source_truth",
+      "load_master_todo",
+      "classify_items",
+      "build_next_safe_item",
+      "run_static_validation",
+      "run_route_smoke",
+      "run_browser_smoke",
+      "run_connector_dry_runs",
+      "record_evidence",
+      "release_hold"
+    ]
+  },
+  "evidence_required": true,
+  "completion_rule": "No item is complete without a receipt or hard-gate record."
+}
