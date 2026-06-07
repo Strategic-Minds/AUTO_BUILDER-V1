@@ -19,6 +19,7 @@ const recursiveBridgeIds = [
   "local_device_relay",
   "metricool_connector_bridge",
   "heygen_video_bridge",
+  "higgsfield_media_bridge",
   "shopify_commerce_bridge",
   "stripe_finance_bridge",
   "connector_unblock_router",
