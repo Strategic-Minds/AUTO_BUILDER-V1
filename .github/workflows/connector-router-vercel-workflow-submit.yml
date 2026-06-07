@@ -1,0 +1,64 @@
+name: Connector Router Vercel Workflow Submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Optional Vercel factory intake URL override
+        required: false
+        default: ""
+      dry_run:
+        description: Validate packet without posting
+        required: false
+        default: "false"
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - factory/workflow-submissions/connector-router-vercel-workflow-20260607.json
+      - docs/auto-builder-os/vercel/CONNECTOR_ROUTER_VERCEL_WORKFLOW_BUILDER_DOC_2026-06-07.md
+      - .github/workflows/connector-router-vercel-workflow-submit.yml
+      - scripts/submit-vercel-workflow-bridge.mjs
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  SUBMISSION_PACKET: factory/workflow-submissions/connector-router-vercel-workflow-20260607.json
+  RECEIPT_DIR: workflow-receipts
+
+concurrency:
+  group: connector-router-vercel-workflow-submit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  submit:
+    name: Submit connector router packet to Vercel factory intake
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      VERCEL_WORKFLOW_INTAKE_URL: ${{ github.event.inputs.target_url || 'https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app/api/factory/build-packet' }}
+      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Submit connector router packet
+        run: node scripts/submit-vercel-workflow-bridge.mjs
+
+      - name: Upload receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connector-router-vercel-workflow-submit-receipt
+          path: workflow-receipts/vercel-workflow-submit-bridge.json
+          if-no-files-found: error
