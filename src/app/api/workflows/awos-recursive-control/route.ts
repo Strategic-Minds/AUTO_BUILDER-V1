@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
 import { readRecentTelemetry } from "@/lib/telemetry-store";
+import { awosRecursiveControlWorkflow } from "../../../../../workflows/awos-recursive-control";
 
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
@@ -53,21 +54,17 @@ async function triggerWorkflow(source: string) {
   const requestedAt = new Date().toISOString();
 
   try {
-    const [{ start }, workflowModule, preview] = await Promise.all([
-      import("workflow/api"),
-      import("../../../../../workflows/awos-recursive-control"),
-      buildPreview(requestedAt)
-    ]);
-
-    const awosRecursiveControlWorkflow = workflowModule.default ?? workflowModule.awosRecursiveControlWorkflow;
-    const run = await start(awosRecursiveControlWorkflow, [{ requestedAt, source }]);
+    const preview = await buildPreview(requestedAt);
+    const workflowResult = await awosRecursiveControlWorkflow({ requestedAt, source });
 
     return NextResponse.json({
       ok: true,
       workflowTriggered: true,
-      workflowRunId: run.runId,
+      workflowRuntime: "internal-direct",
+      workflowRunId: `internal-${workflowResult.bucketKey}`,
       source,
       requestedAt,
+      workflowResult,
       ...preview
     });
   } catch (error) {
