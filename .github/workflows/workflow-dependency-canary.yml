@@ -36,7 +36,7 @@ jobs:
         run: npm install workflow@${{ matrix.workflow-version }} --no-save
 
       - name: Show resolved workflow package
-        run: npm ls workflow --depth=0
+        run: npm ls workflow --depth=0 || true
 
       - name: Verify workflow API import
         run: node -e "import('workflow/api').then((m) => { if (typeof m.start !== 'function') throw new Error('workflow/api start export missing'); console.log('workflow/api start export verified'); })"
