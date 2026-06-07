@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const targetUrl = process.env.GENERATOR_TICK_URL || 'https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app/api/cron/autobuilder-generator';
-const token = process.env.CRON_API_TOKEN || process.env.GENERATOR_CRON_TOKEN || '';
+const token = process.env.CRON_SECRET || process.env.CRON_API_TOKEN || process.env.GENERATOR_CRON_TOKEN || '';
 const outDir = process.env.RECEIPT_DIR || 'workflow-receipts';
 const outPath = path.join(outDir, 'generator-tick-receipt.json');
 
@@ -31,7 +31,7 @@ async function main() {
     purpose: 'Capture an approved non-mutating AUTO BUILDER generator tick receipt.',
     gate_policy: 'This bridge may call the protected generator cron route only. It may not deploy, change secrets, publish, charge, message customers, spend, or run credentialed browser actions.',
     auth: {
-      token_name_options: ['CRON_API_TOKEN', 'GENERATOR_CRON_TOKEN'],
+      token_name_options: ['CRON_SECRET', 'CRON_API_TOKEN', 'GENERATOR_CRON_TOKEN'],
       token_present: Boolean(token),
       token_value_exposed: false,
     },
@@ -43,10 +43,10 @@ async function main() {
     const receipt = {
       ...baseReceipt,
       status: 'hard_gate_missing_secret',
-      next_action: 'Add CRON_API_TOKEN or GENERATOR_CRON_TOKEN to the approved GitHub Actions secret channel, then rerun this workflow.',
+      next_action: 'Add CRON_SECRET, CRON_API_TOKEN, or GENERATOR_CRON_TOKEN to the approved GitHub Actions secret channel, then rerun this workflow.',
     };
     writeReceipt(receipt);
-    console.error('Missing CRON_API_TOKEN or GENERATOR_CRON_TOKEN. Receipt written.');
+    console.error('Missing CRON_SECRET, CRON_API_TOKEN, or GENERATOR_CRON_TOKEN. Receipt written.');
     process.exit(1);
   }
 
