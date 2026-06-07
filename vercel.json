@@ -26,6 +26,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/master-completion-validator",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/bridge/retry",
       "schedule": "*/2 * * * *"
     },
