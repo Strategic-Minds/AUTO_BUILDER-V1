@@ -1,0 +1,25 @@
+{
+  "version": "2026-06-07",
+  "secrets_policy": "Expose names and presence only. Never return values.",
+  "connectors": [
+    { "bridge_id": "gpt_cloud_control_plane", "required_env_names": ["AUTO_BUILDER_GPT_BRIDGE_SECRET", "AUTO_BUILDER_BRIDGE_TOKEN"], "approval_gate": "Class 2+ command execution" },
+    { "bridge_id": "github_repo_bridge", "required_env_names": ["GITHUB_TOKEN"], "approval_gate": "branch writes, workflow dispatch, PR creation" },
+    { "bridge_id": "vercel_runtime_bridge", "required_env_names": ["VERCEL_TOKEN", "VERCEL_TEAM_ID", "VERCEL_PROJECT_ID"], "approval_gate": "env changes, production deploy, aliases" },
+    { "bridge_id": "vercel_workflow_bridge", "required_env_names": ["CRON_SECRET", "VERCEL_WORKFLOW_TOKEN"], "approval_gate": "mutating workflow run" },
+    { "bridge_id": "vercel_sandbox_bridge", "required_env_names": ["VERCEL_OIDC_TOKEN"], "approval_gate": "sandbox execution with external effects" },
+    { "bridge_id": "supabase_state_bridge", "required_env_names": ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_BRIDGE_TABLE_ALLOWLIST", "SUPABASE_BRIDGE_RPC_ALLOWLIST", "AUTO_BUILDER_ADMIN_WRITE_ENABLED"], "approval_gate": "schema, RLS, writes, RPC" },
+    { "bridge_id": "drive_source_truth_bridge", "required_env_names": ["GOOGLE_DRIVE_CONNECTOR_ENABLED"], "approval_gate": "doc/sheet writes" },
+    { "bridge_id": "gmail_connector_bridge", "required_env_names": ["GOOGLE_WORKSPACE_CLIENT_ID", "GOOGLE_WORKSPACE_CLIENT_SECRET", "GOOGLE_WORKSPACE_REFRESH_TOKEN", "GMAIL_SEND_ALLOWLIST"], "approval_gate": "send email or modify mailbox" },
+    { "bridge_id": "google_calendar_connector_bridge", "required_env_names": ["GOOGLE_WORKSPACE_CLIENT_ID", "GOOGLE_WORKSPACE_CLIENT_SECRET", "GOOGLE_WORKSPACE_REFRESH_TOKEN", "GOOGLE_CALENDAR_ID_ALLOWLIST"], "approval_gate": "create/update/delete event" },
+    { "bridge_id": "google_chat_operator_bridge", "required_env_names": ["GOOGLE_CHAT_WEBHOOK_URL", "GOOGLE_CHAT_SPACE_ID", "GOOGLE_CHAT_BOT_TOKEN"], "approval_gate": "send operator message" },
+    { "bridge_id": "n8n_connector_bridge", "required_env_names": ["N8N_BASE_URL", "N8N_API_KEY", "N8N_WEBHOOK_SECRET"], "approval_gate": "execute external workflow" },
+    { "bridge_id": "playwright_external_runner_bridge", "required_env_names": ["BROWSER_WORKER_TOKEN", "PLAYWRIGHT_RUNNER_URL", "PLAYWRIGHT_SCREENSHOT_BUCKET"], "approval_gate": "credentialed browser action" },
+    { "bridge_id": "local_device_relay", "required_env_names": ["LOCAL_RELAY_URL", "LOCAL_RELAY_TOKEN"], "approval_gate": "local write or command execution" },
+    { "bridge_id": "metricool_connector_bridge", "required_env_names": ["METRICOOL_API_KEY", "METRICOOL_BRAND_ID", "METRICOOL_PROFILE_ALLOWLIST"], "approval_gate": "schedule, publish, profile mutation" },
+    { "bridge_id": "heygen_video_bridge", "required_env_names": ["HEYGEN_API_KEY", "HEYGEN_AVATAR_ID_ALLOWLIST"], "approval_gate": "video generation spend or publish" },
+    { "bridge_id": "shopify_commerce_bridge", "required_env_names": ["SHOPIFY_SHOP_DOMAIN", "SHOPIFY_ADMIN_TOKEN"], "approval_gate": "commerce mutation" },
+    { "bridge_id": "stripe_finance_bridge", "required_env_names": ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], "approval_gate": "billing, payment, refund, subscription mutation" },
+    { "bridge_id": "connector_unblock_router", "required_env_names": ["CONNECTOR_UNBLOCK_ROUTER_ENABLED"], "approval_gate": "route from blocker to live connector" },
+    { "bridge_id": "audit_receipt_recovery_bridge", "required_env_names": ["BRIDGE_RECEIPT_TABLE", "BRIDGE_RECEIPT_WRITE_ENABLED"], "approval_gate": "persistent receipt write" }
+  ]
+}
