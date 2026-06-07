@@ -6,6 +6,7 @@ import { claimRecursiveBucket, getFiveMinuteBucketKey } from "@/lib/recursive-co
 import { classifyBlocker, compressMemory, rankNextTask } from "@/lib/recursive-intelligence";
 import { readRecentTelemetry } from "@/lib/telemetry-store";
 import { sandboxRuntimeStatus } from "@/lib/vercel-sandbox";
+import { awosRecursiveControlWorkflow } from "../../../../../workflows/awos-recursive-control";
 
 function serializeError(error: unknown) {
   if (error instanceof Error) {
@@ -120,24 +121,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const [{ start }, workflowModule] = await Promise.all([
-      import("workflow/api"),
-      import("../../../../../workflows/awos-recursive-control")
-    ]);
-
-    const awosRecursiveControlWorkflow = workflowModule.default ?? workflowModule.awosRecursiveControlWorkflow;
-    const run = await start(awosRecursiveControlWorkflow, [
-      {
-        requestedAt: timestamp,
-        source: "vercel-cron",
-        bucketKey
-      }
-    ]);
+    const workflowResult = await awosRecursiveControlWorkflow({
+      requestedAt: timestamp,
+      source: "vercel-cron",
+      bucketKey
+    });
 
     return NextResponse.json({
       ok: true,
       workflowTriggered: true,
-      workflowRunId: run.runId,
+      workflowRuntime: "internal-direct",
+      workflowRunId: `internal-${workflowResult.bucketKey}`,
       boundedLoop: true,
       productionActionAllowed: false,
       externalPublishingAllowed: false,
@@ -148,10 +142,10 @@ export async function GET(request: NextRequest) {
       timestamp,
       blockerContext: blocker,
       blockerClassification: blockerClass,
-      nextInstruction: `Durable workflow queued for ${queueMaterialization.queueName}. Memory seed: ${memory}`,
+      nextInstruction: `Internal recursive runtime executed for ${queueMaterialization.queueName}. Memory seed: ${memory}`,
       governedTask: {
         task: "recursive-governed-next-step",
-        mode: "durable_workflow_run",
+        mode: "internal_direct_runtime",
         allowProductionMutations: false,
         allowExternalPublishing: false,
         allowPaidActions: false,
@@ -167,6 +161,7 @@ export async function GET(request: NextRequest) {
       sandboxStatus,
       agentPlan,
       bucketClaim,
+      workflowResult,
       taskRanking: {
         profitability,
         blockerReduction,
