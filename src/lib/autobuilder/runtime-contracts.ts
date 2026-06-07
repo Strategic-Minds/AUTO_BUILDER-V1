@@ -41,18 +41,23 @@ export function envStatus(names: string[]) {
 export function workflowContract() {
   return {
     ok: true,
-    runtime: "vercel_workflow_contract",
+    runtime: "internal_direct_recursive_control",
     stages: workflowStages,
     cron: "*/5 * * * *",
     defaultMutationMode: "non_mutating_until_approved_queue_item_exists",
     idempotency: "bucketed_by_5_minute_tick_or_build_packet_id",
     retries: "bounded_retry_with_dead_letter_receipt",
+    generatedWorkflowRoutes: "not_required_workflow_package_removed",
     protectedGates,
     requiredRoutes: [
       "/api/workflows/status",
-      "/api/cron/autobuilder-generator",
-      "/api/bridge/retry",
-      "/api/cron/social-bridge"
+      "/api/workflows/awos-recursive-control",
+      "/api/cron/recursive-control",
+      "/api/factory/queue-runner",
+      "/api/bridge/queue",
+      "/api/bridge/dispatch",
+      "/api/runtime/telemetry",
+      "/api/runtime/health"
     ]
   };
 }
