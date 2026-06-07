@@ -10,16 +10,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  workflow-runtime-canary:
-    name: workflow@${{ matrix.workflow-version }} runtime canary
+  internal-runtime-canary:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        workflow-version:
-          - "3"
-          - "latest"
-          - "2.0.6"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,14 +24,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install workflow canary version without saving
-        run: npm install workflow@${{ matrix.workflow-version }} --no-save
+      - name: Verify workflow package is absent
+        run: node -e "const packageJson = require('./package.json'); if (packageJson.dependencies && packageJson.dependencies.workflow) throw new Error('workflow dependency still present'); console.log('workflow dependency absent from package.json');"
 
-      - name: Show resolved workflow package
-        run: npm ls workflow --depth=0 || true
-
-      - name: Verify workflow API import
-        run: node -e "import('workflow/api').then((m) => { if (typeof m.start !== 'function') throw new Error('workflow/api start export missing'); console.log('workflow/api start export verified'); })"
+      - name: Verify workflow API imports are removed
+        run: node -e "const { readFileSync } = require('node:fs'); const paths = ['src/app/api/cron/recursive-control/route.ts', 'src/app/api/workflows/awos-recursive-control/route.ts', 'next.config.js', 'next.config.mjs']; for (const path of paths) { const text = readFileSync(path, 'utf8'); if (text.includes('workflow/api') || text.includes('workflow/next')) throw new Error(`${path} still imports workflow package runtime`); } console.log('workflow package runtime imports removed');"
 
       - name: Lint
         run: npm run lint
@@ -50,5 +39,5 @@ jobs:
       - name: Build Next.js app
         run: npm run build
 
-      - name: Audit dependencies with canary version
+      - name: Audit dependencies after internal runtime replacement
         run: node scripts/audit-dependencies.mjs
