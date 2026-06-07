@@ -23,7 +23,9 @@ jobs:
       - name: Validate recursive bridge clearance contracts
         run: node scripts/validate-recursive-bridge-clearance.mjs
       - name: Verify unapproved mutation marker exists
-        run: rg "Unapproved Class 2\+ action rejected|BRIDGE_LIVE_MUTATION_ENABLED" src/app/api/bridge/connectors/execute-approved/route.ts
+        run: |
+          grep -F "Unapproved Class 2+ action rejected" src/app/api/bridge/connectors/execute-approved/route.ts
+          grep -F "BRIDGE_LIVE_MUTATION_ENABLED" src/app/api/bridge/connectors/execute-approved/route.ts
       - name: Print smoke handoff
         run: |
           echo "Preview route smoke still required after Vercel deploy:"
