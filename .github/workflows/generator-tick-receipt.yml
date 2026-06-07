@@ -1,0 +1,59 @@
+name: Generator Tick Receipt
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Optional generator tick URL override
+        required: false
+        default: ""
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - scripts/capture-generator-tick-receipt.mjs
+      - .github/workflows/generator-tick-receipt.yml
+      - src/app/api/cron/autobuilder-generator/route.ts
+      - src/app/api/cron/master-completion-validator/route.ts
+
+env:
+  RECEIPT_DIR: workflow-receipts
+  GENERATOR_TICK_URL: ${{ github.event.inputs.target_url || 'https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app/api/cron/autobuilder-generator' }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: generator-tick-receipt-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generator-tick:
+    name: Capture approved generator tick receipt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      CRON_API_TOKEN: ${{ secrets.CRON_API_TOKEN }}
+      GENERATOR_CRON_TOKEN: ${{ secrets.GENERATOR_CRON_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Capture generator tick receipt
+        run: node scripts/capture-generator-tick-receipt.mjs
+
+      - name: Upload receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generator-tick-receipt
+          path: workflow-receipts/generator-tick-receipt.json
+          if-no-files-found: error
