@@ -1,0 +1,82 @@
+{
+  "schema_name": "AUTO_BUILDER_WORKFLOW_RECEIPT",
+  "version": "2026-06-07",
+  "required_fields": [
+    "receipt_id",
+    "timestamp_utc",
+    "phase",
+    "step",
+    "todo_item",
+    "primary_output",
+    "status",
+    "evidence",
+    "protected_action",
+    "next_action"
+  ],
+  "status_values": [
+    "complete_with_evidence",
+    "blocked_hard_gate",
+    "approval_required",
+    "not_applicable_with_evidence",
+    "needs_next_repo_artifact"
+  ],
+  "primary_output_values": [
+    "repo_file_created",
+    "repo_file_updated",
+    "checklist_item_completed",
+    "validation_receipt_created",
+    "hard_gate_recorded",
+    "approval_request_created",
+    "implementation_branch_prepared",
+    "preview_or_build_evidence_recorded",
+    "rollback_or_release_hold_recorded"
+  ],
+  "evidence_types": [
+    "repo_path",
+    "commit_sha",
+    "pr_url",
+    "vercel_receipt",
+    "supabase_receipt",
+    "browser_receipt",
+    "api_smoke_receipt",
+    "connector_dry_run_receipt",
+    "hard_gate_receipt",
+    "approval_receipt",
+    "rollback_note"
+  ],
+  "protected_actions": [
+    "production_deploy",
+    "production_database_mutation",
+    "secret_mutation",
+    "commerce_payment_mutation",
+    "live_social_publish",
+    "customer_message",
+    "destructive_action",
+    "external_spend",
+    "credentialed_browser_action"
+  ],
+  "receipt_template": {
+    "receipt_id": "abr_<date>_<short_slug>",
+    "timestamp_utc": "YYYY-MM-DDTHH:MM:SSZ",
+    "phase": "string",
+    "step": "string",
+    "todo_item": "exact checklist item or repo path",
+    "primary_output": "one primary_output_values entry",
+    "status": "one status_values entry",
+    "evidence": [
+      {
+        "type": "one evidence_types entry",
+        "value": "path, sha, url, command result, or hard-gate record",
+        "verified": true
+      }
+    ],
+    "protected_action": {
+      "required": false,
+      "type": null,
+      "approval_state": "not_required"
+    },
+    "could_not_verify": [],
+    "blockers": [],
+    "next_action": "string"
+  }
+}
