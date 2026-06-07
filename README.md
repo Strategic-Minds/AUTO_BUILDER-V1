@@ -17,8 +17,13 @@ Current active Eden Skye website packet:
 
 - `docs/eden-skye/SHOPIFY_V1_APPROVED_MOCKUP_AUTOBUILDER_SUBMISSION.md`
 - `docs/eden-skye/SHOPIFY_V1_VERCEL_WORKFLOW_BUILD_PACKET.md`
+- `docs/eden-skye/EDEN_WORKFLOW_DISPATCH_BRIDGE.md`
 - `factory/eden-skye-shopify-v1-submission.json`
 - `.github/workflows/eden-skye-shopify-v1-vercel-preview.yml`
+- `/api/bridge/github/workflows`
+- `/api/bridge/github/workflows/dispatch`
+- `/api/bridge/github/workflows/runs`
+- `/api/bridge/github/workflows/runs/:run_id/jobs`
 
 Rule: the approved Drive mockup `EDENSKYEWEBSITEV2.png` is the source of truth for the Shopify V1 public storefront. Auto Builder must submit this through the Vercel preview workflow/sandbox and validate with receipts. Do not manually paste the screenshot and do not merge the admin/control-plane design into the storefront.
 
@@ -148,6 +153,10 @@ The core governance layer for this repo is:
 - `/api/bridge/registry`
 - `/api/bridge/http`
 - `/api/bridge/webhook`
+- `/api/bridge/github/workflows`
+- `/api/bridge/github/workflows/dispatch`
+- `/api/bridge/github/workflows/runs`
+- `/api/bridge/github/workflows/runs/:run_id/jobs`
 
 ## Factory Docs
 - `docs/ONE_HOUR_BUILD_FACTORY.md`
