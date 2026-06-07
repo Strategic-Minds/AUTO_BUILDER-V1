@@ -54,12 +54,22 @@ for (const requiredTable of ['leads', 'opportunities', 'sales', 'spend', 'foreca
   }
 }
 
+const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
+if (packageJson.scripts?.lint !== 'npm run validate:factory') {
+  console.error('Package lint script must delegate to validate:factory.');
+  process.exit(1);
+}
+if (packageJson.scripts?.typecheck !== 'tsc --noEmit --pretty false') {
+  console.error('Package typecheck script must run TypeScript without emitting files.');
+  process.exit(1);
+}
+
 const workflow = readFileSync('.github/workflows/preview-validation.yml', 'utf8');
-for (const marker of ['validate:factory', 'npm run build']) {
+for (const marker of ['npm install', 'npm run lint', 'npm run typecheck', 'npm run build']) {
   if (!workflow.includes(marker)) {
     console.error(`Workflow missing marker: ${marker}`);
     process.exit(1);
   }
 }
 
-console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, and docs are installed.');
+console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, docs, and explicit frontend checks are installed.');
