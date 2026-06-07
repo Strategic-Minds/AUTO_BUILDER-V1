@@ -7,7 +7,9 @@ Status: Mandatory operating lock
 
 All AUTO BUILDER OS work must route through `docs/auto-builder-os/MASTER_SYSTEM_COMPLETION_TODO.md` until that checklist is complete or explicitly superseded by a newer operator-approved master checklist.
 
-No agent, GPT, Vercel workflow, generator, v0 agent, Codex agent, or connected automation may start unrelated build work, redesign work, new architecture work, or side quests while open items remain in the master completion list.
+No agent, GPT, Vercel workflow, generator, v0 agent, Codex agent, or connected automation may start unrelated build work, redesign work, new architecture work, local-only completion work, or side quests while open items remain in the master completion list.
+
+AUTO BUILDER OS is repo-first. Durable completion evidence must live in the canonical repo, implementation branch, Vercel/Supabase/Drive proof surface, connector receipt, approval record, or hard-gate record.
 
 ## Allowed Work
 
@@ -27,7 +29,7 @@ Disallowed work includes:
 1. New feature ideation outside the checklist.
 2. Redesigning the locked frontend visual system.
 3. Replacing the approved workflow with a new workflow.
-4. Calling mocked, sample, static, or env-name-only checks complete.
+4. Calling mocked, sample, static, local-only, or env-name-only checks complete.
 5. Production deploys without approval.
 6. Production database mutations without approval.
 7. Secret changes without approval.
@@ -35,14 +37,22 @@ Disallowed work includes:
 
 ## Source Truth Order
 
-1. `MASTER_SYSTEM_COMPLETION_TODO.md`
-2. `FINAL_DEFINITION_OF_DONE.md`
-3. `generator/GENERATOR_MASTER_COMPLETION_PACKET.md`
-4. `vercel/VERCEL_WORKFLOW_MASTER_COMPLETION_PACKET.md`
-5. `vercel/VERCEL_SANDBOX_AND_5_MIN_CRON_COMPLETION_PACKET.md`
-6. PR #19 audit handoff
-7. PR #18 bridge clearance packet
-8. Drive source truth under `AUTO BUILDER DOCS`
+1. `LOCKED_FILES_MANIFEST.md`
+2. `AGENT_WORKFLOW_LOCK.md`
+3. `LEAN_SYSTEM_OUTPUT_CONTRACT.md`
+4. `REPEATABLE_AGENT_RUNBOOK.md`
+5. `WORKFLOW_RECEIPT_SCHEMA.json`
+6. `MASTER_SYSTEM_COMPLETION_TODO.md`
+7. `FINAL_DEFINITION_OF_DONE.md`
+8. `SYSTEM_STATUS_MATRIX.md`
+9. `BUILD_EVIDENCE_REQUIREMENTS.md`
+10. `PROTECTED_ACTION_POLICY.md`
+11. `generator/GENERATOR_MASTER_COMPLETION_PACKET.md`
+12. `vercel/VERCEL_WORKFLOW_MASTER_COMPLETION_PACKET.md`
+13. `vercel/VERCEL_SANDBOX_AND_5_MIN_CRON_COMPLETION_PACKET.md`
+14. PR #19 audit handoff
+15. PR #18 bridge clearance packet
+16. Drive source truth under `AUTO BUILDER DOCS`
 
 ## Required Agent Response
 
@@ -67,3 +77,7 @@ An item is not complete until it has evidence:
 - receipt or artifact
 - approval gate status where applicable
 - remaining risk noted
+
+## Run Standard
+
+Every run must produce one primary output defined by `LEAN_SYSTEM_OUTPUT_CONTRACT.md` and one receipt shape defined by `WORKFLOW_RECEIPT_SCHEMA.json`, or record the exact hard gate preventing that output.
