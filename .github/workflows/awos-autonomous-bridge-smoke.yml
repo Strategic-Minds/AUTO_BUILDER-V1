@@ -6,7 +6,7 @@ on:
       auto_builder_url:
         description: AUTO_BUILDER preview or production URL
         required: false
-        default: https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app
+        default: https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app
       v0_url:
         description: v0 frontend preview URL for browser screenshot only
         required: false
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app' }}
+      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-u-bdac7f-strategic-minds-advisory.vercel.app' }}
       V0_URL: ${{ github.event.inputs.v0_url || '' }}
       BRIDGE_ADMIN_BEARER_TOKEN: ${{ secrets.BRIDGE_ADMIN_BEARER_TOKEN }}
       BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
