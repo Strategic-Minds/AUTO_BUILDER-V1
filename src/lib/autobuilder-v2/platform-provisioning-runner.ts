@@ -6,10 +6,12 @@ export type PlatformProvisioningPayload = {
   description?: string;
   github_owner?: string;
   github_repo?: string;
+  github_private?: boolean;
   vercel_team_id?: string;
   vercel_project_name?: string;
   framework?: string;
   git_repository_url?: string;
+  root_directory?: string;
   workflow_name?: string;
   workflow_entrypoint?: string;
   workflow_topics?: string[];
@@ -32,11 +34,22 @@ export const platformProvisioningTools = [
   "create_vercel_agent"
 ];
 
+type OperationResult = {
+  action: string;
+  target: Record<string, unknown>;
+  status: string;
+  requires_approval: boolean;
+  receipt_required: boolean;
+  created_resource_url?: string;
+  created_resource_id?: string;
+  error?: string;
+};
+
 const defaultBlockedActions = [...platformProvisioningTools, "token_creation", "billing_change", "production_deploy", "domain_purchase"];
 
 function plannedTarget(input: PlatformProvisioningPayload, action: string) {
-  if (action === "create_github_repo") return { provider: "github", owner: input.github_owner, repo: input.github_repo ?? input.name };
-  if (action === "create_vercel_project") return { provider: "vercel", teamId: input.vercel_team_id, project: input.vercel_project_name ?? input.name, framework: input.framework ?? "nextjs", gitRepository: input.git_repository_url };
+  if (action === "create_github_repo") return { provider: "github", owner: input.github_owner, repo: input.github_repo ?? input.name, private: input.github_private ?? true };
+  if (action === "create_vercel_project") return { provider: "vercel", teamId: input.vercel_team_id ?? process.env.VERCEL_TEAM_ID, project: input.vercel_project_name ?? input.name, framework: input.framework ?? "nextjs", gitRepository: input.git_repository_url, rootDirectory: input.root_directory };
   if (action === "create_vercel_workflow") return { provider: "vercel", workflow: input.workflow_name ?? input.name, entrypoint: input.workflow_entrypoint ?? "app/workflows/auto_builder_workflow.ts", topics: input.workflow_topics ?? ["__wkf_*"] };
   if (action === "create_vercel_sandbox") return { provider: "vercel", sandbox: input.sandbox_name ?? input.name, project: input.vercel_project_name };
   if (action === "create_ai_gateway") return { provider: "vercel_ai_gateway", keyName: input.ai_gateway_key_name ?? input.name };
@@ -44,7 +57,11 @@ function plannedTarget(input: PlatformProvisioningPayload, action: string) {
   return { provider: "unknown", name: input.name };
 }
 
-function operation(input: PlatformProvisioningPayload, action: string) {
+function isApproved(input: PlatformProvisioningPayload, action: string) {
+  return input.mode === "execute" && Boolean(input.approved_actions?.includes(action));
+}
+
+function planOperation(input: PlatformProvisioningPayload, action: string): OperationResult {
   const approved = input.approved_actions ?? [];
   const blockedActions = Array.from(new Set([...(input.blocked_actions ?? []), ...defaultBlockedActions]));
   const blocked = blockedActions.includes(action) && !approved.includes(action);
@@ -57,22 +74,122 @@ function operation(input: PlatformProvisioningPayload, action: string) {
   };
 }
 
-export function runPlatformProvisioningJob(input: PlatformProvisioningPayload) {
-  const actions = input.actions?.length ? input.actions : ["create_vercel_project"];
-  const planned_operations = actions.map((action) => operation(input, action));
-  const blocked_operations = planned_operations.filter((item) => item.status === "blocked_by_policy");
+async function createGithubRepoAdapter(input: PlatformProvisioningPayload): Promise<OperationResult> {
+  const action = "create_github_repo";
+  const base = planOperation(input, action);
+  if (!isApproved(input, action)) return base;
+
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return { ...base, status: "blocked_missing_secret", error: "GITHUB_TOKEN is not configured." };
+
+  const repoName = input.github_repo ?? input.name;
+  if (!repoName) return { ...base, status: "blocked_invalid_payload", error: "github_repo or name is required." };
+
+  const owner = input.github_owner;
+  const endpoint = owner ? `https://api.github.com/orgs/${owner}/repos` : "https://api.github.com/user/repos";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    },
+    body: JSON.stringify({
+      name: repoName,
+      description: input.description,
+      private: input.github_private ?? true,
+      auto_init: true
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { ...base, status: "failed", error: JSON.stringify(data) };
+
   return {
-    ok: true,
+    ...base,
+    status: "created",
+    created_resource_url: data.html_url,
+    created_resource_id: data.id ? String(data.id) : undefined,
+    requires_approval: false
+  };
+}
+
+async function createVercelProjectAdapter(input: PlatformProvisioningPayload): Promise<OperationResult> {
+  const action = "create_vercel_project";
+  const base = planOperation(input, action);
+  if (!isApproved(input, action)) return base;
+
+  const token = process.env.VERCEL_TOKEN;
+  const teamId = input.vercel_team_id ?? process.env.VERCEL_TEAM_ID;
+  if (!token) return { ...base, status: "blocked_missing_secret", error: "VERCEL_TOKEN is not configured." };
+
+  const projectName = input.vercel_project_name ?? input.name;
+  if (!projectName) return { ...base, status: "blocked_invalid_payload", error: "vercel_project_name or name is required." };
+
+  const body: Record<string, unknown> = {
+    name: projectName,
+    framework: input.framework ?? "nextjs"
+  };
+  if (input.root_directory) body.rootDirectory = input.root_directory;
+  if (input.git_repository_url) body.gitRepository = { type: "github", repo: input.git_repository_url };
+
+  const url = new URL("https://api.vercel.com/v11/projects");
+  if (teamId) url.searchParams.set("teamId", teamId);
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { ...base, status: "failed", error: JSON.stringify(data) };
+
+  return {
+    ...base,
+    status: "created",
+    created_resource_url: data.link?.repo ? `https://vercel.com/${teamId ?? "dashboard"}/${projectName}` : `https://vercel.com/${teamId ?? "dashboard"}/${projectName}`,
+    created_resource_id: data.id,
+    requires_approval: false
+  };
+}
+
+async function runOperation(input: PlatformProvisioningPayload, action: string): Promise<OperationResult> {
+  if (action === "create_github_repo") return createGithubRepoAdapter(input);
+  if (action === "create_vercel_project") return createVercelProjectAdapter(input);
+  return planOperation(input, action);
+}
+
+export async function runPlatformProvisioningJob(input: PlatformProvisioningPayload) {
+  const actions = input.actions?.length ? input.actions : ["create_vercel_project"];
+  const planned_operations = await Promise.all(actions.map((action) => runOperation(input, action)));
+  const blocked_operations = planned_operations.filter((item) => item.status === "blocked_by_policy" || item.status.startsWith("blocked_"));
+  const failed_operations = planned_operations.filter((item) => item.status === "failed");
+  return {
+    ok: failed_operations.length === 0,
     job_id: input.job_id,
     mode: input.mode ?? "dry_run",
     platformProvisioningTools,
     approval_required: input.approval_required ?? (blocked_operations.length > 0 || input.mode !== "dry_run"),
     planned_operations,
     blocked_operations,
-    receipts: planned_operations.map((item) => ({ provider: "platform_provisioning", job_id: input.job_id, action: item.action, status: item.status === "blocked_by_policy" ? "blocked" : "planned", timestamp: new Date().toISOString() })),
-    validation_status: blocked_operations.length ? "blocked" : "planned",
-    execution_note: "Planner-only until provider execution adapters and explicit approvals are configured.",
-    rollback_plan: "Delete or disable created repos, projects, keys, sandboxes, workflows, or agents through provider-specific rollback adapters."
+    failed_operations,
+    receipts: planned_operations.map((item) => ({
+      provider: "platform_provisioning",
+      job_id: input.job_id,
+      action: item.action,
+      status: item.status,
+      created_resource_url: item.created_resource_url,
+      created_resource_id: item.created_resource_id,
+      timestamp: new Date().toISOString()
+    })),
+    validation_status: failed_operations.length ? "failed" : blocked_operations.length ? "blocked" : planned_operations.some((item) => item.status === "created") ? "created" : "planned",
+    execution_note: "Dry-run is default. Live repo/project creation requires mode=execute plus approved_actions and provider tokens in the deployment environment.",
+    rollback_plan: "If created, delete the GitHub repository or Vercel project from the provider dashboard/API. Store created_resource_url and created_resource_id from receipts for rollback."
   };
 }
 
