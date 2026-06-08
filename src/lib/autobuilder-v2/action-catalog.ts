@@ -17,6 +17,11 @@ const directActionNames = [
   "create_drive_folder",
   "move_drive_file",
   "move_drive_folder",
+  "move_drive_doc",
+  "move_drive_sheet",
+  "upload_drive_file",
+  "upload_drive_image",
+  "upload_drive_images",
   "create_drive_doc",
   "create_drive_sheet",
   "create_project_drive_structure",
@@ -73,6 +78,15 @@ export const universalActions: AutoBuilderAction[] = actionCategories.map((categ
   returnsReceipt: true
 }));
 
+function inferProviderId(name: string) {
+  if (name.includes("drive")) return "google_workspace";
+  if (name.includes("n8n")) return "n8n";
+  if (name.includes("vercel")) return "vercel";
+  if (name.includes("shopify")) return "shopify";
+  if (name.includes("github") || name.includes("repository") || name.includes("branch") || name.includes("pull_request")) return "github";
+  return "universal_app";
+}
+
 export const providerActions: AutoBuilderAction[] = providerRegistry.flatMap((provider) =>
   actionCategories.map((category) => ({
     name: `${category}_${provider.providerId}`,
@@ -86,11 +100,11 @@ export const providerActions: AutoBuilderAction[] = providerRegistry.flatMap((pr
 );
 
 export const directActions: AutoBuilderAction[] = directActionNames.map((name) => {
-  const providerId = name.includes("n8n") ? "n8n" : name.includes("vercel") ? "vercel" : name.includes("shopify") ? "shopify" : name.includes("github") || name.includes("repository") || name.includes("branch") || name.includes("pull_request") ? "github" : "universal_app";
+  const providerId = inferProviderId(name);
   return {
     name,
     providerId,
-    category: name.includes("validate") ? "validate" : name.includes("deploy") ? "deploy" : name.includes("publish") ? "publish" : name.includes("create") ? "create" : name.includes("run") || name.includes("trigger") || name.includes("execute") ? "execute" : "operate",
+    category: name.includes("validate") ? "validate" : name.includes("deploy") ? "deploy" : name.includes("publish") ? "publish" : name.includes("move") ? "move" : name.includes("upload") ? "create" : name.includes("create") ? "create" : name.includes("run") || name.includes("trigger") || name.includes("execute") ? "execute" : "operate",
     description: `Direct Auto Builder 2 action: ${name}`,
     executionMode: "manual_receipt",
     requiredAuth: providerRegistry.find((provider) => provider.providerId === providerId)?.requiredSecrets ?? [],
