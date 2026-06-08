@@ -137,9 +137,48 @@ function summarizeReceipt(receipt: Record<string, unknown>) {
   };
 }
 
-export async function GET() {
+function readChunk(url: URL) {
+  const requestedChunk = Number(url.searchParams.get("chunk") ?? "0");
+  const requestedSize = Number(url.searchParams.get("size") ?? "10");
+  const size = Number.isFinite(requestedSize) ? Math.min(Math.max(Math.floor(requestedSize), 1), 20) : 10;
+  const chunk = Number.isFinite(requestedChunk) ? Math.max(Math.floor(requestedChunk), 0) : 0;
+  const start = chunk * size;
+  const end = Math.min(start + size, folderManifest.length);
+  return {
+    chunk,
+    size,
+    start,
+    end,
+    total: folderManifest.length,
+    total_chunks: Math.ceil(folderManifest.length / size),
+    manifest: folderManifest.slice(start, end)
+  };
+}
+
+export async function GET(request: Request) {
   if (process.env.VERCEL_ENV === "production") {
     return NextResponse.json({ status: "blocked", reason: "Drive scaffold dry-run route is disabled in production." }, { status: 403 });
+  }
+
+  const url = new URL(request.url);
+  const chunkInfo = readChunk(url);
+  if (chunkInfo.manifest.length === 0) {
+    return NextResponse.json({
+      status: "ok",
+      action: "drive.runDriveJob",
+      summary: {
+        job_id: "master-auto-builder-drive-scaffold-001",
+        mode: "dry_run",
+        status: "dry_run_complete",
+        folder_manifest_count: 0,
+        upload_file_count: 0,
+        step_counts: { exists: 0, would_create: 0, missing: 0, created: 0 },
+        blocked_count: 0,
+        timestamp: new Date().toISOString()
+      },
+      chunk: chunkInfo,
+      complete: true
+    });
   }
 
   const result = await runExecutionWorker({
@@ -147,14 +186,14 @@ export async function GET() {
     approved: false,
     token: process.env.AUTO_BUILDER_WORKER_TOKEN,
     payload: {
-      job_id: "master-auto-builder-drive-scaffold-001",
+      job_id: `master-auto-builder-drive-scaffold-001-chunk-${chunkInfo.chunk}`,
       mode: "dry_run",
       root_folder_id: "1JAmLjo4UiD567C0Z_ogBxo3NELJK8L80",
       root_folder_name: "MASTER AUTO BUILDER",
       create_missing_folders: true,
       write_receipts: false,
       validate_tree: true,
-      folder_manifest: folderManifest,
+      folder_manifest: chunkInfo.manifest,
       blocked_actions: blockedActions
     }
   });
@@ -165,6 +204,9 @@ export async function GET() {
       status: result.status,
       action: result.action,
       summary,
+      chunk: chunkInfo,
+      complete: chunkInfo.end >= chunkInfo.total,
+      next_chunk_url: chunkInfo.end >= chunkInfo.total ? null : `/api/cron/drive-scaffold-dry-run?chunk=${chunkInfo.chunk + 1}&size=${chunkInfo.size}`,
       error: result.status === "error" ? result.receipt.message : undefined,
       blocked_reason: result.status === "blocked" ? result.receipt.reason : undefined
     },
