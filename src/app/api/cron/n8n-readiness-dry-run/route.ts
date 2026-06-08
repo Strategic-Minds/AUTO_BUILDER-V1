@@ -7,11 +7,39 @@ function present(value: string | undefined) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function normalizeN8nApiRoot(raw: string) {
+  const parsed = new URL(raw.trim());
+  parsed.search = "";
+  parsed.hash = "";
+  parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+
+  const apiIndex = parsed.pathname.indexOf("/api/v1");
+  if (apiIndex >= 0) {
+    parsed.pathname = parsed.pathname.slice(0, apiIndex + "/api/v1".length);
+    return parsed.toString().replace(/\/+$/, "");
+  }
+
+  const removableSuffixes = ["/mcp-server/http", "/webhook-test", "/webhook", "/form", "/rest"];
+  for (const suffix of removableSuffixes) {
+    const suffixIndex = parsed.pathname.indexOf(suffix);
+    if (suffixIndex >= 0) {
+      parsed.pathname = parsed.pathname.slice(0, suffixIndex);
+      break;
+    }
+  }
+
+  parsed.pathname = `${parsed.pathname.replace(/\/+$/, "")}/api/v1`;
+  return parsed.toString().replace(/\/+$/, "");
+}
+
 function getN8nBaseUrl() {
-  const raw = process.env.N8N_SERVER_URL ?? process.env.N8N_BASE_URL ?? process.env.N8N_WEBHOOK_BASE_URL;
+  const raw = process.env.N8N_API_BASE_URL ?? process.env.N8N_SERVER_URL ?? process.env.N8N_BASE_URL ?? process.env.N8N_WEBHOOK_BASE_URL;
   if (!present(raw)) return null;
-  const trimmed = raw!.trim().replace(/\/+$/, "");
-  return trimmed.endsWith("/api/v1") ? trimmed : `${trimmed}/api/v1`;
+  try {
+    return normalizeN8nApiRoot(raw!);
+  } catch {
+    return null;
+  }
 }
 
 function getN8nApiKey() {
@@ -47,7 +75,7 @@ export async function GET() {
       mutation_performed: false,
       secrets_returned: false,
       env_checks: envChecks,
-      reason: "Missing n8n API base URL or API key env."
+      reason: "Missing or invalid n8n API base URL or API key env."
     }, { status: 403 });
   }
 
