@@ -335,9 +335,16 @@ async function createDriveFolder(token: string, parentId: string, name: string) 
 async function ensureDriveFolderPath(params: { token: string; rootFolderId: string; path: string; dryRun: boolean; createMissing: boolean }) {
   const parts = normalizeDrivePath(params.path).split("/").filter(Boolean);
   let parentId = params.rootFolderId;
+  let parentIsSynthetic = false;
   const steps: Array<Record<string, unknown>> = [];
 
   for (const name of parts) {
+    if (params.dryRun && parentIsSynthetic) {
+      steps.push({ pathPart: name, status: "would_create", parentId });
+      parentId = `dry-run:${parts.slice(0, steps.length).join("/")}`;
+      continue;
+    }
+
     const existing = await findDriveFolderChild(params.token, parentId, name);
     if (existing) {
       steps.push({ pathPart: name, status: "exists", folderId: existing.id, parentId });
@@ -353,6 +360,7 @@ async function ensureDriveFolderPath(params: { token: string; rootFolderId: stri
     if (params.dryRun) {
       steps.push({ pathPart: name, status: "would_create", parentId });
       parentId = `dry-run:${parts.slice(0, steps.length).join("/")}`;
+      parentIsSynthetic = true;
       continue;
     }
 
