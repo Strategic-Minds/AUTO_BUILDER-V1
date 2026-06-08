@@ -121,6 +121,7 @@ export function runBrowserJob(input: BrowserJobPayload) {
   const blockedOperations = plannedOperations.filter((operation) => operation.status === "blocked_by_policy");
   const workerUrl = input.browser_worker_url ?? process.env.BROWSER_WORKER_URL;
   const canQueueWorker = Boolean(workerUrl) && mode !== "dry_run" && blockedOperations.length === 0;
+  const approvalRequired = input.approval_required ?? (blockedOperations.length > 0 || mode !== "dry_run");
 
   return {
     ok: true,
@@ -151,7 +152,7 @@ export function runBrowserJob(input: BrowserJobPayload) {
       "download",
       "upload"
     ],
-    approval_required: input.approval_required ?? blockedOperations.length > 0 || mode !== "dry_run",
+    approval_required: approvalRequired,
     approved_actions: approvedActions,
     blocked_actions: blockedActions,
     blocked_operations: blockedOperations,
