@@ -18,6 +18,8 @@ This document records the governed Drive connection for the Auto Social lane in 
 - Folder contained, at connection time:
   - `EDEN SKYE STUDIOS` folder
   - `AUTO_SOCIAL_OS_WORKBOOK.xlsx`
+- `EDEN SKYE STUDIOS` contains a nested `EDEN SKYE STUDIOS` folder.
+- `AUTO_SOCIAL_OS_WORKBOOK.xlsx` is readable through Drive text extraction.
 
 ## Connected Assets
 
@@ -25,7 +27,26 @@ This document records the governed Drive connection for the Auto Social lane in 
 | --- | --- | --- | --- |
 | AUTO SOCIAL | Drive folder | `1rQ7uONPfpud7YEZ4AEf2M8QfuzK-T5kI` | https://drive.google.com/drive/folders/1rQ7uONPfpud7YEZ4AEf2M8QfuzK-T5kI |
 | EDEN SKYE STUDIOS | Drive folder | `1_oW9mJgdm2OD-RWi3URRX4oVkTkOzsQK` | https://drive.google.com/drive/folders/1_oW9mJgdm2OD-RWi3URRX4oVkTkOzsQK |
+| Nested EDEN SKYE STUDIOS | Drive folder | `1Agdaq28Lha01ASVdpm1g_CS_x_aObRcT` | https://drive.google.com/drive/folders/1Agdaq28Lha01ASVdpm1g_CS_x_aObRcT |
 | AUTO_SOCIAL_OS_WORKBOOK.xlsx | Spreadsheet | `1g9ZFWBQ7SYtVAwAkwGQs2H1191oIWXa5` | https://docs.google.com/spreadsheets/d/1g9ZFWBQ7SYtVAwAkwGQs2H1191oIWXa5/edit |
+
+## Workbook Structure
+
+Verified workbook sections/tabs:
+
+1. Dashboard
+2. Master Workflow
+3. Stack Registry
+4. ENV Registry
+5. Folder File Map
+6. Agent Registry
+7. Approval Gates
+8. Validation
+9. Release Log
+10. Content Calendar
+11. Campaign Tracker
+12. Publishing Queue
+13. Categories
 
 ## Runtime Defaults
 
@@ -73,7 +94,7 @@ Protected actions still require explicit Jeremy approval in the current session.
 Before runtime execution, Auto Builder should verify:
 
 1. The folder is still accessible.
-2. The workbook is readable and has the expected tabs.
-3. `EDEN SKYE STUDIOS` contains the expected brand/media subfolders.
+2. The workbook section names above still exist.
+3. The nested `EDEN SKYE STUDIOS` folder contains the expected brand/media subfolders.
 4. Runtime environment variables have been set in the deployment target if the app needs them outside repo defaults.
 5. Social publishing remains approval-gated.
