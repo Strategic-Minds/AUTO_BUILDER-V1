@@ -98,9 +98,9 @@ export function runBrowserJob(input: BrowserJobPayload) {
   const blockedActions = Array.from(new Set([...(input.blocked_actions ?? []), ...defaultBlockedActions]));
   const approvedActions = input.approved_actions ?? [];
   const actions = input.actions?.length ? input.actions : input.steps?.map((step) => step.action) ?? ["open_url", "read_page", "extract_links", "screenshot", "validate_flow"];
-  const steps = input.steps?.length
+  const steps: BrowserStep[] = input.steps?.length
     ? input.steps
-    : actions.map((action) => ({ action, url: input.url, description: `Plan browser action: ${action}` }));
+    : actions.map((action): BrowserStep => ({ action, url: input.url, description: `Plan browser action: ${action}` }));
 
   const plannedOperations = steps.map((step, index) => {
     const action = String(step.action);
