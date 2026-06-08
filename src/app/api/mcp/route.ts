@@ -33,8 +33,19 @@ import {
   driveWriteReceipt,
   runDriveJob
 } from "@/lib/autobuilder-v2/drive-job-runner";
+import {
+  edenRuntimeStatus,
+  edenTrendDiscoveryDryRun,
+  edenTrendDiscoveryReadiness,
+  runEdenJob
+} from "@/lib/autobuilder-v2/eden-job-runner";
+import { runUniversalJob } from "@/lib/autobuilder-v2/universal-job-runner";
 
 export const runtime = "nodejs";
+
+const driveToolNames = ["run_drive_job", "drive_list_tree", "drive_create_folder", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_move_folder", "drive_write_receipt"];
+const edenToolNames = ["eden.runtime.status", "eden.trend_discovery.readiness", "eden.trend_discovery.dry_run", "run_eden_job"];
+const universalToolNames = ["run_universal_job"];
 
 const repoFiles: Record<string, string> = {
   "README.md": `# AUTO BUILDER Bridge\n\nGPT remains the orchestration brain. Cloud workers and bridges execute recurring operations. Codex is reserved for implementation runtime tasks.\n`,
@@ -61,11 +72,11 @@ const resources = [
 const visibleRepoPaths = [".", "README.md", "docs", "docs/handoffs", "docs/handoffs/dev-handoff.md", "docs/prompts", "docs/prompts/repo-discovery.prompt.md", "apps", "apps/control-plane", "apps/control-plane/package.json", "factory", "factory/connector-ops.json", "factory/template-library.json", "factory/capability-matrix.json", "factory/reverse-engineering-lanes.json"] as const;
 
 function buildRepoSummary() {
-  return { repoRoot: "remote-bundled-content", rootPackageName: "auto-builder-bridge", rootScripts: { dev: "next dev", build: "next build", start: "next start", "validate:factory": "node scripts/validate-factory.mjs" }, controlPlanePackageName: "@xps-ai-factory/control-plane", controlPlaneScripts: { dev: "node server.js", start: "node server.js", lint: "echo lint placeholder", test: "echo test placeholder" }, repos: repoRoles, providers, workflow, factorySurfaces, keyPaths: { readme: "README.md", controlPlanePackage: "apps/control-plane/package.json", devHandoff: "docs/handoffs/dev-handoff.md", repoDiscoveryPrompt: "docs/prompts/repo-discovery.prompt.md", connectorRegistry: "factory/connector-ops.json", templateLibrary: "factory/template-library.json", capabilityMatrix: "factory/capability-matrix.json" }, driveJobTools: ["run_drive_job", "drive_list_tree", "drive_create_folder", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_move_folder", "drive_write_receipt"] };
+  return { repoRoot: "remote-bundled-content", rootPackageName: "auto-builder-bridge", rootScripts: { dev: "next dev", build: "next build", start: "next start", "validate:factory": "node scripts/validate-factory.mjs" }, controlPlanePackageName: "@xps-ai-factory/control-plane", controlPlaneScripts: { dev: "node server.js", start: "node server.js", lint: "echo lint placeholder", test: "echo test placeholder" }, repos: repoRoles, providers, workflow, factorySurfaces, keyPaths: { readme: "README.md", controlPlanePackage: "apps/control-plane/package.json", devHandoff: "docs/handoffs/dev-handoff.md", repoDiscoveryPrompt: "docs/prompts/repo-discovery.prompt.md", connectorRegistry: "factory/connector-ops.json", templateLibrary: "factory/template-library.json", capabilityMatrix: "factory/capability-matrix.json" }, driveJobTools: driveToolNames, universalJobTools: universalToolNames, edenTools: edenToolNames };
 }
 
 function buildSystemTopology() {
-  return { system: "AUTO BUILDER Bridge Brain", repos: repoRoles, providers, workflow, factory: { readiness, readinessScore: factoryReadiness, surfaces: factorySurfaces, audit, entryPrompts }, coverage: { fastPathRoutes: fastPathRoutes.length, templatePacks: templateLibrary.length, connectors: connectorOps.length, capabilityTests: capabilityTests.length, hardeningTests: hardeningPipeline.length, reverseEngineeringLanes: reverseEngineeringLanes.length, driveJobTools: 8 } };
+  return { system: "AUTO BUILDER Bridge Brain", repos: repoRoles, providers, workflow, factory: { readiness, readinessScore: factoryReadiness, surfaces: factorySurfaces, audit, entryPrompts }, coverage: { fastPathRoutes: fastPathRoutes.length, templatePacks: templateLibrary.length, connectors: connectorOps.length, capabilityTests: capabilityTests.length, hardeningTests: hardeningPipeline.length, reverseEngineeringLanes: reverseEngineeringLanes.length, driveJobTools: driveToolNames.length, universalJobTools: universalToolNames.length, edenTools: edenToolNames.length } };
 }
 
 function readBundledFile(path: string) {
@@ -89,7 +100,7 @@ function buildConnectorActivationPlan(objective?: string, preferredConnectors?: 
 }
 
 function buildGovernancePolicy() {
-  return { defaultMode: "Maximum governed autonomy", autonomousByDefault: ["read-only research", "stack inspection", "workflow design", "task packet creation", "connector planning", "content planning", "queue design", "capability testing plan generation", "reverse-engineering plan generation"], approvalRequired: ["production deploys", "billing or financial mutations", "store writes", "schema migrations", "auto-publish to external channels", "external messages or outbound calls", "live environment variable changes"], connectorPolicy: connectorOps.map((connector) => ({ connector: connector.connector, readiness: connector.readiness, approvalGate: connector.approvalGate, fallbackReceiptMode: connector.fallbackReceiptMode })), driveJobTools: ["run_drive_job", "drive_list_tree", "drive_create_folder", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_move_folder", "drive_write_receipt"], hardeningRequired: hardeningPipeline.filter((test) => test.required) };
+  return { defaultMode: "Maximum governed autonomy", autonomousByDefault: ["read-only research", "stack inspection", "workflow design", "task packet creation", "connector planning", "content planning", "queue design", "capability testing plan generation", "reverse-engineering plan generation"], approvalRequired: ["production deploys", "billing or financial mutations", "store writes", "schema migrations", "auto-publish to external channels", "external messages or outbound calls", "live environment variable changes"], connectorPolicy: connectorOps.map((connector) => ({ connector: connector.connector, readiness: connector.readiness, approvalGate: connector.approvalGate, fallbackReceiptMode: connector.fallbackReceiptMode })), driveJobTools: driveToolNames, universalJobTools: universalToolNames, edenTools: edenToolNames, hardeningRequired: hardeningPipeline.filter((test) => test.required) };
 }
 
 function buildContentCommerceMachine(args: { brandName: string; niche: string; offers?: string[]; channels?: string[]; monetization?: string[]; autonomyLevel?: string }) {
@@ -109,23 +120,13 @@ function mcpText(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
 
-const driveJobSchema = {
-  job_id: z.string(),
-  mode: z.enum(["missing_only", "full_sync", "validate_only"]).optional(),
-  root_folder_id: z.string(),
-  dry_run: z.boolean().optional(),
-  actions: z.array(z.string()),
-  blocked_actions: z.array(z.string()).optional(),
-  folders: z.array(z.object({ name: z.string(), parent_folder_id: z.string().optional(), path: z.string().optional() })).optional(),
-  files: z.array(z.object({ name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional() })).optional(),
-  images: z.array(z.object({ name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional() })).optional(),
-  moves: z.array(z.object({ item_id: z.string(), from_folder_id: z.string().optional(), to_folder_id: z.string(), item_type: z.enum(["file", "folder"]) })).optional(),
-  receipt_folder_id: z.string().optional()
-};
+const driveJobSchema = { job_id: z.string(), mode: z.enum(["missing_only", "full_sync", "validate_only"]).optional(), root_folder_id: z.string(), dry_run: z.boolean().optional(), actions: z.array(z.string()), blocked_actions: z.array(z.string()).optional(), folders: z.array(z.object({ name: z.string(), parent_folder_id: z.string().optional(), path: z.string().optional() })).optional(), files: z.array(z.object({ name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional() })).optional(), images: z.array(z.object({ name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional() })).optional(), moves: z.array(z.object({ item_id: z.string(), from_folder_id: z.string().optional(), to_folder_id: z.string(), item_type: z.enum(["file", "folder"]) })).optional(), receipt_folder_id: z.string().optional() };
+const universalJobSchema = { job_id: z.string(), mode: z.enum(["dry_run", "approval_gated", "execute"]).optional(), provider: z.string(), objective: z.string(), root_resource_id: z.string().optional(), actions: z.array(z.string()).optional(), blocked_actions: z.array(z.string()).optional(), approval_required: z.boolean().optional(), fallbacks: z.array(z.string()).optional(), payload: z.record(z.string(), z.unknown()).optional() };
+const edenJobSchema = { job_id: z.string(), mode: z.enum(["status", "readiness", "dry_run", "execute"]).optional(), objective: z.string().optional(), actions: z.array(z.string()).optional(), blocked_actions: z.array(z.string()).optional(), approval_required: z.boolean().optional(), payload: z.record(z.string(), z.unknown()).optional() };
 
 const handler = createMcpHandler(
   (server) => {
-    server.registerTool("health_check", { title: "Health Check", description: "Use this before other calls to confirm the remote MCP server is alive.", inputSchema: {} }, async () => mcpText({ status: "ok", service: "xps-ai-factory-control-plane", transport: "streamable-http", environment: process.env.VERCEL ? "vercel" : "local", providers: providers.length, connectors: connectorOps.length, driveJobTools: 8, timestamp: new Date().toISOString() }));
+    server.registerTool("health_check", { title: "Health Check", description: "Use this before other calls to confirm the remote MCP server is alive.", inputSchema: {} }, async () => mcpText({ status: "ok", service: "xps-ai-factory-control-plane", transport: "streamable-http", environment: process.env.VERCEL ? "vercel" : "local", providers: providers.length, connectors: connectorOps.length, driveJobTools: driveToolNames.length, universalJobTools: universalToolNames.length, edenTools: edenToolNames.length, timestamp: new Date().toISOString() }));
     server.registerTool("read_bootstrap_status", { title: "Read Bootstrap Status", description: "Inspect the bundled control-plane package metadata and bootstrap entrypoints.", inputSchema: {} }, async () => mcpText({ packageJsonPath: "apps/control-plane/package.json", scripts: buildRepoSummary().controlPlaneScripts, bundledPaths: visibleRepoPaths, repos: repoRoles, providers }));
     server.registerTool("get_repo_summary", { title: "Get Repo Summary", description: "Use this first for repo discovery. It returns the key scripts, package names, and file entrypoints exposed by this MCP.", inputSchema: {} }, async () => mcpText(buildRepoSummary()));
     server.registerTool("list_repo_files", { title: "List Repo Files", description: "List the bundled repo paths this remote MCP exposes.", inputSchema: { subpath: z.string().optional(), maxDepth: z.number().int().min(0).max(8).optional(), limit: z.number().int().min(1).max(500).optional() } }, async ({ subpath, limit }) => mcpText(visibleRepoPaths.filter((item) => { const prefix = subpath ? subpath.replace(/\/$/, "") : "."; return prefix === "." || item === prefix || item.startsWith(`${prefix}/`); }).slice(0, limit ?? 200).map((item) => ({ path: item, type: item === "." || item === "docs" || item === "docs/handoffs" || item === "docs/prompts" || item === "apps" || item === "apps/control-plane" || item === "factory" ? "directory" : "file" }))));
@@ -140,6 +141,11 @@ const handler = createMcpHandler(
     server.registerTool("get_capability_test_matrix", { title: "Get Capability Test Matrix", description: "Return the current connector readiness, capability tests, and hardening pipeline used to govern autonomy.", inputSchema: {} }, async () => mcpText(buildCapabilityTestMatrix()));
     server.registerTool("build_reverse_engineering_plan", { title: "Build Reverse Engineering Plan", description: "Create the passive reverse-engineering and market-intelligence plan for a target system, competitor, niche, or media property.", inputSchema: { target: z.string() } }, async ({ target }) => mcpText(buildPassiveReverseEngineeringPlan(target)));
     server.registerTool("get_governance_policy", { title: "Get Governance Policy", description: "Return the autonomy rules, approval gates, and required hardening policy for the current stack.", inputSchema: {} }, async () => mcpText(buildGovernancePolicy()));
+    server.registerTool("run_universal_job", { title: "Run Universal Job", description: "Governed universal automation runner with provider routing, dry-run, approvals, blocked actions, fallbacks, receipts, validation status, and rollback plan.", inputSchema: universalJobSchema }, async (payload) => mcpText(runUniversalJob(payload)));
+    server.registerTool("eden.runtime.status", { title: "Eden Runtime Status", description: "Return Eden runtime status and readiness surface.", inputSchema: { job_id: z.string().optional() } }, async (payload) => mcpText(edenRuntimeStatus(payload)));
+    server.registerTool("eden.trend_discovery.readiness", { title: "Eden Trend Discovery Readiness", description: "Check Eden trend discovery readiness.", inputSchema: edenJobSchema }, async (payload) => mcpText(edenTrendDiscoveryReadiness(payload)));
+    server.registerTool("eden.trend_discovery.dry_run", { title: "Eden Trend Discovery Dry Run", description: "Plan Eden trend discovery with no external mutation.", inputSchema: edenJobSchema }, async (payload) => mcpText(edenTrendDiscoveryDryRun({ ...payload, job_id: payload.job_id } as never)));
+    server.registerTool("run_eden_job", { title: "Run Eden Job", description: "Generic governed Eden job runner.", inputSchema: edenJobSchema }, async (payload) => mcpText(runEdenJob(payload as never)));
     server.registerTool("run_drive_job", { title: "Run Drive Job", description: "Run a generic Auto Builder Drive job with dry-run, blocked actions, receipts, and validation planning.", inputSchema: driveJobSchema }, async (payload) => mcpText(runDriveJob(payload)));
     server.registerTool("drive_list_tree", { title: "Drive List Tree", description: "Plan and validate listing a Drive folder tree.", inputSchema: { root_folder_id: z.string() } }, async ({ root_folder_id }) => mcpText(driveListTree(root_folder_id)));
     server.registerTool("drive_create_folder", { title: "Drive Create Folder", description: "Plan creation of a missing Google Drive folder.", inputSchema: { root_folder_id: z.string(), name: z.string(), parent_folder_id: z.string().optional(), dry_run: z.boolean().optional() } }, async (payload) => mcpText(driveCreateFolder(payload)));
@@ -151,9 +157,9 @@ const handler = createMcpHandler(
 
     for (const resource of resources) server.registerResource(resource.name, resource.uri, { title: resource.name, description: resource.description, mimeType: resource.mimeType }, async () => ({ contents: [{ uri: resource.uri, mimeType: resource.mimeType, text: readBundledFile(resource.path) }] }));
     server.registerPrompt("repo_discovery", { title: "Repo Discovery", description: "Prompt template for orienting work inside AUTO BUILDER." }, async () => ({ messages: [{ role: "user", content: { type: "text", text: readBundledFile("docs/prompts/repo-discovery.prompt.md") } }] }));
-    server.registerPrompt("launch_content_machine", { title: "Launch Content Machine", description: "Prompt template for using the MCP as a launch surface for an autonomous content and commerce machine." }, async () => ({ messages: [{ role: "user", content: { type: "text", text: "Use the AUTO BUILDER MCP to inspect the system topology, connector registry, governance policy, capability matrix, and Drive job tools. Then build the fastest revenue-first content and commerce machine for the current brand, with queue design, approvals, publishing loop, attribution, and a seven-day execution plan." } }] }));
+    server.registerPrompt("launch_content_machine", { title: "Launch Content Machine", description: "Prompt template for using the MCP as a launch surface for an autonomous content and commerce machine." }, async () => ({ messages: [{ role: "user", content: { type: "text", text: "Use the AUTO BUILDER MCP to inspect the system topology, connector registry, governance policy, capability matrix, Drive job tools, universal job runner, and Eden tools. Then build the fastest revenue-first content and commerce machine for the current brand, with queue design, approvals, publishing loop, attribution, and a seven-day execution plan." } }] }));
   },
-  { instructions: "Use this server as the governed operating surface for AUTO BUILDER. Prefer get_system_topology first, then get_connector_registry, then get_governance_policy, and then route into run_drive_job, drive_create_folder, build_execution_packet, build_content_commerce_machine, or build_universal_integration_blueprint as needed." },
+  { instructions: "Use this server as the governed operating surface for AUTO BUILDER. Prefer get_system_topology first, then get_connector_registry, then get_governance_policy, and then route into run_universal_job, run_eden_job, run_drive_job, drive_create_folder, build_execution_packet, build_content_commerce_machine, or build_universal_integration_blueprint as needed." },
   { basePath: "/api", maxDuration: 60, verboseLogs: false }
 );
 
