@@ -49,6 +49,8 @@ export type AutoBuilderExecutionMode = "api" | "mcp" | "browser" | "webhook" | "
 
 export type AutoBuilderReadiness = "ready" | "partial" | "blocked" | "planned";
 
+export type AutoBuilderAuthType = "oauth" | "api_key" | "access_token" | "service_account" | "webhook" | "mcp" | "browser" | "manual";
+
 export type AutoBuilderReceipt = {
   ok: boolean;
   provider: string;
@@ -77,7 +79,7 @@ export type AutoBuilderProvider = {
   providerId: string;
   displayName: string;
   category: AutoBuilderProviderCategory;
-  authType: "oauth" | "api_key" | "service_account" | "webhook" | "mcp" | "browser" | "manual";
+  authType: AutoBuilderAuthType;
   requiredSecrets: string[];
   optionalSecrets: string[];
   oauthScopes: string[];
