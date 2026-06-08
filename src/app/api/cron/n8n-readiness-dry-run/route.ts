@@ -53,6 +53,71 @@ function sanitizeError(text: string) {
     .slice(0, 500);
 }
 
+function candidateUrls(apiRoot: string) {
+  const root = new URL(apiRoot);
+  const origin = `${root.protocol}//${root.host}`;
+  return [
+    { label: "public_api_workflows", method: "GET", url: `${apiRoot}/workflows?limit=1`, auth: true },
+    { label: "public_api_tags", method: "GET", url: `${apiRoot}/tags?limit=1`, auth: true },
+    { label: "legacy_rest_workflows", method: "GET", url: `${origin}/rest/workflows?limit=1`, auth: true },
+    { label: "healthz", method: "GET", url: `${origin}/healthz`, auth: false },
+    { label: "healthz_readiness", method: "GET", url: `${origin}/healthz/readiness`, auth: false }
+  ];
+}
+
+type ProbeResult = {
+  label: string;
+  method: string;
+  endpoint: string;
+  auth_header_sent: boolean;
+  ok: boolean;
+  status: number;
+  status_text: string;
+  elapsed_ms: number;
+  response_shape: string;
+  visible_count?: number;
+  has_next_cursor?: boolean;
+  error?: string;
+};
+
+async function runProbe(candidate: ReturnType<typeof candidateUrls>[number], apiKey: string): Promise<ProbeResult> {
+  const startedAt = Date.now();
+  const url = new URL(candidate.url);
+  const response = await fetch(url, {
+    method: candidate.method,
+    headers: candidate.auth
+      ? { accept: "application/json", "X-N8N-API-KEY": apiKey }
+      : { accept: "application/json,text/plain,*/*" },
+    cache: "no-store"
+  });
+
+  const text = await response.text();
+  let parsed: unknown = null;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    parsed = null;
+  }
+
+  const body = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+  const data = body && Array.isArray(body.data) ? body.data : undefined;
+
+  return {
+    label: candidate.label,
+    method: candidate.method,
+    endpoint: `${url.pathname}${url.search}`,
+    auth_header_sent: candidate.auth,
+    ok: response.ok,
+    status: response.status,
+    status_text: response.statusText,
+    elapsed_ms: Date.now() - startedAt,
+    response_shape: body ? "json_object" : text ? "text_or_html" : "empty",
+    visible_count: data ? data.length : undefined,
+    has_next_cursor: Boolean(body && body.nextCursor),
+    error: response.ok ? undefined : sanitizeError(text || response.statusText)
+  };
+}
+
 export async function GET() {
   if (process.env.VERCEL_ENV === "production") {
     return NextResponse.json(
@@ -79,55 +144,48 @@ export async function GET() {
     }, { status: 403 });
   }
 
-  const url = new URL(`${baseUrl}/workflows`);
-  url.searchParams.set("limit", "1");
-
-  const startedAt = Date.now();
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      "X-N8N-API-KEY": apiKey
-    },
-    cache: "no-store"
-  });
-
-  const text = await response.text();
-  let parsed: unknown = null;
-  try {
-    parsed = text ? JSON.parse(text) : null;
-  } catch {
-    parsed = null;
+  const probes: ProbeResult[] = [];
+  for (const candidate of candidateUrls(baseUrl)) {
+    try {
+      probes.push(await runProbe(candidate, apiKey));
+    } catch (error) {
+      const url = new URL(candidate.url);
+      probes.push({
+        label: candidate.label,
+        method: candidate.method,
+        endpoint: `${url.pathname}${url.search}`,
+        auth_header_sent: candidate.auth,
+        ok: false,
+        status: 0,
+        status_text: "fetch_error",
+        elapsed_ms: 0,
+        response_shape: "error",
+        error: sanitizeError(error instanceof Error ? error.message : String(error))
+      });
+    }
   }
 
-  const body = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
-  const data = body && Array.isArray(body.data) ? body.data : [];
+  const apiReady = probes.some((probe) => probe.ok && probe.auth_header_sent);
+  const hostReachable = probes.some((probe) => probe.ok);
 
   return NextResponse.json({
-    status: response.ok ? "ready" : "blocked",
+    status: apiReady ? "ready" : hostReachable ? "host_reachable_api_blocked" : "blocked",
     mode: "n8n_readiness_dry_run",
     mutation_performed: false,
     secrets_returned: false,
     env_checks: envChecks,
-    request: {
-      method: "GET",
-      endpoint: "/api/v1/workflows",
-      limit: 1
-    },
-    response: {
-      ok: response.ok,
-      status: response.status,
-      status_text: response.statusText,
-      workflow_count_visible: data.length,
-      has_next_cursor: Boolean(body && body.nextCursor),
-      elapsed_ms: Date.now() - startedAt
-    },
-    error: response.ok ? undefined : sanitizeError(text || response.statusText),
+    normalized_api_root_path: new URL(baseUrl).pathname,
+    probes,
+    interpretation: apiReady
+      ? "At least one authenticated n8n read-only API endpoint responded successfully."
+      : hostReachable
+        ? "The n8n host is reachable, but authenticated API endpoints did not respond successfully. Check API root, API key scope, or n8n public API availability."
+        : "The configured n8n host/API root did not return a successful read-only response.",
     approval_gates: [
       "Workflow creation requires separate operator approval.",
       "Workflow activation requires separate operator approval.",
       "Live triggers require separate operator approval."
     ],
     timestamp: new Date().toISOString()
-  }, { status: response.ok ? 200 : 502 });
+  }, { status: apiReady ? 200 : hostReachable ? 409 : 502 });
 }
