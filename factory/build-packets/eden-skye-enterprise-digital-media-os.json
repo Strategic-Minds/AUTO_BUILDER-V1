@@ -1,0 +1,53 @@
+{
+  "id": "eden-skye-enterprise-digital-media-os",
+  "status": "sandbox_branch_ready",
+  "branch": "sandbox/eden-skye-enterprise-os",
+  "system": "AUTO SOCIAL / Eden Skye Studios Enterprise Digital Media OS",
+  "liveActionsAllowed": false,
+  "modules": [
+    "supabase-dev-schema",
+    "draft-api-routes",
+    "vercel-workflow",
+    "five-minute-cron",
+    "memory",
+    "self-reflection",
+    "quarantine",
+    "index",
+    "taxonomy",
+    "media-library",
+    "template-library",
+    "scheduling",
+    "ab-testing",
+    "admin-command-center",
+    "receipts"
+  ],
+  "routes": [
+    "/api/auto-social/discover",
+    "/api/auto-social/analyze",
+    "/api/auto-social/create",
+    "/api/auto-social/quarantine",
+    "/api/auto-social/approve",
+    "/api/auto-social/schedule",
+    "/api/auto-social/validate",
+    "/api/auto-social/heal",
+    "/api/auto-social/n8n-approved-dispatch",
+    "/api/cron/auto-social-five-minute",
+    "/admin/auto-social"
+  ],
+  "protectedActions": [
+    "live publishing",
+    "outbound comments",
+    "outbound replies",
+    "direct messages",
+    "browser login",
+    "browser upload/download",
+    "payment or Shopify mutation",
+    "production migration",
+    "n8n workflow activation"
+  ],
+  "validation": {
+    "required": true,
+    "mode": "local_or_preview",
+    "receiptRequired": true
+  }
+}
