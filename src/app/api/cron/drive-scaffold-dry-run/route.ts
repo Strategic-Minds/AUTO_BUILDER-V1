@@ -142,13 +142,6 @@ export async function GET() {
     return NextResponse.json({ status: "blocked", reason: "Drive scaffold dry-run route is disabled in production." }, { status: 403 });
   }
 
-  if (process.env.AUTO_BUILDER_DRIVE_DRY_RUN_ENABLED !== "true") {
-    return NextResponse.json(
-      { status: "blocked", reason: "Set AUTO_BUILDER_DRIVE_DRY_RUN_ENABLED=true to enable this preview-only dry-run route." },
-      { status: 403 }
-    );
-  }
-
   const result = await runExecutionWorker({
     action: "drive.runDriveJob",
     approved: false,
@@ -166,5 +159,15 @@ export async function GET() {
     }
   });
 
-  return NextResponse.json({ ...result, summary: summarizeReceipt(result.receipt) }, { status: result.status === "error" ? 500 : result.status === "blocked" ? 403 : 200 });
+  const summary = summarizeReceipt(result.receipt);
+  return NextResponse.json(
+    {
+      status: result.status,
+      action: result.action,
+      summary,
+      error: result.status === "error" ? result.receipt.message : undefined,
+      blocked_reason: result.status === "blocked" ? result.receipt.reason : undefined
+    },
+    { status: result.status === "error" ? 500 : result.status === "blocked" ? 403 : 200 }
+  );
 }
