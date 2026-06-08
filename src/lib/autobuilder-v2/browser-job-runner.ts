@@ -16,6 +16,7 @@ export type BrowserAction =
   | "download"
   | "upload"
   | "purchase"
+  | "payment"
   | "post_social"
   | "send_message"
   | "delete";
@@ -44,6 +45,7 @@ export type BrowserJobPayload = {
   steps?: BrowserStep[];
   blocked_actions?: string[];
   approval_required?: boolean;
+  approved_actions?: string[];
   browser_worker_url?: string;
   payload?: Record<string, unknown>;
 };
@@ -86,29 +88,35 @@ function buildReceipt(input: BrowserJobPayload, status: "planned" | "blocked" | 
   };
 }
 
-function isBlockedAction(action: string, blockedActions: string[]) {
+function isBlockedAction(action: string, blockedActions: string[], approvedActions: string[]) {
+  if (approvedActions.includes(action)) return false;
   return blockedActions.some((blocked) => action === blocked || action.includes(blocked));
 }
 
 export function runBrowserJob(input: BrowserJobPayload) {
   const mode = input.mode ?? "dry_run";
   const blockedActions = Array.from(new Set([...(input.blocked_actions ?? []), ...defaultBlockedActions]));
+  const approvedActions = input.approved_actions ?? [];
   const actions = input.actions?.length ? input.actions : input.steps?.map((step) => step.action) ?? ["open_url", "read_page", "extract_links", "screenshot", "validate_flow"];
   const steps = input.steps?.length
     ? input.steps
     : actions.map((action) => ({ action, url: input.url, description: `Plan browser action: ${action}` }));
 
-  const plannedOperations = steps.map((step, index) => ({
-    step: index + 1,
-    provider: "browser",
-    mode,
-    action: step.action,
-    url: step.url ?? input.url,
-    selector: step.selector,
-    value_present: Boolean(step.value || step.text),
-    status: isBlockedAction(String(step.action), blockedActions) ? "blocked_by_policy" : "planned",
-    requires_approval: isBlockedAction(String(step.action), blockedActions) || !defaultReadOnlyActions.includes(String(step.action))
-  }));
+  const plannedOperations = steps.map((step, index) => {
+    const action = String(step.action);
+    const blocked = isBlockedAction(action, blockedActions, approvedActions);
+    return {
+      step: index + 1,
+      provider: "browser",
+      mode,
+      action: step.action,
+      url: step.url ?? input.url,
+      selector: step.selector,
+      value_present: Boolean(step.value || step.text),
+      status: blocked ? "blocked_by_policy" : "planned",
+      requires_approval: blocked || !defaultReadOnlyActions.includes(action)
+    };
+  });
 
   const blockedOperations = plannedOperations.filter((operation) => operation.status === "blocked_by_policy");
   const workerUrl = input.browser_worker_url ?? process.env.BROWSER_WORKER_URL;
@@ -133,9 +141,18 @@ export function runBrowserJob(input: BrowserJobPayload) {
       "type",
       "select",
       "wait_for_selector",
-      "validate_flow"
+      "validate_flow",
+      "submit_form",
+      "login",
+      "payment",
+      "purchase",
+      "post_social",
+      "send_message",
+      "download",
+      "upload"
     ],
     approval_required: input.approval_required ?? blockedOperations.length > 0 || mode !== "dry_run",
+    approved_actions: approvedActions,
     blocked_actions: blockedActions,
     blocked_operations: blockedOperations,
     planned_operations: plannedOperations,
@@ -177,4 +194,28 @@ export function browserReadPage(input: BrowserJobPayload) {
     { action: "extract_text", url: input.url },
     { action: "extract_links", url: input.url }
   ] });
+}
+
+export function browserLogin(input: BrowserJobPayload) {
+  return runBrowserJob({ ...input, actions: ["login"], steps: input.steps?.length ? input.steps : [{ action: "login", url: input.url, description: "Approval-gated login workflow" }] });
+}
+
+export function browserPayment(input: BrowserJobPayload) {
+  return runBrowserJob({ ...input, actions: ["payment"], steps: input.steps?.length ? input.steps : [{ action: "payment", url: input.url, description: "Approval-gated payment workflow" }] });
+}
+
+export function browserPostSocial(input: BrowserJobPayload) {
+  return runBrowserJob({ ...input, actions: ["post_social"], steps: input.steps?.length ? input.steps : [{ action: "post_social", url: input.url, description: "Approval-gated social posting workflow" }] });
+}
+
+export function browserSendMessage(input: BrowserJobPayload) {
+  return runBrowserJob({ ...input, actions: ["send_message"], steps: input.steps?.length ? input.steps : [{ action: "send_message", url: input.url, description: "Approval-gated message sending workflow" }] });
+}
+
+export function browserDownload(input: BrowserJobPayload) {
+  return runBrowserJob({ ...input, actions: ["download"], steps: input.steps?.length ? input.steps : [{ action: "download", url: input.url, description: "Approval-gated download workflow" }] });
+}
+
+export function browserUpload(input: BrowserJobPayload) {
+  return runBrowserJob({ ...input, actions: ["upload"], steps: input.steps?.length ? input.steps : [{ action: "upload", url: input.url, description: "Approval-gated upload workflow" }] });
 }
