@@ -17,20 +17,39 @@ Connect the Auto Builder repo to the current `AUTO SOCIAL` Google Drive folder s
 - Repo connection receipt: `docs/auto-social/AUTO_SOCIAL_DRIVE_CONNECTION.md`
 - Runtime defaults: `.env.example`
 
+## Verified Workbook Structure
+
+The workbook is readable through Drive text extraction and contains these operating tabs/sections:
+
+1. Dashboard
+2. Master Workflow
+3. Stack Registry
+4. ENV Registry
+5. Folder File Map
+6. Agent Registry
+7. Approval Gates
+8. Validation
+9. Release Log
+10. Content Calendar
+11. Campaign Tracker
+12. Publishing Queue
+13. Categories
+
 ## Scope Completed
 
 1. Added non-secret Auto Social Drive defaults to `.env.example`.
 2. Added a human-readable connection receipt under `docs/auto-social/`.
-3. Preserved governance boundaries: no deploy, no Drive permission mutation, no social publishing, no Shopify/Stripe mutation, no Supabase schema mutation.
+3. Verified the workbook operating structure.
+4. Preserved governance boundaries: no deploy, no Drive permission mutation, no social publishing, no Shopify/Stripe mutation, no Supabase schema mutation.
 
 ## Recommended Next Build Steps
 
-1. Inspect `AUTO_SOCIAL_OS_WORKBOOK.xlsx` and record worksheet/tab structure.
-2. Define a workbook adapter contract for social calendar, assets, approvals, receipts, and analytics rows.
-3. Add runtime read logic that references `AUTO_SOCIAL_DRIVE_FOLDER_ID` and `AUTO_SOCIAL_WORKBOOK_ID`.
-4. Add a validation route or readiness check that confirms folder and workbook access.
-5. Add queue-to-approval behavior before any Metricool, Xyla, or public publishing action.
-6. Log every generated social draft, media asset, and approval request into Supabase when the Supabase lane is active.
+1. Define a workbook adapter contract for Dashboard, Master Workflow, Content Calendar, Campaign Tracker, Publishing Queue, Approval Gates, Validation, and Release Log.
+2. Add runtime read logic that references `AUTO_SOCIAL_DRIVE_FOLDER_ID` and `AUTO_SOCIAL_WORKBOOK_ID`.
+3. Add a validation route or readiness check that confirms folder, workbook, and Eden studio folder access.
+4. Add queue-to-approval behavior before any Metricool, Xyla, or public publishing action.
+5. Log every generated social draft, media asset, and approval request into Supabase when the Supabase lane is active.
+6. Add receipt writing rules for the workbook and/or Supabase before automation expands.
 
 ## Approval Gates
 
@@ -52,7 +71,7 @@ Human approval is still required before:
 - [x] Repo source-truth inspected.
 - [x] `.env.example` updated with non-secret defaults.
 - [x] Connection receipt added.
-- [ ] Workbook tabs inspected.
+- [x] Workbook tabs inspected.
 - [ ] Runtime adapter implemented.
 - [ ] Readiness check implemented.
 - [ ] Supabase queue/receipt logging verified.
@@ -60,13 +79,13 @@ Human approval is still required before:
 
 ## BLOCKS
 
-- Workbook tab structure has not yet been inspected.
 - Runtime deployment environment variables have not been set.
 - No production validation has been run.
+- The nested Eden studio subfolder structure needs a deeper folder map before media automation uses it.
 
 ## WORKAROUND
 
-Repo-side connection defaults and receipt are now installed, so future Auto Builder runs can safely continue from verified IDs without re-discovering the folder.
+Repo-side connection defaults and receipt are now installed, and the workbook structure is verified, so future Auto Builder runs can safely continue from verified IDs and known workbook sections.
 
 ## SELF-HEAL RESULT
 
@@ -74,4 +93,4 @@ When bundled Auto Builder factory paths did not match live GitHub repo paths, li
 
 ## NEXT GPT INSTRUCTION
 
-Continue from this build packet. Inspect the Auto Social workbook tabs and Eden Skye Studios folder contents, then implement a sandbox-first Auto Social Drive adapter/readiness check that reads from the configured Drive IDs and routes generated social drafts into approval-gated queues before any publishing action.
+Continue from this build packet. Implement a sandbox-first Auto Social Drive adapter/readiness check that reads from the configured Drive IDs, validates the workbook tabs listed above, maps the nested Eden Skye Studios folder structure, and routes generated social drafts into approval-gated queues before any publishing action.
