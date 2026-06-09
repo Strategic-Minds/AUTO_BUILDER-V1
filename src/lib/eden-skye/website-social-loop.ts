@@ -1,3 +1,46 @@
+const METRICOOL_BASE_URL_ENVS = [
+  "METRICOOL_API_URL",
+  "METRICOOL_BASE_URL",
+  "METRICOOL_API_BASE_URL",
+  "METRICOOL_URL",
+  "METRICOOL_ENDPOINT",
+  "METRICOOL_API_ENDPOINT",
+  "EDEN_METRICOOL_API_URL",
+  "EDEN_SKYE_METRICOOL_API_URL",
+  "EDEN_SKYE_METRICOOL_BASE_URL"
+];
+
+const METRICOOL_TOKEN_ENVS = [
+  "METRICOOL_API_TOKEN",
+  "METRICOOL_API_KEY",
+  "METRICOOL_TOKEN",
+  "EDEN_METRICOOL_API_KEY",
+  "EDEN_SKYE_METRICOOL_API_KEY",
+  "EDEN_SKYE_METRICOOL_TOKEN"
+];
+
+const SHOPIFY_TOKEN_ENVS = [
+  "SHOPIFY_ADMIN_TOKEN",
+  "SHOPIFY_ACCESS_TOKEN",
+  "SHOPIFY_ADMIN_ACCESS_TOKEN",
+  "SHOPIFY_API_TOKEN",
+  "EDEN_CLOSET_SHOPIFY_ADMIN_TOKEN",
+  "XYLA_SHOPIFY_ADMIN_TOKEN"
+];
+
+const SHOPIFY_SHOP_ENVS = [
+  "SHOPIFY_SHOP",
+  "SHOPIFY_STORE_DOMAIN",
+  "SHOPIFY_SHOP_DOMAIN",
+  "SHOPIFY_STORE_URL",
+  "SHOPIFY_DOMAIN",
+  "SHOPIFY_STORE",
+  "EDEN_CLOSET_SHOPIFY_SHOP",
+  "EDEN_CLOSET_SHOPIFY_STORE_DOMAIN",
+  "XYLA_SHOPIFY_SHOP",
+  "XYLA_SHOPIFY_STORE_DOMAIN"
+];
+
 function envPresent(name: string) {
   return Boolean(process.env[name]);
 }
@@ -12,10 +55,10 @@ export function getEdenSkyeWebsiteSocialLoopReadiness() {
     supabase: envPresent("SUPABASE_SERVICE_ROLE_KEY") && readyAny(["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]),
     googleWorkspace: envPresent("GOOGLE_CLIENT_EMAIL") && envPresent("GOOGLE_PRIVATE_KEY"),
     heygen: envPresent("HEYGEN_API_KEY"),
-    metricool: readyAny(["METRICOOL_API_URL", "METRICOOL_BASE_URL"]) && readyAny(["METRICOOL_API_TOKEN", "METRICOOL_API_KEY", "METRICOOL_TOKEN"]),
-    shopifyXyla: envPresent("SHOPIFY_ADMIN_TOKEN") && readyAny(["SHOPIFY_SHOP", "SHOPIFY_STORE_DOMAIN"]),
+    metricool: readyAny(METRICOOL_BASE_URL_ENVS) && readyAny(METRICOOL_TOKEN_ENVS),
+    shopifyXyla: readyAny(SHOPIFY_TOKEN_ENVS) && readyAny(SHOPIFY_SHOP_ENVS),
     aiGateway: envPresent("AI_GATEWAY_API_KEY"),
-    stripeOrShopifyPayments: readyAny(["STRIPE_SECRET_KEY", "SHOPIFY_ADMIN_TOKEN"])
+    stripeOrShopifyPayments: readyAny(["STRIPE_SECRET_KEY", ...SHOPIFY_TOKEN_ENVS])
   };
 
   return {
@@ -24,6 +67,12 @@ export function getEdenSkyeWebsiteSocialLoopReadiness() {
     secretsExposed: false,
     targetDomain: "edenskyestudios.com",
     readiness: env,
+    acceptedEnvAliases: {
+      metricoolBaseUrl: METRICOOL_BASE_URL_ENVS,
+      metricoolToken: METRICOOL_TOKEN_ENVS,
+      shopifyToken: SHOPIFY_TOKEN_ENVS,
+      shopifyShop: SHOPIFY_SHOP_ENVS
+    },
     readyForDraftLoop: env.vercel && env.supabase && env.googleWorkspace && env.aiGateway,
     readyForWebsiteBuildDraft: env.vercel && env.supabase,
     readyForMetricoolDraftScheduling: env.metricool,
