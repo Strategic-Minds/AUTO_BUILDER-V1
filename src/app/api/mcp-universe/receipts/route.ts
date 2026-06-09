@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMcpUniverseReceipt, recordMcpUniverseReceipt } from "@/lib/autobuilder-v2/mcp-universe/receipts";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
