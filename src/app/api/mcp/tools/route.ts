@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   return NextResponse.json({
     app: 'AUTO BUILDER',
-    version: '0.2.0',
+    version: '0.3.0',
     tools: [
       {
         name: 'autobuilder_stack_status',
@@ -67,12 +67,41 @@ export async function GET() {
         title: 'Drive Write Receipt',
         description: 'Plans writing a Google Drive job receipt.',
       },
+      {
+        name: 'run_eden_social_loop',
+        title: 'Run Eden Skye Social Loop',
+        description: 'Runs the EdenSkyeStudios.com website, social, model, membership, validation, quarantine, and memory loop in dry-run/draft mode.',
+      },
+      {
+        name: 'run_eden_website_build_workflow',
+        title: 'Run Eden Website Build Workflow',
+        description: 'Plans the Vercel Workflow backend/frontend build for EdenSkyeStudios.com and Eden Closet without production deployment.',
+      },
+      {
+        name: 'run_metricool_job',
+        title: 'Run Metricool Job',
+        description: 'Prepares Metricool draft scheduling and analytics jobs. Public posting remains approval-gated.',
+      },
+      {
+        name: 'run_shopify_xyla_job',
+        title: 'Run Shopify Xyla Job',
+        description: 'Uses Shopify as the Xyla operating bridge for draft collections, feed packets, products, metafields, and model/member content surfaces.',
+      },
+      {
+        name: 'run_edens_closet_membership_job',
+        title: "Run Eden's Closet Membership Job",
+        description: 'Plans Black Card membership products, age gate, entitlement, sign-in, and draft checkout flows. Billing activation and adult-content release require explicit approval.',
+      },
     ],
     governance: {
       protectedMutationRule:
         'No workflow, governance, source-truth, billing, deployment, database, Shopify, Stripe money movement, Vercel env, Supabase schema, Drive canon, Sheets canon, or authority-file mutation without Jeremy explicit current-session command.',
       driveFolderCreateRule:
         'drive_create_folder defaults to dry-run. Live folder creation requires dry_run=false, approved_actions including create_missing_folders, and approval_phrase exactly APPROVE DRIVE FOLDER CREATE.',
+      edenClosetRule:
+        'Eden Closet / Black Card membership work defaults to design, schema, draft checkout, and compliance planning only. Payment activation, adult-content release, public publishing, and subscriber messaging require explicit approval.',
+      socialPublishingRule:
+        'Metricool and Shopify/Xyla jobs default to draft packets. Public posts, comments, replies, DMs, and paid campaigns require approval.'
     },
   });
 }
