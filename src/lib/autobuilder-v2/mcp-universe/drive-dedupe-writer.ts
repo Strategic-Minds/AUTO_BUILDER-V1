@@ -42,6 +42,12 @@ type DuplicateGroup = {
   duplicates: ScannedItem[];
 };
 
+type FolderVisit = {
+  folderId: string;
+  path: string;
+  depth: number;
+};
+
 type GoogleCredential = {
   clientEmail?: string;
   privateKey?: string;
@@ -54,6 +60,7 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const APPROVAL_PHRASE = "APPROVE DRIVE TOOL WRITE";
 const AUTO_WORKFLOW_ROOT_FOLDER_ID = AUTO_WORKFLOW_CANONICAL_FOLDERS.auto_workflow_root;
 const DEFAULT_QUARANTINE_FOLDER_ID = "1yOdXrh-yKDJZE1gLYzoMCQrdCEMH82k7";
+const SCAN_BATCH_SIZE = 8;
 
 function stripWrappingQuotes(value: string) {
   const trimmed = value.trim();
@@ -170,36 +177,60 @@ function folderIdFromAlias(value?: string) {
 }
 
 async function listChildren(accessToken: string, folderId: string) {
-  const params = new URLSearchParams({
-    q: `'${escapeDriveQuery(folderId)}' in parents and trashed = false`,
-    fields: "files(id,name,mimeType,createdTime,modifiedTime,webViewLink,parents)",
-    supportsAllDrives: "true",
-    includeItemsFromAllDrives: "true",
-    pageSize: "1000",
-    orderBy: "folder,name,createdTime"
-  });
-  const result = await driveFetch<{ files: DriveItem[] }>(accessToken, `${DRIVE_API}/files?${params.toString()}`);
-  return result.files;
+  const files: DriveItem[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const params = new URLSearchParams({
+      q: `'${escapeDriveQuery(folderId)}' in parents and trashed = false`,
+      fields: "nextPageToken,files(id,name,mimeType,createdTime,modifiedTime,webViewLink,parents)",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+      pageSize: "1000",
+      orderBy: "folder,name,createdTime"
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+    const result = await driveFetch<{ files?: DriveItem[]; nextPageToken?: string }>(accessToken, `${DRIVE_API}/files?${params.toString()}`);
+    files.push(...(result.files ?? []));
+    pageToken = result.nextPageToken;
+  } while (pageToken);
+
+  return files;
 }
 
 async function scanTree(accessToken: string, rootFolderId: string, maxDepth: number, excludedFolderIds = new Set<string>()) {
   const items: ScannedItem[] = [];
   const visited = new Set<string>();
+  let frontier: FolderVisit[] = [{ folderId: rootFolderId, path: "", depth: 1 }];
 
-  async function visit(folderId: string, path: string, depth: number) {
-    if (visited.has(folderId) || depth > maxDepth || excludedFolderIds.has(folderId)) return;
-    visited.add(folderId);
-    const children = await listChildren(accessToken, folderId);
-    for (const child of children) {
-      const childPath = path ? `${path}/${child.name}` : child.name;
-      const scanned = { ...child, path: childPath, parentId: folderId, depth };
-      items.push(scanned);
-      if (child.mimeType === "application/vnd.google-apps.folder") await visit(child.id, childPath, depth + 1);
+  while (frontier.length) {
+    const currentLevel = frontier;
+    frontier = [];
+
+    for (let index = 0; index < currentLevel.length; index += SCAN_BATCH_SIZE) {
+      const batch = currentLevel.slice(index, index + SCAN_BATCH_SIZE);
+      const nextFoldersByEntry = await Promise.all(batch.map(async (entry) => {
+        if (visited.has(entry.folderId) || entry.depth > maxDepth || excludedFolderIds.has(entry.folderId)) return [] as FolderVisit[];
+        visited.add(entry.folderId);
+
+        const children = await listChildren(accessToken, entry.folderId);
+        const nextFolders: FolderVisit[] = [];
+        for (const child of children) {
+          const childPath = entry.path ? `${entry.path}/${child.name}` : child.name;
+          const scanned = { ...child, path: childPath, parentId: entry.folderId, depth: entry.depth };
+          items.push(scanned);
+          if (child.mimeType === "application/vnd.google-apps.folder" && entry.depth < maxDepth && !excludedFolderIds.has(child.id)) {
+            nextFolders.push({ folderId: child.id, path: childPath, depth: entry.depth + 1 });
+          }
+        }
+        return nextFolders;
+      }));
+
+      frontier.push(...nextFoldersByEntry.flat());
     }
   }
 
-  await visit(rootFolderId, "", 1);
-  return items;
+  return items.sort((a, b) => a.path.localeCompare(b.path) || a.id.localeCompare(b.id));
 }
 
 function duplicateGroupsFor(items: ScannedItem[], canonicalIds: Set<string>) {
