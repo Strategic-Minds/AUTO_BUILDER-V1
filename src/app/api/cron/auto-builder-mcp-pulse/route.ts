@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runMcpUniversePulse } from "@/lib/autobuilder-v2/mcp-universe/pulse";
 
+export const runtime = "nodejs";
+
 function isAuthorized(request: NextRequest) {
   const expected = process.env.CRON_API_TOKEN;
   if (!expected) {
