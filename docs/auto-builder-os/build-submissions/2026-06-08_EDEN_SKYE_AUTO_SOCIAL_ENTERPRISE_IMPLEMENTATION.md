@@ -9,6 +9,8 @@ This installs the first code layer for the Eden Skye / AUTO SOCIAL enterprise op
 
 - Supabase dev schema and RLS for models, assets, content, engagement, experiments, agent runs, memory, and receipts.
 - Draft-safe backend routes for discover, analyze, create, quarantine, approve, schedule, validate, heal, and n8n-approved dispatch.
+- Server-only Supabase persistence wiring with env guards and memory-only fallback.
+- Connector dry-run readiness surface for HeyGen, Metricool, Xyla, Google Drive, and n8n.
 - Vercel five-minute cron validator.
 - Workflow definition for the end-to-end discover -> analyze -> create -> quarantine -> validate -> heal -> approve -> schedule -> dispatch loop.
 - Memory and self-reflection services.
@@ -38,7 +40,8 @@ Local/preview validation should verify:
 7. `GET /api/auto-social/validate`
 8. `GET /api/auto-social/heal`
 9. `GET /api/auto-social/n8n-approved-dispatch`
-10. `GET /api/cron/auto-social-five-minute`
-11. `/admin/auto-social`
+10. `GET /api/auto-social/connectors/dry-run`
+11. `GET /api/cron/auto-social-five-minute`
+12. `/admin/auto-social`
 
 Every route must return `productionActionAllowed: false` directly or inside its receipt.
