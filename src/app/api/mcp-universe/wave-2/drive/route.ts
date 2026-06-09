@@ -24,6 +24,15 @@ function scaffoldErrorResponse(error: unknown) {
   );
 }
 
+function getRequestedRootFolderId(request: NextRequest) {
+  return (
+    request.nextUrl.searchParams.get("rootFolderId") ??
+    request.nextUrl.searchParams.get("root_folder_id") ??
+    request.nextUrl.searchParams.get("parentFolderId") ??
+    undefined
+  );
+}
+
 export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun");
   const approvalProbe = request.nextUrl.searchParams.get("approvalProbe");
@@ -78,6 +87,7 @@ export async function GET(request: NextRequest) {
         approved: request.nextUrl.searchParams.get("approved") === "true",
         approvalId: request.nextUrl.searchParams.get("approvalId") ?? undefined,
         approvalPhrase: request.nextUrl.searchParams.get("approvalPhrase") ?? undefined,
+        root_folder_id: getRequestedRootFolderId(request),
         create_readme_files: filesEnabled,
         create_admin_control_pack: filesEnabled
       });
@@ -108,9 +118,10 @@ export async function GET(request: NextRequest) {
     },
     approvedScaffoldGet: {
       method: "GET",
-      path: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
-      folderOnlyPath: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
-      note: "Fallback for tool runtimes that can fetch Vercel GET URLs but cannot issue POST. Same approval phrase and safety limits apply. files=false creates the folder tree without starter docs."
+      path: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&rootFolderId=<folderId>&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
+      folderOnlyPath: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&rootFolderId=<folderId>&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
+      autoWorkflowFolderOnlyPath: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&rootFolderId=13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
+      note: "Fallback for tool runtimes that can fetch Vercel GET URLs but cannot issue POST. Same approval phrase and safety limits apply. files=false creates the folder tree without starter docs. rootFolderId lets AUTO WORKFLOW be scaffolded directly."
     },
     note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run and guarded approved scaffold execution. POST validates custom Drive payloads or executes the approved full scaffold writer when the exact approval payload is supplied."
   });
