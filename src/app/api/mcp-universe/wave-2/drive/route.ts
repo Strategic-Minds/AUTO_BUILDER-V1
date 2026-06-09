@@ -21,6 +21,11 @@ function cleanFolderName(value: string | null) {
   return (value ?? "").trim().slice(0, 120);
 }
 
+function safeError(value: unknown) {
+  if (value instanceof Error) return { name: value.name, message: value.message };
+  return { name: "UnknownError", message: String(value) };
+}
+
 async function createApprovedFolder(name: string, parentFolderId: string) {
   const result = await driveCreateFolder({
     root_folder_id: autoWorkflowFolderId,
@@ -64,21 +69,36 @@ async function runLiveCreateFolder(request: NextRequest) {
     }, { status: 409 });
   }
 
-  const result = await createApprovedFolder(name, parentFolderId);
-  return NextResponse.json({
-    ok: result.ok,
-    productionActionAllowed: true,
-    status: result.ok ? "folder_created" : "folder_create_failed",
-    approvalId,
-    masterFolderId,
-    rootFolderId: autoWorkflowFolderId,
-    parentFolderId,
-    result,
-    noSupabaseSchemaChange: true,
-    noCronActivation: true,
-    noWorkflowActivation: true,
-    noAdapterWidening: true
-  }, { status: result.ok ? 200 : 409 });
+  try {
+    const result = await createApprovedFolder(name, parentFolderId);
+    return NextResponse.json({
+      ok: result.ok,
+      productionActionAllowed: true,
+      status: result.ok ? "folder_created" : "folder_create_failed",
+      approvalId,
+      masterFolderId,
+      rootFolderId: autoWorkflowFolderId,
+      parentFolderId,
+      result,
+      noSupabaseSchemaChange: true,
+      noCronActivation: true,
+      noWorkflowActivation: true,
+      noAdapterWidening: true
+    }, { status: result.ok ? 200 : 409 });
+  } catch (error) {
+    return NextResponse.json({
+      ok: false,
+      productionActionAllowed: false,
+      status: "folder_create_exception",
+      blocker: "Live Drive folder creation threw before returning a Drive receipt.",
+      error: safeError(error),
+      noMutationPerformed: true,
+      noSupabaseSchemaChange: true,
+      noCronActivation: true,
+      noWorkflowActivation: true,
+      noAdapterWidening: true
+    }, { status: 500 });
+  }
 }
 
 export async function GET(request: NextRequest) {
