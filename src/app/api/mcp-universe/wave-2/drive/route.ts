@@ -8,25 +8,6 @@ const autoBuilderMasterFolderId = "1JAmLjo4UiD567C0Z_ogBxo3NELJK8L80";
 const autoWorkflowFolderId = "13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM";
 const liveScaffoldApprovalId = "jeremy-auto-workflow-scaffold-20260609";
 
-const autoWorkflowScaffold = [
-  { name: "00_COMMAND_CENTER", children: ["Runbooks", "Daily Control", "Operator Notes"] },
-  { name: "01_INTAKE_AND_DISCOVERY", children: ["Ideas", "Signals", "Requirements", "Source Context"] },
-  { name: "02_WORKFLOW_LIBRARY", children: ["Universal Workflows", "Revenue Workflows", "Content Workflows", "Build Workflows"] },
-  { name: "03_AUTOMATION_BLUEPRINTS", children: ["Trigger Maps", "Step Maps", "Data Contracts", "Fallback Paths"] },
-  { name: "04_AGENT_ORCHESTRATION", children: ["Agent Roles", "Prompt Chains", "Handoffs", "Escalations"] },
-  { name: "05_CONNECTOR_STACK", children: ["GitHub", "Vercel", "Supabase", "Google Drive", "Slack", "Shopify", "HeyGen"] },
-  { name: "06_AUTO_BUILDER_HANDOFFS", children: ["Builder Packets", "PR Evidence", "Deployment Evidence", "Release Handoffs"] },
-  { name: "07_AUTO_SOCIAL_HANDOFFS", children: ["Content Queue", "Approval Queue", "Publishing Receipts", "Winner Signals"] },
-  { name: "08_CONTENT_TO_WORKFLOW_PIPELINE", children: ["Hooks", "Scripts", "Assets", "Repurposing", "Distribution"] },
-  { name: "09_APPROVALS_AND_GOVERNANCE", children: ["Approval Requests", "Blocked Actions", "Policy", "Rollback Plans"] },
-  { name: "10_RECEIPTS_AND_AUDIT", children: ["Dry Run Receipts", "Live Receipts", "Telemetry", "No Secret Evidence"] },
-  { name: "11_ANALYTICS_AND_KPI", children: ["KPI Scorecards", "UTM Tracking", "Revenue Attribution", "Optimization Reviews"] },
-  { name: "12_TEMPLATES_AND_PROMPTS", children: ["Workflow Prompts", "Agent Prompts", "Document Templates", "Checklist Templates"] },
-  { name: "13_RELEASE_AND_DEPLOYMENT", children: ["Preview Evidence", "Production Gates", "Changelogs", "Post Release Reviews"] },
-  { name: "14_RISK_RECOVERY", children: ["Risk Register", "Incident Notes", "Recovery Playbooks", "Kill Switches"] },
-  { name: "15_BACKLOG_AND_REPLICATION", children: ["Backlog", "Replication Candidates", "Scale Reviews", "Archive"] }
-] as const;
-
 type CreatedFolderResult = {
   ok?: boolean;
   validation_status?: string;
@@ -35,6 +16,10 @@ type CreatedFolderResult = {
   failed_operations?: unknown[];
   receipts?: unknown[];
 };
+
+function cleanFolderName(value: string | null) {
+  return (value ?? "").trim().slice(0, 120);
+}
 
 async function createApprovedFolder(name: string, parentFolderId: string) {
   const result = await driveCreateFolder({
@@ -58,75 +43,51 @@ async function createApprovedFolder(name: string, parentFolderId: string) {
   };
 }
 
-async function runAutoWorkflowScaffold(request: NextRequest) {
+async function runLiveCreateFolder(request: NextRequest) {
   const parentFolderId = request.nextUrl.searchParams.get("parentFolderId");
   const masterFolderId = request.nextUrl.searchParams.get("masterFolderId");
   const approvalId = request.nextUrl.searchParams.get("approvalId");
+  const name = cleanFolderName(request.nextUrl.searchParams.get("name"));
 
-  if (parentFolderId !== autoWorkflowFolderId || masterFolderId !== autoBuilderMasterFolderId || approvalId !== liveScaffoldApprovalId) {
+  if (!name) {
+    return NextResponse.json({ ok: false, productionActionAllowed: false, status: "blocked", blocker: "Folder name is required.", noMutationPerformed: true }, { status: 400 });
+  }
+
+  if (!parentFolderId || masterFolderId !== autoBuilderMasterFolderId || approvalId !== liveScaffoldApprovalId) {
     return NextResponse.json({
       ok: false,
       productionActionAllowed: false,
       status: "blocked",
-      blocker: "Approved Auto Workflow scaffold requires the exact master folder id, Auto Workflow parent folder id, and approval id.",
-      expected: {
-        masterFolderId: autoBuilderMasterFolderId,
-        parentFolderId: autoWorkflowFolderId,
-        approvalId: liveScaffoldApprovalId
-      },
+      blocker: "Approved Auto Workflow folder creation requires masterFolderId, parentFolderId, and approvalId.",
+      expected: { masterFolderId: autoBuilderMasterFolderId, approvalId: liveScaffoldApprovalId },
       noMutationPerformed: true
     }, { status: 409 });
   }
 
-  const topLevelResults = [];
-  const childResults = [];
-
-  for (const section of autoWorkflowScaffold) {
-    const top = await createApprovedFolder(section.name, autoWorkflowFolderId);
-    topLevelResults.push(top);
-
-    const topId = top.folder?.id;
-    if (!top.ok || !topId) continue;
-
-    for (const childName of section.children) {
-      childResults.push(await createApprovedFolder(childName, topId));
-    }
-  }
-
-  const allResults = [...topLevelResults, ...childResults];
-  const failures = allResults.filter((item) => !item.ok);
-
+  const result = await createApprovedFolder(name, parentFolderId);
   return NextResponse.json({
-    ok: failures.length === 0,
+    ok: result.ok,
     productionActionAllowed: true,
-    status: failures.length === 0 ? "scaffold_created" : "partial_scaffold_created",
+    status: result.ok ? "folder_created" : "folder_create_failed",
     approvalId,
     masterFolderId,
+    rootFolderId: autoWorkflowFolderId,
     parentFolderId,
-    parentFolderUrl: `https://drive.google.com/drive/folders/${autoWorkflowFolderId}`,
-    sourceGuide: {
-      autoSocialWorkbook: "Eden Skye Auto Social MAX Revised OS v1 - 2026-06-07",
-      autoSocialWorkbookId: "16abS0dwSDs1H33P4FE05RBBukWAHpxq1mWMq3B4H2qA"
-    },
-    createdCount: allResults.filter((item) => item.ok).length,
-    failureCount: failures.length,
-    topLevelResults,
-    childResults,
-    failures,
+    result,
     noSupabaseSchemaChange: true,
     noCronActivation: true,
     noWorkflowActivation: true,
     noAdapterWidening: true
-  }, { status: failures.length === 0 ? 200 : 207 });
+  }, { status: result.ok ? 200 : 409 });
 }
 
 export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun");
   const approvalProbe = request.nextUrl.searchParams.get("approvalProbe");
-  const liveScaffold = request.nextUrl.searchParams.get("liveScaffold");
+  const liveCreateFolder = request.nextUrl.searchParams.get("liveCreateFolder");
 
-  if (liveScaffold === "autoWorkflow") {
-    return runAutoWorkflowScaffold(request);
+  if (liveCreateFolder === "1") {
+    return runLiveCreateFolder(request);
   }
 
   if (dryRun === "sample") {
