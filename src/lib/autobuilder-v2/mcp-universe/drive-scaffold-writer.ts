@@ -99,7 +99,28 @@ function base64Url(value: string | Buffer) {
 }
 
 function normalizePrivateKey(value: string) {
-  return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
+  let key = value.trim();
+
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+
+  key = key.replace(/\\n/g, "\n");
+
+  if (key.includes("-----BEGIN PRIVATE KEY-----")) {
+    return key;
+  }
+
+  try {
+    const decoded = Buffer.from(key, "base64").toString("utf8").trim().replace(/\\n/g, "\n");
+    if (decoded.includes("-----BEGIN PRIVATE KEY-----")) {
+      return decoded;
+    }
+  } catch {
+    // Fall through and let crypto surface the original key-format error.
+  }
+
+  return key;
 }
 
 function escapeDriveQuery(value: string) {
