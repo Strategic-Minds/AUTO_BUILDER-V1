@@ -9,6 +9,10 @@ import {
   runApprovedDriveScaffoldWrite
 } from "@/lib/autobuilder-v2/mcp-universe/drive-scaffold-writer";
 import {
+  DRIVE_SCAFFOLD_CHUNKS,
+  runApprovedDriveScaffoldChunkWrite
+} from "@/lib/autobuilder-v2/mcp-universe/drive-scaffold-chunk-writer";
+import {
   AUTO_WORKFLOW_CANONICAL_FOLDERS,
   runApprovedDriveToolWrite
 } from "@/lib/autobuilder-v2/mcp-universe/drive-tool-writer";
@@ -78,6 +82,11 @@ function assertAutoWorkflowRoot(rootFolderId: string | undefined) {
 function getPayloadRootFolderId(payload: Record<string, unknown>) {
   const rootFolderId = payload.root_folder_id ?? payload.rootFolderId ?? payload.parentFolderId;
   return typeof rootFolderId === "string" ? rootFolderId : undefined;
+}
+
+function getPayloadChunk(payload: Record<string, unknown>) {
+  const chunk = payload.chunk ?? payload.scaffoldChunk;
+  return typeof chunk === "string" ? chunk : undefined;
 }
 
 function numberParam(value: string | null) {
@@ -284,6 +293,19 @@ export async function GET(request: NextRequest) {
       const rootBlocker = assertAutoWorkflowRoot(requestedRootFolderId);
       if (rootBlocker) return rootBlocker;
 
+      const chunk = request.nextUrl.searchParams.get("chunk") ?? request.nextUrl.searchParams.get("scaffoldChunk") ?? undefined;
+      if (chunk) {
+        const result = await runApprovedDriveScaffoldChunkWrite({
+          approved: request.nextUrl.searchParams.get("approved") === "true",
+          approvalId: request.nextUrl.searchParams.get("approvalId") ?? undefined,
+          approvalPhrase: request.nextUrl.searchParams.get("approvalPhrase") ?? undefined,
+          root_folder_id: requestedRootFolderId,
+          chunk,
+          maxFiles: numberParam(request.nextUrl.searchParams.get("maxFiles"))
+        });
+        return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+      }
+
       const filesEnabled = request.nextUrl.searchParams.get("files") !== "false";
       const result = await runApprovedDriveScaffoldWrite({
         ...buildApprovedDriveScaffoldPayload(),
@@ -365,15 +387,17 @@ export async function GET(request: NextRequest) {
         approvalPhrase: "APPROVE DRIVE SCAFFOLD WRITE",
         root_folder_id: AUTO_WORKFLOW_ROOT_FOLDER_ID
       },
-      note: "Creates missing folders plus readable Google Docs README/admin-control files inside AUTO WORKFLOW only. No delete, rename, move, publish, deploy, payment, live social, adult-content, or customer-message action is performed."
+      chunks: DRIVE_SCAFFOLD_CHUNKS,
+      note: "Creates missing folders plus readable Google Docs README/admin-control files inside AUTO WORKFLOW only. Use chunk for timeout-safe writes. No delete, rename, move, publish, deploy, payment, live social, adult-content, or customer-message action is performed."
     },
     approvedScaffoldGet: {
       method: "GET",
       folderOnlyPath: `/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&rootFolderId=${AUTO_WORKFLOW_ROOT_FOLDER_ID}&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE`,
+      chunkedPaths: DRIVE_SCAFFOLD_CHUNKS.map((chunk) => `/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&chunk=${chunk}&rootFolderId=${AUTO_WORKFLOW_ROOT_FOLDER_ID}&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE`),
       autoWorkflowRootFolderId: AUTO_WORKFLOW_ROOT_FOLDER_ID,
-      note: "Approved scaffold GET is constrained to the existing AUTO WORKFLOW root folder. No outside/root-level folder creation is allowed. files=false creates the folder tree without starter docs."
+      note: "Approved scaffold GET is constrained to the existing AUTO WORKFLOW root folder. No outside/root-level folder creation is allowed. chunk=... fills the tree in small idempotent batches."
     },
-    note: "GET supports dry-runs, duplicate scanning, guarded duplicate quarantine, and guarded AUTO WORKFLOW approved scaffold execution. POST executes approved canonical Drive file operations, bulk folder/file operations, or validates custom Drive payloads."
+    note: "GET supports dry-runs, duplicate scanning, guarded duplicate quarantine, guarded AUTO WORKFLOW approved scaffold execution, and chunked scaffold writes. POST executes approved canonical Drive file operations, bulk folder/file operations, or validates custom Drive payloads."
   });
 }
 
@@ -390,6 +414,16 @@ export async function POST(request: NextRequest) {
     if (rootBlocker) return rootBlocker;
 
     try {
+      const chunk = getPayloadChunk(payload);
+      if (chunk) {
+        const result = await runApprovedDriveScaffoldChunkWrite({
+          ...payload,
+          root_folder_id: requestedRootFolderId,
+          chunk
+        });
+        return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+      }
+
       const result = await runApprovedDriveScaffoldWrite({
         ...buildApprovedDriveScaffoldPayload(),
         ...payload,
