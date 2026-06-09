@@ -63,10 +63,33 @@ function getPayloadRootFolderId(payload: Record<string, unknown>) {
   return typeof rootFolderId === "string" ? rootFolderId : undefined;
 }
 
+function getApprovedToolPayload(request: NextRequest) {
+  const params = request.nextUrl.searchParams;
+  return {
+    mode: "approved_write",
+    tool: params.get("approvedTool") ?? undefined,
+    approved: params.get("approved") === "true",
+    approvalId: params.get("approvalId") ?? undefined,
+    approvalPhrase: params.get("approvalPhrase") ?? undefined,
+    targetFolderAlias: params.get("targetFolderAlias") ?? undefined,
+    targetFolderIdOrUrl: params.get("targetFolderIdOrUrl") ?? undefined,
+    destinationFolderAlias: params.get("destinationFolderAlias") ?? undefined,
+    destinationFolderIdOrUrl: params.get("destinationFolderIdOrUrl") ?? undefined,
+    targetName: params.get("targetName") ?? undefined,
+    sourceText: params.get("sourceText") ?? undefined,
+    sourceBase64: params.get("sourceBase64") ?? undefined,
+    sourceUrl: params.get("sourceUrl") ?? undefined,
+    sourceFileId: params.get("sourceFileId") ?? undefined,
+    mimeType: params.get("mimeType") ?? undefined,
+    idempotencyKey: params.get("idempotencyKey") ?? undefined
+  };
+}
+
 export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun");
   const approvalProbe = request.nextUrl.searchParams.get("approvalProbe");
   const approvedScaffold = request.nextUrl.searchParams.get("approvedScaffold");
+  const approvedTool = request.nextUrl.searchParams.get("approvedTool");
 
   if (dryRun === "sample") {
     const result = await runWave2DriveDryRun({
@@ -178,6 +201,26 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  if (approvedTool) {
+    if (!APPROVED_TOOL_NAMES.has(approvedTool)) {
+      return NextResponse.json({
+        ok: false,
+        productionActionAllowed: false,
+        status: "blocked_unsupported_drive_tool",
+        tool: approvedTool,
+        allowedTools: [...APPROVED_TOOL_NAMES],
+        noMutationPerformed: true
+      }, { status: 409 });
+    }
+
+    try {
+      const result = await runApprovedDriveToolWrite(getApprovedToolPayload(request));
+      return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    } catch (error) {
+      return scaffoldErrorResponse(error);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     productionActionAllowed: false,
@@ -191,6 +234,17 @@ export async function GET(request: NextRequest) {
     uploadImageDryRun: "/api/mcp-universe/wave-2/drive?dryRun=uploadImage",
     moveFileDryRun: "/api/mcp-universe/wave-2/drive?dryRun=moveFile",
     approvalProbe: "/api/mcp-universe/wave-2/drive?approvalProbe=1",
+    approvedToolGet: {
+      method: "GET",
+      tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt"],
+      required: {
+        approvedTool: "drive_put_file | drive_upload_file | drive_upload_image | drive_move_file | drive_list_folder | drive_write_receipt",
+        approved: true,
+        approvalId: "operator approval id",
+        approvalPhrase: APPROVED_DRIVE_TOOL_WRITE_PHRASE
+      },
+      note: "GET harness exists for connected MCP/Vercel evidence tools that cannot POST. It calls the same approved Drive tool writer and uses the same allowlist/approval gate."
+    },
     approvedToolPost: {
       method: "POST",
       tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt"],
