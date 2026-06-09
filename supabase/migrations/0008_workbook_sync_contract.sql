@@ -374,102 +374,39 @@ create table if not exists public.runtime_telemetry_events (
   updated_at timestamptz not null default now()
 );
 
-drop trigger if exists workbook_sync_sources_updated_at on public.workbook_sync_sources;
-create trigger workbook_sync_sources_updated_at before update on public.workbook_sync_sources for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists workbook_sync_sheet_map_updated_at on public.workbook_sync_sheet_map;
-create trigger workbook_sync_sheet_map_updated_at before update on public.workbook_sync_sheet_map for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists workbook_rows_normalized_updated_at on public.workbook_rows_normalized;
-create trigger workbook_rows_normalized_updated_at before update on public.workbook_rows_normalized for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists prompt_registry_updated_at on public.prompt_registry;
-create trigger prompt_registry_updated_at before update on public.prompt_registry for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists workflow_stage_templates_updated_at on public.workflow_stage_templates;
-create trigger workflow_stage_templates_updated_at before update on public.workflow_stage_templates for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists governance_rules_updated_at on public.governance_rules;
-create trigger governance_rules_updated_at before update on public.governance_rules for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists task_tag_map_updated_at on public.task_tag_map;
-create trigger task_tag_map_updated_at before update on public.task_tag_map for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists simulation_fixtures_updated_at on public.simulation_fixtures;
-create trigger simulation_fixtures_updated_at before update on public.simulation_fixtures for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists validation_rules_updated_at on public.validation_rules;
-create trigger validation_rules_updated_at before update on public.validation_rules for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists provider_capability_rules_updated_at on public.provider_capability_rules;
-create trigger provider_capability_rules_updated_at before update on public.provider_capability_rules for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists playwright_test_profiles_updated_at on public.playwright_test_profiles;
-create trigger playwright_test_profiles_updated_at before update on public.playwright_test_profiles for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists channel_strategy_profiles_updated_at on public.channel_strategy_profiles;
-create trigger channel_strategy_profiles_updated_at before update on public.channel_strategy_profiles for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists media_job_templates_updated_at on public.media_job_templates;
-create trigger media_job_templates_updated_at before update on public.media_job_templates for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists content_scorecards_updated_at on public.content_scorecards;
-create trigger content_scorecards_updated_at before update on public.content_scorecards for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists recursive_validation_runs_updated_at on public.recursive_validation_runs;
-create trigger recursive_validation_runs_updated_at before update on public.recursive_validation_runs for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists blocker_log_updated_at on public.blocker_log;
-create trigger blocker_log_updated_at before update on public.blocker_log for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists approval_requests_updated_at on public.approval_requests;
-create trigger approval_requests_updated_at before update on public.approval_requests for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists release_gate_runs_updated_at on public.release_gate_runs;
-create trigger release_gate_runs_updated_at before update on public.release_gate_runs for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists autobuilder_bridge_state_updated_at on public.autobuilder_bridge_state;
-create trigger autobuilder_bridge_state_updated_at before update on public.autobuilder_bridge_state for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists bridge_connector_actions_updated_at on public.bridge_connector_actions;
-create trigger bridge_connector_actions_updated_at before update on public.bridge_connector_actions for each row execute function public.set_current_timestamp_updated_at();
-drop trigger if exists runtime_telemetry_events_updated_at on public.runtime_telemetry_events;
-create trigger runtime_telemetry_events_updated_at before update on public.runtime_telemetry_events for each row execute function public.set_current_timestamp_updated_at();
+do $$
+declare
+  table_name text;
+begin
+  foreach table_name in array array[
+    'workbook_sync_sources','workbook_sync_sheet_map','workbook_rows_normalized','prompt_registry',
+    'workflow_stage_templates','governance_rules','task_tag_map','simulation_fixtures','validation_rules',
+    'provider_capability_rules','playwright_test_profiles','channel_strategy_profiles','media_job_templates',
+    'content_scorecards','optimization_backlog','recursive_validation_runs','blocker_log','approval_requests',
+    'release_gate_runs','autobuilder_bridge_state','bridge_connector_actions','runtime_telemetry_events'
+  ] loop
+    execute format('drop trigger if exists %I on public.%I', table_name || '_updated_at', table_name);
+    execute format('create trigger %I before update on public.%I for each row execute function public.set_current_timestamp_updated_at()', table_name || '_updated_at', table_name);
+  end loop;
+end $$;
 
-alter table public.workbook_sync_sources enable row level security;
-alter table public.workbook_sync_runs enable row level security;
-alter table public.workbook_sync_sheet_map enable row level security;
-alter table public.workbook_rows_normalized enable row level security;
-alter table public.workbook_writeback_receipts enable row level security;
-alter table public.prompt_registry enable row level security;
-alter table public.workflow_stage_templates enable row level security;
-alter table public.governance_rules enable row level security;
-alter table public.task_tag_map enable row level security;
-alter table public.simulation_fixtures enable row level security;
-alter table public.validation_rules enable row level security;
-alter table public.provider_capability_rules enable row level security;
-alter table public.playwright_test_profiles enable row level security;
-alter table public.channel_strategy_profiles enable row level security;
-alter table public.media_job_templates enable row level security;
-alter table public.content_scorecards enable row level security;
-alter table public.analytics_snapshots enable row level security;
-alter table public.optimization_backlog enable row level security;
-alter table public.recursive_validation_runs enable row level security;
-alter table public.blocker_log enable row level security;
-alter table public.approval_requests enable row level security;
-alter table public.release_gate_runs enable row level security;
-alter table public.connector_receipts enable row level security;
-alter table public.autobuilder_bridge_state enable row level security;
-alter table public.bridge_connector_actions enable row level security;
-alter table public.runtime_telemetry_events enable row level security;
-
-create policy if not exists workbook_sync_sources_service_role_all on public.workbook_sync_sources for all to service_role using (true) with check (true);
-create policy if not exists workbook_sync_runs_service_role_all on public.workbook_sync_runs for all to service_role using (true) with check (true);
-create policy if not exists workbook_sync_sheet_map_service_role_all on public.workbook_sync_sheet_map for all to service_role using (true) with check (true);
-create policy if not exists workbook_rows_normalized_service_role_all on public.workbook_rows_normalized for all to service_role using (true) with check (true);
-create policy if not exists workbook_writeback_receipts_service_role_all on public.workbook_writeback_receipts for all to service_role using (true) with check (true);
-create policy if not exists prompt_registry_service_role_all on public.prompt_registry for all to service_role using (true) with check (true);
-create policy if not exists workflow_stage_templates_service_role_all on public.workflow_stage_templates for all to service_role using (true) with check (true);
-create policy if not exists governance_rules_service_role_all on public.governance_rules for all to service_role using (true) with check (true);
-create policy if not exists task_tag_map_service_role_all on public.task_tag_map for all to service_role using (true) with check (true);
-create policy if not exists simulation_fixtures_service_role_all on public.simulation_fixtures for all to service_role using (true) with check (true);
-create policy if not exists validation_rules_service_role_all on public.validation_rules for all to service_role using (true) with check (true);
-create policy if not exists provider_capability_rules_service_role_all on public.provider_capability_rules for all to service_role using (true) with check (true);
-create policy if not exists playwright_test_profiles_service_role_all on public.playwright_test_profiles for all to service_role using (true) with check (true);
-create policy if not exists channel_strategy_profiles_service_role_all on public.channel_strategy_profiles for all to service_role using (true) with check (true);
-create policy if not exists media_job_templates_service_role_all on public.media_job_templates for all to service_role using (true) with check (true);
-create policy if not exists content_scorecards_service_role_all on public.content_scorecards for all to service_role using (true) with check (true);
-create policy if not exists analytics_snapshots_service_role_all on public.analytics_snapshots for all to service_role using (true) with check (true);
-create policy if not exists optimization_backlog_service_role_all on public.optimization_backlog for all to service_role using (true) with check (true);
-create policy if not exists recursive_validation_runs_service_role_all on public.recursive_validation_runs for all to service_role using (true) with check (true);
-create policy if not exists blocker_log_service_role_all on public.blocker_log for all to service_role using (true) with check (true);
-create policy if not exists approval_requests_service_role_all on public.approval_requests for all to service_role using (true) with check (true);
-create policy if not exists release_gate_runs_service_role_all on public.release_gate_runs for all to service_role using (true) with check (true);
-create policy if not exists connector_receipts_service_role_all on public.connector_receipts for all to service_role using (true) with check (true);
-create policy if not exists autobuilder_bridge_state_service_role_all on public.autobuilder_bridge_state for all to service_role using (true) with check (true);
-create policy if not exists bridge_connector_actions_service_role_all on public.bridge_connector_actions for all to service_role using (true) with check (true);
-create policy if not exists runtime_telemetry_events_service_role_all on public.runtime_telemetry_events for all to service_role using (true) with check (true);
+do $$
+declare
+  table_name text;
+begin
+  foreach table_name in array array[
+    'workbook_sync_sources','workbook_sync_runs','workbook_sync_sheet_map','workbook_rows_normalized',
+    'workbook_writeback_receipts','prompt_registry','workflow_stage_templates','governance_rules','task_tag_map',
+    'simulation_fixtures','validation_rules','provider_capability_rules','playwright_test_profiles',
+    'channel_strategy_profiles','media_job_templates','content_scorecards','analytics_snapshots','optimization_backlog',
+    'recursive_validation_runs','blocker_log','approval_requests','release_gate_runs','connector_receipts',
+    'autobuilder_bridge_state','bridge_connector_actions','runtime_telemetry_events'
+  ] loop
+    execute format('alter table public.%I enable row level security', table_name);
+    execute format('drop policy if exists %I on public.%I', table_name || '_service_role_all', table_name);
+    execute format('create policy %I on public.%I for all to service_role using (true) with check (true)', table_name || '_service_role_all', table_name);
+  end loop;
+end $$;
 
 insert into public.workbook_sync_sources (source_key, drive_file_id, title, role, status, sync_mode)
 values
