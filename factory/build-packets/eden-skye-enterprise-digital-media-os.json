@@ -6,7 +6,9 @@
   "liveActionsAllowed": false,
   "modules": [
     "supabase-dev-schema",
+    "supabase-server-persistence-guard",
     "draft-api-routes",
+    "connector-dry-run-readiness",
     "vercel-workflow",
     "five-minute-cron",
     "memory",
@@ -31,6 +33,7 @@
     "/api/auto-social/validate",
     "/api/auto-social/heal",
     "/api/auto-social/n8n-approved-dispatch",
+    "/api/auto-social/connectors/dry-run",
     "/api/cron/auto-social-five-minute",
     "/admin/auto-social"
   ],
