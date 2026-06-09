@@ -19,6 +19,7 @@ export async function GET() {
     workflows: getEdenWorkflowReadiness(),
     routes: [
       "/api/eden-skye/os",
+      "/api/eden-skye/admin-control",
       "/api/eden-skye/os/discover",
       "/api/eden-skye/os/analyze",
       "/api/eden-skye/os/create",
