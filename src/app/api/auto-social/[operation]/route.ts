@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { autoSocialOperations, runAutoSocialOperation, type AutoSocialOperation } from "@/lib/auto-social";
+import {
+  autoSocialOperations,
+  persistAutoSocialRun,
+  runAutoSocialOperation,
+  type AutoSocialOperation
+} from "@/lib/auto-social";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +24,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: false, error: "Unknown AUTO SOCIAL operation" }, { status: 404 });
   }
 
-  return NextResponse.json(runAutoSocialOperation(operation));
+  const result = runAutoSocialOperation(operation);
+  const persistence = await persistAutoSocialRun(result);
+  return NextResponse.json({ ...result, persistence });
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -29,5 +36,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const payload = await request.json().catch(() => ({}));
-  return NextResponse.json(runAutoSocialOperation(operation, payload));
+  const result = runAutoSocialOperation(operation, payload);
+  const persistence = await persistAutoSocialRun(result);
+  return NextResponse.json({ ...result, persistence });
 }
