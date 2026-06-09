@@ -4,3 +4,5 @@ export * from "./governance";
 export * from "./memory";
 export * from "./reflection";
 export * from "./queue";
+export * from "./supabase";
+export * from "./connectors";
