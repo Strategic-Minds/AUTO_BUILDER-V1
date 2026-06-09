@@ -3,7 +3,9 @@ import { createMcpUniverseReceipt, recordMcpUniverseReceipt } from "./receipts";
 export const wave2DriveTools = [
   "run_drive_job",
   "drive_list_tree",
+  "drive_list_folder",
   "drive_create_folder",
+  "drive_put_file",
   "drive_upload_file",
   "drive_upload_image",
   "drive_move_file",
@@ -133,7 +135,11 @@ type DriveJobInput = {
   approved?: boolean;
   approvalId?: string;
   sourceFileRef?: string;
+  sourceText?: string;
+  sourceBase64?: string;
+  sourceUrl?: string;
   targetFolderIdOrUrl?: string;
+  targetFolderAlias?: string;
   targetName?: string;
   uploadMode?: DriveUploadMode;
   idempotencyKey?: string;
@@ -191,10 +197,11 @@ function validateDriveDryRun(input: DriveJobInput) {
     return missing;
   }
 
-  if (["drive_upload_file", "drive_upload_image"].includes(tool) && !input.sourceFileRef) missing.push("sourceFileRef");
-  if (["drive_upload_file", "drive_upload_image", "drive_create_folder"].includes(tool) && !input.targetFolderIdOrUrl) missing.push("targetFolderIdOrUrl");
-  if (["drive_create_folder", "drive_upload_file", "drive_upload_image"].includes(tool) && !input.targetName) missing.push("targetName");
+  if (["drive_upload_file", "drive_put_file", "drive_upload_image"].includes(tool) && !input.sourceFileRef && !input.sourceText && !input.sourceBase64 && !input.sourceUrl) missing.push("sourceFileRef, sourceText, sourceBase64, or sourceUrl");
+  if (["drive_upload_file", "drive_put_file", "drive_upload_image", "drive_create_folder", "drive_list_folder"].includes(tool) && !input.targetFolderIdOrUrl && !input.targetFolderAlias) missing.push("targetFolderIdOrUrl or targetFolderAlias");
+  if (["drive_create_folder", "drive_upload_file", "drive_put_file", "drive_upload_image"].includes(tool) && !input.targetName) missing.push("targetName");
   if (tool === "drive_upload_file" && !input.uploadMode) missing.push("uploadMode");
+  if (tool === "drive_move_file") missing.push("sourceFileId and targetFolderIdOrUrl are validated by the approved write handler");
 
   return missing;
 }
@@ -240,15 +247,18 @@ export function getWave2Health() {
     secretsExposed: false,
     googleDrive: {
       tools: wave2DriveTools,
-      readEnvReady: boolEnv("GOOGLE_CLIENT_EMAIL") && boolEnv("GOOGLE_PRIVATE_KEY"),
+      readEnvReady: boolEnv("GOOGLE_DRIVE_ACCESS_TOKEN") || boolEnv("GOOGLE_WORKSPACE_ACCESS_TOKEN") || boolEnv("GOOGLE_SERVICE_ACCOUNT_JSON") || (boolEnv("GOOGLE_CLIENT_EMAIL") && boolEnv("GOOGLE_PRIVATE_KEY")),
       fullScaffoldDryRun: "ready",
       createFolder: "dry_run_ready",
-      uploadFile: "dry_run_ready",
-      uploadImage: "dry_run_ready",
+      putFile: "approved_write_ready",
+      uploadFile: "approved_write_ready",
+      uploadImage: "approved_write_ready",
+      listFolder: "read_ready",
+      moveFile: "approved_write_ready",
       nativeDocsImport: "dry_run_ready",
       nativeSheetsImport: "dry_run_ready",
       nativeSlidesImport: "dry_run_ready",
-      writeReceipt: "ready"
+      writeReceipt: "approved_write_ready"
     },
     videoGeneration: {
       tools: wave2VideoTools,
@@ -313,14 +323,18 @@ export async function runWave2DriveDryRun(input: DriveJobInput) {
       wouldCreateMissingFolders: tool === "run_drive_job" && input.create_missing_folders === true,
       folderManifestCount,
       sampleFolders: input.folder_manifest?.slice(0, 8) ?? [],
-      uploadFileCount: Array.isArray(input.upload_files) ? input.upload_files.length : input.sourceFileRef ? 1 : 0,
-      moveFileCount: Array.isArray(input.move_files) ? input.move_files.length : 0,
+      uploadFileCount: Array.isArray(input.upload_files) ? input.upload_files.length : input.sourceFileRef || input.sourceText || input.sourceBase64 || input.sourceUrl ? 1 : 0,
+      moveFileCount: Array.isArray(input.move_files) ? input.move_files.length : tool === "drive_move_file" ? 1 : 0,
       moveFolderCount: Array.isArray(input.move_folders) ? input.move_folders.length : 0,
       wouldCreateFolder: tool === "drive_create_folder",
+      wouldPutFile: tool === "drive_put_file",
       wouldUploadFile: tool === "drive_upload_file",
       wouldUploadImage: tool === "drive_upload_image",
+      wouldMoveFile: tool === "drive_move_file",
+      wouldListFolder: tool === "drive_list_folder" || tool === "drive_list_tree",
+      wouldWriteReceipt: tool === "drive_write_receipt",
       uploadMode: input.uploadMode ?? null,
-      targetFolderIdOrUrl: input.targetFolderIdOrUrl ?? input.root_folder_id ?? null,
+      targetFolderIdOrUrl: input.targetFolderIdOrUrl ?? input.targetFolderAlias ?? input.root_folder_id ?? null,
       targetName: input.targetName ?? null,
       validateTree: input.validate_tree ?? false,
       writeReceipts: input.write_receipts ?? false,
