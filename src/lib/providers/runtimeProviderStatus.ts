@@ -6,8 +6,66 @@ export type RuntimeProviderReadiness = {
   notes: string;
 };
 
+const METRICOOL_BASE_URL_ENVS = [
+  'METRICOOL_API_URL',
+  'METRICOOL_BASE_URL',
+  'METRICOOL_API_BASE_URL',
+  'METRICOOL_URL',
+  'METRICOOL_ENDPOINT',
+  'METRICOOL_API_ENDPOINT',
+  'EDEN_METRICOOL_API_URL',
+  'EDEN_SKYE_METRICOOL_API_URL',
+  'EDEN_SKYE_METRICOOL_BASE_URL'
+];
+
+const METRICOOL_TOKEN_ENVS = [
+  'METRICOOL_API_TOKEN',
+  'METRICOOL_API_KEY',
+  'METRICOOL_TOKEN',
+  'EDEN_METRICOOL_API_KEY',
+  'EDEN_SKYE_METRICOOL_API_KEY',
+  'EDEN_SKYE_METRICOOL_TOKEN'
+];
+
+const SHOPIFY_TOKEN_ENVS = [
+  'SHOPIFY_ADMIN_TOKEN',
+  'SHOPIFY_ACCESS_TOKEN',
+  'SHOPIFY_ADMIN_ACCESS_TOKEN',
+  'SHOPIFY_API_TOKEN',
+  'EDEN_CLOSET_SHOPIFY_ADMIN_TOKEN',
+  'XYLA_SHOPIFY_ADMIN_TOKEN'
+];
+
+const SHOPIFY_SHOP_ENVS = [
+  'SHOPIFY_SHOP',
+  'SHOPIFY_STORE_DOMAIN',
+  'SHOPIFY_SHOP_DOMAIN',
+  'SHOPIFY_STORE_URL',
+  'SHOPIFY_DOMAIN',
+  'SHOPIFY_STORE',
+  'EDEN_CLOSET_SHOPIFY_SHOP',
+  'EDEN_CLOSET_SHOPIFY_STORE_DOMAIN',
+  'XYLA_SHOPIFY_SHOP',
+  'XYLA_SHOPIFY_STORE_DOMAIN'
+];
+
+const SHOPIFY_XYLA_ENABLE_ENVS = [
+  'SHOPIFY_XYLA_ENABLED',
+  'EDEN_CLOSET_SHOPIFY_ENABLED',
+  'XYLA_SHOPIFY_ENABLED',
+  'EDEN_SKYE_SHOPIFY_XYLA_ENABLED'
+];
+
 function envPresent(name: string) {
   return Boolean(process.env[name]);
+}
+
+function anyEnvPresent(names: string[]) {
+  return names.some(envPresent);
+}
+
+function configured(names: string[]) {
+  return Object.fromEntries(names.map((name) => [name, envPresent(name)]));
 }
 
 function readiness(provider: string, requiredEnv: string[], notes: string): RuntimeProviderReadiness {
@@ -44,8 +102,13 @@ function edenUniversalRuntimeReadiness(): RuntimeProviderReadiness {
     GOOGLE_CLIENT_EMAIL: envPresent('GOOGLE_CLIENT_EMAIL'),
     GOOGLE_PRIVATE_KEY: envPresent('GOOGLE_PRIVATE_KEY'),
     SHOPIFY_ADMIN_TOKEN: envPresent('SHOPIFY_ADMIN_TOKEN'),
+    SHOPIFY_ACCESS_TOKEN: envPresent('SHOPIFY_ACCESS_TOKEN'),
+    SHOPIFY_ADMIN_ACCESS_TOKEN: envPresent('SHOPIFY_ADMIN_ACCESS_TOKEN'),
+    SHOPIFY_API_TOKEN: envPresent('SHOPIFY_API_TOKEN'),
     SHOPIFY_SHOP: envPresent('SHOPIFY_SHOP'),
     SHOPIFY_STORE_DOMAIN: envPresent('SHOPIFY_STORE_DOMAIN'),
+    SHOPIFY_SHOP_DOMAIN: envPresent('SHOPIFY_SHOP_DOMAIN'),
+    SHOPIFY_STORE_URL: envPresent('SHOPIFY_STORE_URL'),
     HEYGEN_API_KEY: envPresent('HEYGEN_API_KEY')
   };
 
@@ -108,26 +171,33 @@ function autoBuilderRedeployReadiness(): RuntimeProviderReadiness {
 }
 
 function metricoolReadiness(): RuntimeProviderReadiness {
-  return anyOfReadiness(
-    'metricool',
-    [
-      ['METRICOOL_API_URL', 'METRICOOL_BASE_URL'],
-      ['METRICOOL_API_TOKEN', 'METRICOOL_API_KEY', 'METRICOOL_TOKEN']
-    ],
-    'Required for Metricool draft scheduling and analytics. Supports existing Vercel env aliases for API URL/base URL and token/API key.'
-  );
+  const names = [...METRICOOL_BASE_URL_ENVS, ...METRICOOL_TOKEN_ENVS];
+
+  return {
+    provider: 'metricool',
+    ready: anyEnvPresent(METRICOOL_BASE_URL_ENVS) && anyEnvPresent(METRICOOL_TOKEN_ENVS),
+    requiredEnv: [METRICOOL_BASE_URL_ENVS.join(' or '), METRICOOL_TOKEN_ENVS.join(' or ')],
+    configuredEnv: configured(names),
+    notes: 'Required for Metricool draft scheduling and analytics. Supports Eden Skye and Vercel env aliases for API URL/base URL and token/API key.'
+  };
 }
 
 function xylaShopifyReadiness(): RuntimeProviderReadiness {
-  return anyOfReadiness(
-    'xyla_shopify_bridge',
-    [
-      ['SHOPIFY_ADMIN_TOKEN'],
-      ['SHOPIFY_SHOP', 'SHOPIFY_STORE_DOMAIN'],
-      ['SHOPIFY_XYLA_ENABLED', 'EDEN_CLOSET_SHOPIFY_ENABLED']
-    ],
-    'Xyla is treated as a Shopify-operated storefront/content bridge. It can create draft Shopify records, collections, metafields, and feed packets only when explicitly enabled; no separate Xyla MCP is required.'
-  );
+  const names = [...SHOPIFY_TOKEN_ENVS, ...SHOPIFY_SHOP_ENVS, ...SHOPIFY_XYLA_ENABLE_ENVS];
+  const hasToken = anyEnvPresent(SHOPIFY_TOKEN_ENVS);
+  const hasShop = anyEnvPresent(SHOPIFY_SHOP_ENVS);
+  const explicitEnable = anyEnvPresent(SHOPIFY_XYLA_ENABLE_ENVS);
+
+  return {
+    provider: 'xyla_shopify_bridge',
+    ready: hasToken && hasShop,
+    requiredEnv: [SHOPIFY_TOKEN_ENVS.join(' or '), SHOPIFY_SHOP_ENVS.join(' or ')],
+    configuredEnv: {
+      ...configured(names),
+      SHOPIFY_XYLA_EXPLICIT_WRITE_ENABLE_PRESENT: explicitEnable
+    },
+    notes: 'Xyla is treated as a Shopify-operated storefront/content bridge. Draft readiness requires a Shopify token and shop domain; actual Shopify writes, product publishing, checkout activation, and Xyla feed mutation still require explicit approval and enable flags.'
+  };
 }
 
 export function getRuntimeProviderStatus() {
