@@ -12,6 +12,7 @@ Status: branch-safe implementation for Vercel preview and Supabase migration rev
 - `/api/cron/eden-skye-five-minute`
 - `supabase/migrations/20260609050000_eden_skye_operating_system.sql`
 - `supabase/migrations/20260609053000_eden_model_profiles_and_workflow_capabilities.sql`
+- `supabase/migrations/20260609060000_eden_image_asset_queue.sql`
 
 ## Operating Model
 
@@ -30,13 +31,33 @@ The Prompt 2 workflow layer is implemented as a build-safe Vercel route contract
 - Production actions: locked
 - Approval-gated children: asset_linking, approval_queue, schedule_drafts, dispatch_approved
 
+## Automated Image Asset Queue
+
+The `image_inventory` child workflow now creates a durable draft asset queue in `eden_assets` when the Supabase preview migration is applied.
+
+What it does:
+
+- Loads all `eden_models` records.
+- Creates or updates one queued image-asset placeholder per model/faceless account using `asset_key`.
+- Stores brand-safe prompt instructions for model profile images or faceless page visuals.
+- Marks records as `qa_status = missing_or_pending_upload` and `approval_state = draft`.
+- Records that paid generation, Drive upload, external scheduling, and live publishing are not allowed from this step.
+
+What it does not do:
+
+- No image generation.
+- No paid HeyGen/image generation.
+- No Google Drive upload, move, or archive write.
+- No social posting, comment, reply, DM, or external scheduling.
+- No production migration.
+
 ## Safety Gates
 
 The implementation is draft-first. It does not perform live publishing, outbound comments, replies, DMs, adult-content release, payment activation, Shopify/Xyla publication, n8n dispatch, paid media generation, Google Drive archive writes, or production Supabase migration.
 
 ## Image And Media Library Contract
 
-The workflow layer treats image coverage as a first-class validation target. The current target remains 160 model/faceless account records. The image inventory child workflow can report missing batches and the asset linking child workflow remains approval-gated until approved Drive image IDs, URLs, or generated image packets are available.
+The workflow layer treats image coverage as a first-class validation target. The current target remains 160 model/faceless account records. The image inventory child workflow can seed missing asset records. The asset linking child workflow remains approval-gated until approved Drive image IDs, URLs, or generated image packets are available.
 
 Required image states:
 
@@ -50,10 +71,12 @@ Required image states:
 ## Next Validation
 
 1. Let Vercel build preview from PR #35.
-2. Smoke `/api/eden-skye/os` and every operation route.
-3. Smoke `/api/eden-skye/workflows` and every child workflow route.
-4. Confirm workflow supervisor writes receipts and agent run records when Supabase env is configured.
-5. Smoke `/admin/eden-skye`.
-6. Confirm cron returns 401 when protected or supervisor results when authorized.
-7. Approve Supabase migration separately before applying anywhere beyond the preview branch.
-8. Approve any real Drive upload/import/move or paid image/video generation separately.
+2. Let the Supabase preview branch apply `20260609060000_eden_image_asset_queue.sql`.
+3. Smoke `/api/eden-skye/os` and every operation route.
+4. Smoke `/api/eden-skye/workflows` and every child workflow route.
+5. Confirm `image_inventory` creates or updates 160 `eden_assets` queue records.
+6. Confirm workflow supervisor writes receipts and agent run records when Supabase env is configured.
+7. Smoke `/admin/eden-skye`.
+8. Confirm cron returns 401 when protected or supervisor results when authorized.
+9. Approve Supabase migration separately before applying anywhere beyond the preview branch.
+10. Approve any real Drive upload/import/move or paid image/video generation separately.
