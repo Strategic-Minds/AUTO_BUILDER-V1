@@ -28,6 +28,15 @@ export type EdenWorkflowName =
 export type EdenWorkflowMode = "simulation" | "dry_run" | "approval_gated";
 export type EdenWorkflowStatus = "completed" | "blocked_for_approval" | "failed";
 
+type EdenModelRecord = {
+  id: string;
+  external_key: string;
+  display_name: string;
+  cohort: string;
+  age_band: string;
+  persona: string;
+};
+
 export type EdenWorkflowSpec = {
   name: EdenWorkflowName;
   operation: EdenOperation;
@@ -64,6 +73,7 @@ export type EdenChildWorkflowResult = {
   approvalRequired?: boolean;
   maxRetries?: number;
   toolScope?: string[];
+  mediaQueue?: unknown;
   persistence?: unknown;
   agentRunPersistence?: unknown;
   receipt?: unknown;
@@ -218,6 +228,85 @@ function asJsonRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+function buildImagePrompt(model: EdenModelRecord) {
+  if (model.cohort === "faceless") {
+    return `Create a brand-safe faceless social page visual system for ${model.display_name}: profile icon, reusable cover image, short-form post template, and neutral background set. No real-person identity claims. Approval-gated before external use.`;
+  }
+  return `Create a brand-safe draft digital creator profile image set for ${model.display_name}, cohort ${model.cohort}, age band ${model.age_band}. Include profile portrait concept, lifestyle feed concept, vertical short-form thumbnail concept, and website card concept. Synthetic/digital model only. Approval-gated before external use.`;
+}
+
+export async function ensureEdenImageAssetQueue() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return { ok: true, mode: "memory_only", reason: "Supabase env not configured", targetAssets: buildModelRegistrySeed().length };
+
+  const { data: models, error: modelError } = await supabase
+    .from("eden_models")
+    .select("id, external_key, display_name, cohort, age_band, persona")
+    .order("external_key", { ascending: true })
+    .limit(1000);
+
+  if (modelError) return { ok: false, mode: "supabase", stage: "load_models", reason: modelError.message };
+
+  const records = ((models || []) as EdenModelRecord[]).map((model) => ({
+    asset_key: `${model.external_key}:primary_image_queue`,
+    model_id: model.id,
+    asset_type: model.cohort === "faceless" ? "faceless_page_image_queue" : "model_image_queue",
+    provider: "eden_image_queue",
+    prompt: buildImagePrompt(model),
+    file_url: null,
+    storage_path: null,
+    qa_status: "missing_or_pending_upload",
+    approval_state: "draft",
+    metadata: {
+      external_key: model.external_key,
+      display_name: model.display_name,
+      cohort: model.cohort,
+      persona: model.persona,
+      queue_state: "needs_generation_or_drive_upload",
+      drive_state: "not_linked",
+      generation_state: "not_started",
+      paid_generation_allowed: false,
+      external_writes_allowed: false,
+      approval_required_before_publish: true,
+      required_outputs: ["profile_image", "feed_image", "short_form_thumbnail", "website_card"]
+    }
+  }));
+
+  if (records.length === 0) return { ok: false, mode: "supabase", stage: "build_records", reason: "No eden_models records found" };
+
+  const { error: upsertError } = await supabase
+    .from("eden_assets")
+    .upsert(records, { onConflict: "asset_key" });
+
+  if (upsertError) {
+    return {
+      ok: false,
+      mode: "supabase",
+      stage: "upsert_assets",
+      reason: upsertError.message,
+      expectedMigration: "20260609060000_eden_image_asset_queue.sql"
+    };
+  }
+
+  const { count, error: countError } = await supabase
+    .from("eden_assets")
+    .select("id", { count: "exact", head: true })
+    .eq("provider", "eden_image_queue");
+
+  if (countError) return { ok: false, mode: "supabase", stage: "count_assets", reason: countError.message, requestedAssets: records.length };
+
+  return {
+    ok: true,
+    mode: "supabase",
+    requestedAssets: records.length,
+    queuedAssets: count || 0,
+    qaStatus: "missing_or_pending_upload",
+    approvalState: "draft",
+    externalWritesAllowed: false,
+    paidGenerationAllowed: false
+  };
+}
+
 async function persistWorkflowAgentRun(spec: EdenWorkflowSpec, result: unknown) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { mode: "memory_only", ok: true, reason: "Supabase env not configured" };
@@ -262,6 +351,7 @@ export async function runEdenChildWorkflow(name: EdenWorkflowName, input: EdenWo
   const runId = buildWorkflowRunId(spec.name);
   const gate = workflowGate(spec);
   const status: EdenWorkflowStatus = spec.approvalRequired ? "blocked_for_approval" : "completed";
+  const mediaQueue = spec.name === "image_inventory" ? await ensureEdenImageAssetQueue() : null;
   const receipt = buildEdenReceipt(spec.operation, {
     runId,
     workflow: spec.name,
@@ -273,7 +363,8 @@ export async function runEdenChildWorkflow(name: EdenWorkflowName, input: EdenWo
     externalWritesAllowed: false,
     simulateOnly: input.simulateOnly !== false,
     requestedBy: input.requestedBy || "system",
-    payload: input.payload || {}
+    payload: input.payload || {},
+    mediaQueue
   });
   const persistence = await persistEdenReceipt(receipt);
 
@@ -293,6 +384,7 @@ export async function runEdenChildWorkflow(name: EdenWorkflowName, input: EdenWo
     approvalRequired: spec.approvalRequired,
     maxRetries: spec.maxRetries,
     toolScope: spec.toolScope,
+    mediaQueue,
     persistence,
     receipt
   };
@@ -315,6 +407,7 @@ export async function runEdenWorkflowSupervisor(input: EdenWorkflowInput = {}) {
   const failed = childResults.filter((item) => !item.ok || item.status === "failed").length;
   const connectors = getConnectorReadiness();
   const registry = buildModelRegistrySeed();
+  const mediaQueue = childResults.find((item) => item.workflow === "image_inventory")?.mediaQueue || null;
 
   const supervisorReceipt = buildEdenReceipt("validate", {
     runId,
@@ -329,6 +422,7 @@ export async function runEdenWorkflowSupervisor(input: EdenWorkflowInput = {}) {
     registryTarget: registry.length,
     queueSeed: buildQueueSeed(),
     imageAssetTarget: registry.length,
+    mediaQueue,
     missingImageAssetPolicy: "generate_or_upload_batches_only_after_approval_and_available_packets"
   });
   const persistence = await persistEdenReceipt(supervisorReceipt);
@@ -352,7 +446,8 @@ export async function runEdenWorkflowSupervisor(input: EdenWorkflowInput = {}) {
     status: "completed",
     completed,
     blockedForApproval,
-    failed
+    failed,
+    mediaQueue
   });
 
   return {
@@ -366,6 +461,7 @@ export async function runEdenWorkflowSupervisor(input: EdenWorkflowInput = {}) {
     blockedForApproval,
     failed,
     connectors,
+    mediaQueue,
     childWorkflows: childResults,
     persistence,
     agentRunPersistence,
