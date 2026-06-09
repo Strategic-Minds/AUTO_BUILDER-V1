@@ -1,5 +1,15 @@
 create extension if not exists pgcrypto;
 
+create or replace function public.set_current_timestamp_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 alter table if exists public.eden_models
   add column if not exists model_limit integer not null default 0,
   add column if not exists profile jsonb not null default '{}'::jsonb,
@@ -80,7 +90,7 @@ begin
   end loop;
 end $$;
 
-with cohort_plan as (
+with cohorts as (
   select * from (values
     ('male_18_25', '18-25 male digital creator', '18-25', 20, 'lifestyle, fitness, fashion, campus energy'),
     ('female_18_25', '18-25 female digital creator', '18-25', 20, 'beauty, style, wellness, daily-life storytelling'),
@@ -101,7 +111,7 @@ with cohort_plan as (
     cohort || '_' || lpad(idx::text, 2, '0') as external_key,
     initcap(replace(cohort, '_', ' ')) || ' ' || lpad(idx::text, 2, '0') as display_name,
     case when cohort = 'faceless' then 'faceless_page' else 'model' end as registry_type
-  from cohort_plan
+  from cohorts
   cross join generate_series(1, target_count) as idx
 ), upsert_models as (
   insert into public.eden_models (
@@ -127,38 +137,12 @@ with cohort_plan as (
     archetype || ' focused on ' || content_lane,
     'draft_ready',
     'approval_gated',
-    '["instagram","tiktok","youtube_shorts","x","website"]'::jsonb,
+    array['instagram','tiktok','youtube_shorts','x','website'],
     6,
-    jsonb_build_object(
-      'registry_type', registry_type,
-      'cohort', cohort,
-      'age_band', age_band,
-      'content_lane', content_lane,
-      'image_status', 'missing_or_pending_upload',
-      'profile_status', 'draft_seeded'
-    ),
-    jsonb_build_object(
-      'voice', case when cohort = 'faceless' then 'editorial, useful, conversion-aware' else 'warm, confident, aspirational, conversational' end,
-      'values', jsonb_build_array('brand-safe', 'approval-gated', 'audience-first', 'high-signal'),
-      'response_style', 'short-form social native with escalation for sensitive replies'
-    ),
-    jsonb_build_object(
-      'adult_content', 'membership_only_and_approval_required',
-      'live_publish', false,
-      'dm_outreach', false,
-      'requires_human_approval_for_external_publish', true
-    ),
-    jsonb_build_object(
-      'discover', true,
-      'analyze', true,
-      'draft_create', true,
-      'quarantine', true,
-      'approve', false,
-      'schedule_after_approval', true,
-      'live_publish', false,
-      'auto_reply_draft', true,
-      'auto_message_send', false
-    )
+    jsonb_build_object('registry_type', registry_type, 'cohort', cohort, 'age_band', age_band, 'content_lane', content_lane, 'image_status', 'missing_or_pending_upload', 'profile_status', 'draft_seeded'),
+    jsonb_build_object('voice', case when cohort = 'faceless' then 'editorial, useful, conversion-aware' else 'warm, confident, aspirational, conversational' end, 'values', jsonb_build_array('brand-safe','approval-gated','audience-first','high-signal'), 'response_style', 'short-form social native with escalation for sensitive replies'),
+    jsonb_build_object('adult_content','membership_only_and_approval_required','live_publish',false,'dm_outreach',false,'requires_human_approval_for_external_publish',true),
+    jsonb_build_object('discover',true,'analyze',true,'draft_create',true,'quarantine',true,'approve',false,'schedule_after_approval',true,'live_publish',false,'auto_reply_draft',true,'auto_message_send',false)
   from generated
   on conflict (external_key) do update
   set display_name = excluded.display_name,
@@ -211,38 +195,15 @@ set model_id = excluded.model_id,
     updated_at = now();
 
 with generated as (
-  select
-    cohort,
-    idx,
-    cohort || '_' || lpad(idx::text, 2, '0') as external_key
+  select cohort, cohort || '_' || lpad(idx::text, 2, '0') as external_key
   from (values
     ('male_18_25', 20), ('female_18_25', 20), ('male_25_50', 20), ('female_25_50', 20),
     ('male_50_plus', 20), ('female_50_plus', 20), ('international', 20), ('faceless', 20)
   ) as v(cohort, target_count)
   cross join generate_series(1, target_count) as idx
 )
-insert into public.eden_model_limits (
-  external_key,
-  cohort,
-  daily_post_limit,
-  daily_reply_draft_limit,
-  weekly_video_draft_limit,
-  monthly_experiment_limit,
-  live_publish_allowed,
-  outbound_message_allowed,
-  requires_approval,
-  policy_payload
-)
-select
-  external_key,
-  cohort,
-  6,
-  40,
-  7,
-  4,
-  false,
-  false,
-  true,
+insert into public.eden_model_limits (external_key, cohort, daily_post_limit, daily_reply_draft_limit, weekly_video_draft_limit, monthly_experiment_limit, live_publish_allowed, outbound_message_allowed, requires_approval, policy_payload)
+select external_key, cohort, 6, 40, 7, 4, false, false, true,
   jsonb_build_object('approval_gate', 'required_before_live_external_action', 'quarantine_on_policy_failure', true, 'sandbox_first', true)
 from generated
 on conflict (external_key) do update
@@ -289,18 +250,7 @@ set display_name = excluded.display_name,
     status = excluded.status,
     updated_at = now();
 
-insert into public.eden_workflow_capabilities (
-  capability_key,
-  capability_name,
-  workflow_name,
-  autonomy_level,
-  risk_class,
-  allowed_without_approval,
-  approval_required,
-  tool_scope,
-  policy_payload,
-  status
-)
+insert into public.eden_workflow_capabilities (capability_key, capability_name, workflow_name, autonomy_level, risk_class, allowed_without_approval, approval_required, tool_scope, policy_payload, status)
 values
   ('discover', 'Discovery intake and opportunity mapping', 'DISCOVER', 3, 'low', true, false, '["supabase","vercel_workflow","metricool_dry_run","shopify_read"]'::jsonb, '{"writes":"receipts_and_drafts_only"}'::jsonb, 'active'),
   ('analyze', 'Performance, audience, and content analysis', 'ANALYZE', 3, 'low', true, false, '["supabase","metricool_dry_run","analytics"]'::jsonb, '{"writes":"analysis_receipts"}'::jsonb, 'active'),
