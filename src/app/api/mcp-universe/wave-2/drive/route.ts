@@ -4,6 +4,10 @@ import {
   runWave2DriveDryRun,
   wave2DriveTools
 } from "@/lib/autobuilder-v2/mcp-universe/wave-2-adapters";
+import {
+  buildApprovedDriveScaffoldPayload,
+  runApprovedDriveScaffoldWrite
+} from "@/lib/autobuilder-v2/mcp-universe/drive-scaffold-writer";
 
 export const runtime = "nodejs";
 
@@ -61,7 +65,17 @@ export async function GET(request: NextRequest) {
     fullScaffoldDryRun: "/api/mcp-universe/wave-2/drive?dryRun=fullScaffold",
     createFolderDryRun: "/api/mcp-universe/wave-2/drive?dryRun=createFolder",
     approvalProbe: "/api/mcp-universe/wave-2/drive?approvalProbe=1",
-    note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run. POST validates custom Drive upload/import/folder payloads. No Drive mutation occurs in dry_run mode."
+    approvedScaffoldPost: {
+      method: "POST",
+      required: {
+        mode: "approved_write",
+        tool: "run_drive_job",
+        approved: true,
+        approvalPhrase: "APPROVE DRIVE SCAFFOLD WRITE"
+      },
+      note: "Creates missing folders plus readable Google Docs README/admin-control files. No delete, rename, move, publish, deploy, payment, live social, adult-content, or customer-message action is performed."
+    },
+    note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run. POST validates custom Drive payloads or executes the approved full scaffold writer when the exact approval payload is supplied."
   });
 }
 
@@ -71,6 +85,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, productionActionAllowed: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const result = await runWave2DriveDryRun(body as Record<string, unknown>);
+  const payload = body as Record<string, unknown>;
+  if (payload.mode === "approved_write" && payload.tool === "run_drive_job") {
+    const result = await runApprovedDriveScaffoldWrite({
+      ...buildApprovedDriveScaffoldPayload(),
+      ...payload
+    });
+    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  }
+
+  const result = await runWave2DriveDryRun(payload);
   return NextResponse.json(result, { status: result.ok ? 200 : 409 });
 }
