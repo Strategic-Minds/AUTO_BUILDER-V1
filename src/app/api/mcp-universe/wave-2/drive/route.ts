@@ -52,6 +52,11 @@ function assertAutoWorkflowRoot(rootFolderId: string | undefined) {
   );
 }
 
+function getPayloadRootFolderId(payload: Record<string, unknown>) {
+  const rootFolderId = payload.root_folder_id ?? payload.rootFolderId ?? payload.parentFolderId;
+  return typeof rootFolderId === "string" ? rootFolderId : undefined;
+}
+
 export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun");
   const approvalProbe = request.nextUrl.searchParams.get("approvalProbe");
@@ -135,9 +140,10 @@ export async function GET(request: NextRequest) {
         mode: "approved_write",
         tool: "run_drive_job",
         approved: true,
-        approvalPhrase: "APPROVE DRIVE SCAFFOLD WRITE"
+        approvalPhrase: "APPROVE DRIVE SCAFFOLD WRITE",
+        root_folder_id: AUTO_WORKFLOW_ROOT_FOLDER_ID
       },
-      note: "Creates missing folders plus readable Google Docs README/admin-control files. No delete, rename, move, publish, deploy, payment, live social, adult-content, or customer-message action is performed."
+      note: "Creates missing folders plus readable Google Docs README/admin-control files inside AUTO WORKFLOW only. No delete, rename, move, publish, deploy, payment, live social, adult-content, or customer-message action is performed."
     },
     approvedScaffoldGet: {
       method: "GET",
@@ -157,10 +163,15 @@ export async function POST(request: NextRequest) {
 
   const payload = body as Record<string, unknown>;
   if (payload.mode === "approved_write" && payload.tool === "run_drive_job") {
+    const requestedRootFolderId = getPayloadRootFolderId(payload);
+    const rootBlocker = assertAutoWorkflowRoot(requestedRootFolderId);
+    if (rootBlocker) return rootBlocker;
+
     try {
       const result = await runApprovedDriveScaffoldWrite({
         ...buildApprovedDriveScaffoldPayload(),
-        ...payload
+        ...payload,
+        root_folder_id: requestedRootFolderId
       });
       return NextResponse.json(result, { status: result.ok ? 200 : 409 });
     } catch (error) {
