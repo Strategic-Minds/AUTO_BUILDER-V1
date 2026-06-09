@@ -4,6 +4,8 @@
 
 Draft plus branch-safe compatibility patch. Do not apply schema changes or production database mutations without explicit approval, Supabase advisor review, and rollback plan.
 
+Latest preview evidence shows the branch-safe compatibility patch writes receipt telemetry successfully to the existing public telemetry table. MCP-specific persistence tables remain draft-only.
+
 ## Scope
 
 Wave 1 remains limited to:
@@ -14,23 +16,25 @@ Wave 1 remains limited to:
 
 Do not widen adapters beyond GitHub, Vercel, and Supabase receipt persistence in this lane.
 
-## Verified Blockers
+## Verified Blockers Resolved
 
-The deployed self-operating loop creates an MCP receipt successfully, but earlier Supabase REST inserts into `runtime_telemetry_events` returned schema-cache errors.
+The deployed self-operating loop creates an MCP receipt successfully. Earlier Supabase REST inserts into `runtime_telemetry_events` returned schema-cache errors because the receipt helper attempted to write fields that did not exist as top-level columns.
 
-Observed failing fields:
+Earlier failing fields:
 
 - `blocker`
 - `event_type`
 
-Error class:
+Earlier error class:
 
 - `PGRST204`
 
-Impact:
+Current preview result:
 
-- Receipt remained available in route response.
-- Durable telemetry insert failed until the payload was aligned to the actual table columns.
+- `/api/mcp-universe/self-operating-loop` returned HTTP 200.
+- Supabase REST insert into `runtime_telemetry_events` returned HTTP 201.
+- Verified inserted telemetry row id: `75e84e49-2731-488b-b3fb-ee4e36c17e88`.
+- Production actions remained disabled.
 
 ## Verified Table Shape
 
@@ -44,6 +48,8 @@ Read-only information-schema inspection verified `public.runtime_telemetry_event
 | `event_payload` | `jsonb` | no |
 | `created_at` | `timestamptz` | no |
 | `updated_at` | `timestamptz` | no |
+
+Read-only inspection also confirmed no `autobuilder_mcp` tables are currently present in the live database. That is expected because the MCP-specific schema draft has not been approved or applied.
 
 ## Root Cause
 
@@ -96,17 +102,43 @@ insert into autobuilder_mcp.mcp_receipts (
 ) values (...);
 ```
 
-## Advisor Review Required Before Apply
+## Advisor Review
 
-Run Supabase advisors before and after any approved migration:
+Latest read-only advisor review against project `prhppuuwcnmfdhwsagug`:
 
-- security advisors
-- performance advisors
+- Security advisors: no lints returned.
+- Performance advisors: existing INFO/WARN backlog remains.
 
-Current read-only advisor state from preview validation:
+Existing performance advisor themes:
 
-- Security: no lints.
-- Performance: existing INFO/WARN backlog, including unindexed foreign keys, unused indexes, and multiple permissive policy warnings.
+- Unindexed foreign keys across existing public tables.
+- Unused indexes across existing public tables.
+- Multiple permissive policies on selected existing public tables.
+- Auth DB connection strategy uses an absolute connection count.
+
+These advisor findings are existing database-health backlog items, not evidence that the MCP-specific schema draft has been applied.
+
+## Static Draft Review
+
+The draft uses a private schema:
+
+```sql
+create schema if not exists autobuilder_mcp;
+```
+
+It also revokes access from `anon` and `authenticated`, and enables RLS on all draft tables as defense in depth.
+
+Static review notes before any apply:
+
+- Keep `autobuilder_mcp` private unless an explicit Data API exposure decision is approved.
+- If any draft table is later exposed to the Data API, add explicit grants plus RLS policies before allowing client access.
+- Add indexes for any future high-volume lookup fields before production use, especially `run_id`, `mcp_id`, `created_at`, `status`, and queue state fields.
+- Keep service-role writes server-side only; never expose service-role credentials to clients.
+- Produce a rollback/down migration before applying the schema.
+
+Supabase changelog relevance:
+
+- Supabase has a database breaking-change note that tables are not automatically exposed to Data and GraphQL APIs. This supports the current private-schema posture and means future exposure must be deliberate, not assumed.
 
 ## Validation Plan
 
@@ -116,6 +148,7 @@ Current read-only advisor state from preview validation:
 4. Confirm no secret values appear in the response.
 5. Confirm production actions remain disabled.
 6. Only after explicit approval, test private `autobuilder_mcp.mcp_receipts` persistence on an isolated Supabase branch or approved target.
+7. Re-run Supabase security and performance advisors after any approved migration.
 
 ## Rollback
 
