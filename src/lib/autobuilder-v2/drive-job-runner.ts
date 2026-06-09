@@ -44,8 +44,26 @@ function isBlocked(action: string, blockedActions: string[]) {
   return blockedActions.some((blocked) => action === blocked || action.includes(blocked));
 }
 
+function stripWrappingQuotes(value: string) {
+  const trimmed = value.trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
 function normalizePrivateKey(value: string) {
-  return value.replace(/\\n/g, "\n");
+  const unwrapped = stripWrappingQuotes(value).replace(/\\n/g, "\n");
+  if (unwrapped.includes("-----BEGIN")) return unwrapped;
+
+  try {
+    const decoded = Buffer.from(unwrapped, "base64").toString("utf8").replace(/\\n/g, "\n");
+    if (decoded.includes("-----BEGIN")) return decoded;
+  } catch {
+    // Keep the original value below so crypto can surface a precise decoder error.
+  }
+
+  return unwrapped;
 }
 
 function base64url(input: string) {
@@ -70,16 +88,23 @@ async function getGoogleAccessToken() {
 
   const now = Math.floor(Date.now() / 1000);
   const scope = process.env.GOOGLE_DRIVE_SCOPE ?? "https://www.googleapis.com/auth/drive.file";
-  const assertion = signJwt(
-    {
-      iss: clientEmail,
-      scope,
-      aud: "https://oauth2.googleapis.com/token",
-      iat: now,
-      exp: now + 3600
-    },
-    privateKey
-  );
+  let assertion: string;
+
+  try {
+    assertion = signJwt(
+      {
+        iss: clientEmail,
+        scope,
+        aud: "https://oauth2.googleapis.com/token",
+        iat: now,
+        exp: now + 3600
+      },
+      privateKey
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false as const, error: `Google private key signing failed: ${message}` };
+  }
 
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
