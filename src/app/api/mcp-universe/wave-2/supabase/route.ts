@@ -74,7 +74,8 @@ function validateSupabaseJob(input: SupabaseJobInput) {
 async function runSupabaseAdapter(input: SupabaseJobInput) {
   const { tool, mode, missing, isWrite, blockedByApproval, liveExecutionDisabled, productionBlocked } = validateSupabaseJob(input);
   const blocked = missing.length > 0 || blockedByApproval || liveExecutionDisabled || productionBlocked;
-  const status = blocked ? "blocked" : mode === "dry_run" ? "dry_run_pass" : isWrite ? "approved_execution_ready" : "read_ready";
+  const isDryRun = mode === "dry_run";
+  const status = blocked ? "blocked" : isDryRun ? "dry_run_pass" : isWrite ? "approved_execution_ready" : "read_ready";
   const blocker = missing.length > 0
     ? `Missing required fields: ${missing.join(", ")}`
     : blockedByApproval
@@ -89,9 +90,9 @@ async function runSupabaseAdapter(input: SupabaseJobInput) {
     mcpId: "wave-2-supabase-adapter",
     category: "system",
     action: `${tool}_${mode}`,
-    autonomyLevel: isWrite ? 4 : 2,
-    riskClass: isWrite ? "high" : "low",
-    approvalState: blocked ? "blocked" : isWrite ? "approved" : "not_required",
+    autonomyLevel: isWrite && !isDryRun ? 4 : 2,
+    riskClass: isWrite && !isDryRun ? "high" : "low",
+    approvalState: blocked ? "blocked" : isWrite && !isDryRun ? "approved" : "not_required",
     target: "/api/mcp-universe/wave-2/supabase",
     resultSummary: blocked
       ? "Supabase Wave 2 request blocked before database mutation."
