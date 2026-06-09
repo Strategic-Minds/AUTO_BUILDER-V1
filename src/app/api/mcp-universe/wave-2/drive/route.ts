@@ -20,6 +20,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result, { status: result.ok ? 200 : 409 });
   }
 
+  if (dryRun === "createFolder") {
+    const result = await runWave2DriveDryRun({
+      mode: "dry_run",
+      tool: "drive_create_folder",
+      targetFolderIdOrUrl: "test-parent-folder-id-or-url",
+      targetName: "AUTO BUILDER MCP Dry Run Test Folder",
+      idempotencyKey: "auto-builder-drive-create-folder-get-dry-run"
+    });
+    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  }
+
   if (approvalProbe === "1") {
     const result = await runWave2DriveDryRun({
       mode: "approved_write",
@@ -38,8 +49,9 @@ export async function GET(request: NextRequest) {
     tools: wave2DriveTools,
     mode: "dry_run_ready",
     sampleDryRun: "/api/mcp-universe/wave-2/drive?dryRun=sample",
+    createFolderDryRun: "/api/mcp-universe/wave-2/drive?dryRun=createFolder",
     approvalProbe: "/api/mcp-universe/wave-2/drive?approvalProbe=1",
-    note: "POST validates Drive upload/import payloads and writes an internal receipt. It performs no Drive mutation in dry_run mode."
+    note: "POST validates Drive upload/import/folder payloads and writes an internal receipt. It performs no Drive mutation in dry_run mode."
   });
 }
 
