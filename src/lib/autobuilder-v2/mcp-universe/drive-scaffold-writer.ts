@@ -26,6 +26,12 @@ type CreatedItem = {
   webViewLink?: string;
 };
 
+type GoogleCredential = {
+  clientEmail?: string;
+  privateKey?: string;
+  source: string;
+};
+
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
@@ -94,12 +100,79 @@ const ADMIN_CONTROL_FILES = [
   }
 ];
 
-function base64Url(value: string | Buffer) {
-  return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+function stripWrappingQuotes(value: string) {
+  const trimmed = value.trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function decodeBase64Maybe(value: string) {
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    return decoded.trim() ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseGoogleCredentialJson(value: string, source: string): GoogleCredential | null {
+  const candidates = [stripWrappingQuotes(value), decodeBase64Maybe(stripWrappingQuotes(value))].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate.replace(/\\n/g, "\n")) as { client_email?: unknown; private_key?: unknown };
+      const clientEmail = typeof parsed.client_email === "string" ? parsed.client_email : undefined;
+      const privateKey = typeof parsed.private_key === "string" ? parsed.private_key : undefined;
+      if (clientEmail || privateKey) return { clientEmail, privateKey, source };
+    } catch {
+      // Try the next supported credential shape.
+    }
+  }
+
+  return null;
 }
 
 function normalizePrivateKey(value: string) {
-  return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
+  const parsedJson = parseGoogleCredentialJson(value, "GOOGLE_PRIVATE_KEY_JSON");
+  const rawKey = parsedJson?.privateKey ?? value;
+  const unwrapped = stripWrappingQuotes(rawKey).replace(/\\n/g, "\n");
+  if (unwrapped.includes("-----BEGIN")) return unwrapped;
+
+  const decoded = decodeBase64Maybe(unwrapped)?.replace(/\\n/g, "\n");
+  if (decoded?.includes("-----BEGIN")) return decoded;
+
+  return unwrapped;
+}
+
+function getGoogleCredentialInputs(): GoogleCredential {
+  const jsonCredential =
+    process.env.GOOGLE_SERVICE_ACCOUNT_JSON ??
+    process.env.GOOGLE_CREDENTIALS_JSON ??
+    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ??
+    process.env.GOOGLE_PRIVATE_KEY_JSON;
+
+  if (jsonCredential) {
+    const parsed = parseGoogleCredentialJson(jsonCredential, "service_account_json");
+    if (parsed?.clientEmail || parsed?.privateKey) return parsed;
+  }
+
+  const privateKeyFromEnv = process.env.GOOGLE_PRIVATE_KEY ?? process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const parsedPrivateKeyJson = privateKeyFromEnv ? parseGoogleCredentialJson(privateKeyFromEnv, "private_key_env_json") : null;
+
+  return {
+    clientEmail:
+      process.env.GOOGLE_CLIENT_EMAIL ??
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ??
+      parsedPrivateKeyJson?.clientEmail,
+    privateKey: parsedPrivateKeyJson?.privateKey ?? privateKeyFromEnv,
+    source: parsedPrivateKeyJson ? "private_key_env_json" : "separate_env_values"
+  };
+}
+
+function base64Url(value: string | Buffer) {
+  return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 function escapeDriveQuery(value: string) {
@@ -112,17 +185,18 @@ function pathReadme(path: string) {
 }
 
 async function getAccessToken() {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  const directAccessToken = process.env.GOOGLE_DRIVE_ACCESS_TOKEN ?? process.env.GOOGLE_WORKSPACE_ACCESS_TOKEN ?? process.env.GOOGLE_OAUTH_ACCESS_TOKEN;
+  if (directAccessToken) return directAccessToken;
 
-  if (!clientEmail || !privateKey) {
-    throw new Error("Google service account env is missing GOOGLE_CLIENT_EMAIL or GOOGLE_PRIVATE_KEY.");
+  const credentials = getGoogleCredentialInputs();
+  if (!credentials.clientEmail || !credentials.privateKey) {
+    throw new Error("Google Drive auth requires GOOGLE_DRIVE_ACCESS_TOKEN, GOOGLE_WORKSPACE_ACCESS_TOKEN, GOOGLE_SERVICE_ACCOUNT_JSON, or GOOGLE_CLIENT_EMAIL plus GOOGLE_PRIVATE_KEY.");
   }
 
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const claim = {
-    iss: clientEmail,
+    iss: credentials.clientEmail,
     scope: DRIVE_SCOPE,
     aud: TOKEN_URL,
     exp: now + 3600,
@@ -133,7 +207,15 @@ async function getAccessToken() {
   const signer = createSign("RSA-SHA256");
   signer.update(signingInput);
   signer.end();
-  const signature = signer.sign(normalizePrivateKey(privateKey));
+  let signature: Buffer;
+
+  try {
+    signature = signer.sign(normalizePrivateKey(credentials.privateKey));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Google private key signing failed from ${credentials.source}: ${message}`);
+  }
+
   const assertion = `${signingInput}.${base64Url(signature)}`;
 
   const response = await fetch(TOKEN_URL, {
