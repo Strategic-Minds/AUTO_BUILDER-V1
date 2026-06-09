@@ -16,6 +16,7 @@ AUTO_BUILDER remains the brain and validator. MCPs are specialized nervous-syste
 | File | Purpose |
 | --- | --- |
 | `AUTO_BUILDER_MASTER_MCP_UNIVERSE_REGISTRY.md` | Human-readable registry, classifications, top 50, architecture, and blockers. |
+| `STACK_CEILING_AND_PROVIDER_UNIVERSE.md` | No-limit ceiling-stack amendment covering Git, Vercel, full Google Cloud/Workspace, Metricool, Xyla, n8n, Opus, GPT Business, Supabase, creator monetization, all social platforms, Notion, HeyGen, and universal future apps. |
 | `mcp-universe-registry.seed.json` | Machine-readable seed registry and scoring model. |
 | `VERCEL_WORKFLOW_AND_AGENT_BLUEPRINT.md` | 5-minute pulse, sandbox, Vercel Agents, validation, and governance plan. |
 | `AUTO_HEAL_AUTO_FIX_VALIDATION_MODEL.md` | Failure classes, validators, auto-heal, auto-fix, and optimization loops. |
@@ -28,3 +29,7 @@ DISCOVERY is complete enough to move to DOCS/BUILD after validation of this bran
 ## Governance
 
 This pack does not authorize production deployment, connector activation, secret changes, Supabase writes, Drive canon mutation, social posting, customer messaging, commerce mutation, payment action, DNS change, or destructive action.
+
+## Ceiling Rule
+
+The provider universe is intentionally uncapped. If a current or future app, MCP, API, browser workflow, Google tool, social platform, commerce platform, creator monetization system, AI model, cloud service, knowledge tool, or industry platform can create business value, AUTO_BUILDER must be able to classify, score, validate, govern, and queue it for safe connection.
