@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runWave2DriveDryRun, wave2DriveTools } from "@/lib/autobuilder-v2/mcp-universe/wave-2-adapters";
+import {
+  buildEdenSkyeFullScaffoldDriveJob,
+  runWave2DriveDryRun,
+  wave2DriveTools
+} from "@/lib/autobuilder-v2/mcp-universe/wave-2-adapters";
 
 export const runtime = "nodejs";
 
@@ -17,6 +21,11 @@ export async function GET(request: NextRequest) {
       uploadMode: "native_google_sheets",
       idempotencyKey: "eden-skye-wave2-drive-get-dry-run"
     });
+    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  }
+
+  if (dryRun === "fullScaffold") {
+    const result = await runWave2DriveDryRun(buildEdenSkyeFullScaffoldDriveJob());
     return NextResponse.json(result, { status: result.ok ? 200 : 409 });
   }
 
@@ -49,9 +58,10 @@ export async function GET(request: NextRequest) {
     tools: wave2DriveTools,
     mode: "dry_run_ready",
     sampleDryRun: "/api/mcp-universe/wave-2/drive?dryRun=sample",
+    fullScaffoldDryRun: "/api/mcp-universe/wave-2/drive?dryRun=fullScaffold",
     createFolderDryRun: "/api/mcp-universe/wave-2/drive?dryRun=createFolder",
     approvalProbe: "/api/mcp-universe/wave-2/drive?approvalProbe=1",
-    note: "POST validates Drive upload/import/folder payloads and writes an internal receipt. It performs no Drive mutation in dry_run mode."
+    note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run. POST validates custom Drive upload/import/folder payloads. No Drive mutation occurs in dry_run mode."
   });
 }
 
