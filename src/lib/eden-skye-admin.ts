@@ -35,7 +35,7 @@ async function readRows(table: string, columns: string, limit = 1000, orderBy = 
       .limit(limit);
 
     if (error) return { ok: false, rows: [] as Row[], reason: error.message };
-    return { ok: true, rows: (data || []) as Row[] };
+    return { ok: true, rows: ((data || []) as unknown) as Row[] };
   } catch (error) {
     return { ok: false, rows: [] as Row[], reason: error instanceof Error ? error.message : "Unknown Supabase read error" };
   }
