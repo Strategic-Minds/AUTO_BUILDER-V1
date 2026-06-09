@@ -14,6 +14,7 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun");
   const approvalProbe = request.nextUrl.searchParams.get("approvalProbe");
+  const approvedScaffold = request.nextUrl.searchParams.get("approvedScaffold");
 
   if (dryRun === "sample") {
     const result = await runWave2DriveDryRun({
@@ -56,6 +57,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result, { status: result.ok ? 200 : 409 });
   }
 
+  if (approvedScaffold === "1") {
+    const result = await runApprovedDriveScaffoldWrite({
+      ...buildApprovedDriveScaffoldPayload(),
+      approved: request.nextUrl.searchParams.get("approved") === "true",
+      approvalId: request.nextUrl.searchParams.get("approvalId") ?? undefined,
+      approvalPhrase: request.nextUrl.searchParams.get("approvalPhrase") ?? undefined
+    });
+    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  }
+
   return NextResponse.json({
     ok: true,
     productionActionAllowed: false,
@@ -75,7 +86,12 @@ export async function GET(request: NextRequest) {
       },
       note: "Creates missing folders plus readable Google Docs README/admin-control files. No delete, rename, move, publish, deploy, payment, live social, adult-content, or customer-message action is performed."
     },
-    note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run. POST validates custom Drive payloads or executes the approved full scaffold writer when the exact approval payload is supplied."
+    approvedScaffoldGet: {
+      method: "GET",
+      path: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
+      note: "Fallback for tool runtimes that can fetch Vercel GET URLs but cannot issue POST. Same approval phrase and safety limits apply."
+    },
+    note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run and guarded approved scaffold execution. POST validates custom Drive payloads or executes the approved full scaffold writer when the exact approval payload is supplied."
   });
 }
 
