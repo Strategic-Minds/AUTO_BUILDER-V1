@@ -32,19 +32,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
+  const payload = body as Record<string, unknown>;
   const receipt = createMcpUniverseReceipt({
-    mcpId: typeof body.mcpId === "string" ? body.mcpId : "manual-mcp-universe-receipt",
+    mcpId: typeof payload.mcpId === "string" ? payload.mcpId : "manual-mcp-universe-receipt",
     category: "system",
-    action: typeof body.action === "string" ? body.action : "manual_internal_receipt",
+    action: typeof payload.action === "string" ? payload.action : "manual_internal_receipt",
     autonomyLevel: 2,
     riskClass: "low",
     approvalState: "not_required",
-    target: typeof body.target === "string" ? body.target : "/api/mcp-universe/receipts",
-    resultSummary: typeof body.resultSummary === "string" ? body.resultSummary : "Manual internal MCP universe receipt recorded.",
+    target: typeof payload.target === "string" ? payload.target : "/api/mcp-universe/receipts",
+    resultSummary: typeof payload.resultSummary === "string" ? payload.resultSummary : "Manual internal MCP universe receipt recorded.",
     validationStatus: "not_run",
     rollbackRef: null,
     nextAction: "Review receipt and route any guarded action to approval queue.",
-    inputs: body
+    inputs: payload
   });
 
   const result = await recordMcpUniverseReceipt(receipt);
