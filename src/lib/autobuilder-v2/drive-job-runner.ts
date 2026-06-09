@@ -1,3 +1,5 @@
+import { createSign } from "node:crypto";
+
 import { createReceipt } from "./receipts";
 
 export type DriveJobAction =
@@ -25,10 +27,95 @@ export type DriveJobRequest = {
   receipt_folder_id?: string;
 };
 
+type DriveCreateFolderInput = {
+  root_folder_id: string;
+  name: string;
+  parent_folder_id?: string;
+  dry_run?: boolean;
+  approved_actions?: string[];
+  approval_phrase?: string;
+};
+
 const defaultBlockedActions = ["delete", "rename_existing", "move_existing", "publish", "deploy", "payment", "live_social"];
+const driveFolderMimeType = "application/vnd.google-apps.folder";
+const driveFolderCreateApprovalPhrase = "APPROVE DRIVE FOLDER CREATE";
 
 function isBlocked(action: string, blockedActions: string[]) {
   return blockedActions.some((blocked) => action === blocked || action.includes(blocked));
+}
+
+function normalizePrivateKey(value: string) {
+  return value.replace(/\\n/g, "\n");
+}
+
+function base64url(input: string) {
+  return Buffer.from(input).toString("base64url");
+}
+
+function signJwt(payload: Record<string, unknown>, privateKey: string) {
+  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const body = base64url(JSON.stringify(payload));
+  const signer = createSign("RSA-SHA256");
+  signer.update(`${header}.${body}`);
+  signer.end();
+  return `${header}.${body}.${signer.sign(normalizePrivateKey(privateKey)).toString("base64url")}`;
+}
+
+async function getGoogleAccessToken() {
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (!clientEmail || !privateKey) {
+    return { ok: false as const, error: "GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY must be configured." };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const scope = process.env.GOOGLE_DRIVE_SCOPE ?? "https://www.googleapis.com/auth/drive.file";
+  const assertion = signJwt(
+    {
+      iss: clientEmail,
+      scope,
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600
+    },
+    privateKey
+  );
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || typeof data.access_token !== "string") {
+    return { ok: false as const, error: "Google OAuth token exchange failed.", status: response.status };
+  }
+
+  return { ok: true as const, accessToken: data.access_token as string, scope };
+}
+
+async function createGoogleDriveFolder(input: { accessToken: string; name: string; parentFolderId: string }) {
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set("fields", "id,name,mimeType,webViewLink,parents");
+  url.searchParams.set("supportsAllDrives", "true");
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: input.name,
+      mimeType: driveFolderMimeType,
+      parents: [input.parentFolderId]
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { ok: false as const, status: response.status, error: JSON.stringify(data) };
+  return { ok: true as const, folder: data as { id?: string; name?: string; mimeType?: string; webViewLink?: string; parents?: string[] } };
 }
 
 export function runDriveJob(request: DriveJobRequest) {
@@ -81,8 +168,112 @@ export function driveListTree(root_folder_id: string) {
   return runDriveJob({ job_id: `drive-list-tree-${Date.now()}`, root_folder_id, dry_run: true, actions: ["list_tree", "validate_tree"] });
 }
 
-export function driveCreateFolder(input: { root_folder_id: string; name: string; parent_folder_id?: string; dry_run?: boolean }) {
-  return runDriveJob({ job_id: `drive-create-folder-${Date.now()}`, root_folder_id: input.root_folder_id, dry_run: input.dry_run ?? true, actions: ["create_missing_folders", "write_receipts", "validate_tree"], folders: [{ name: input.name, parent_folder_id: input.parent_folder_id ?? input.root_folder_id }] });
+export async function driveCreateFolder(input: DriveCreateFolderInput) {
+  const parentFolderId = input.parent_folder_id ?? input.root_folder_id;
+  const basePlan = runDriveJob({ job_id: `drive-create-folder-${Date.now()}`, root_folder_id: input.root_folder_id, dry_run: input.dry_run ?? true, actions: ["create_missing_folders", "write_receipts", "validate_tree"], folders: [{ name: input.name, parent_folder_id: parentFolderId }] });
+
+  if (!input.name.trim()) {
+    return { ...basePlan, ok: false, validation_status: "blocked", blocked_operations: [...basePlan.blocked_operations, { action: "create_missing_folders", status: "blocked_invalid_payload", reason: "Folder name is required." }] };
+  }
+
+  if (input.dry_run !== false) return basePlan;
+
+  const approved = input.approved_actions?.includes("create_missing_folders") && input.approval_phrase === driveFolderCreateApprovalPhrase;
+  if (!approved) {
+    return {
+      ...basePlan,
+      ok: false,
+      dry_run: true,
+      approval_required: true,
+      validation_status: "blocked",
+      blocked_operations: [
+        ...basePlan.blocked_operations,
+        {
+          action: "create_missing_folders",
+          status: "blocked_pending_approval",
+          reason: `Live Drive folder creation requires approved_actions=["create_missing_folders"] and approval_phrase="${driveFolderCreateApprovalPhrase}".`
+        }
+      ],
+      next_actions: ["Review the dry-run plan.", "Confirm Drive parent folder access.", "Re-run only after explicit approval for live Drive folder creation."]
+    };
+  }
+
+  const token = await getGoogleAccessToken();
+  if (!token.ok) {
+    return {
+      ...basePlan,
+      ok: false,
+      approval_required: true,
+      validation_status: "blocked",
+      blocked_operations: [...basePlan.blocked_operations, { action: "create_missing_folders", status: "blocked_missing_secret", reason: token.error }]
+    };
+  }
+
+  const created = await createGoogleDriveFolder({ accessToken: token.accessToken, name: input.name, parentFolderId });
+  if (!created.ok) {
+    return {
+      ...basePlan,
+      ok: false,
+      dry_run: false,
+      validation_status: "failed",
+      failed_operations: [{ action: "create_missing_folders", status: created.status, reason: created.error }],
+      receipts: [
+        createReceipt({
+          ok: false,
+          provider: "google_workspace",
+          action: "drive_create_folder",
+          category: "create",
+          operation: "drive_folder_create",
+          requestedCapability: "Create Google Drive folder through AUTO BUILDER MCP.",
+          authStatus: "verified",
+          executionMode: "api",
+          status: "failed",
+          projectId: input.root_folder_id,
+          logs: ["Google Drive folder creation failed.", `HTTP status: ${created.status}`],
+          artifacts: ["drive-folder-create", parentFolderId],
+          fallbackMode: "Retry after validating folder access or queue through Google Workspace connector.",
+          nextActions: ["Confirm service account has access to the parent folder.", "Confirm Drive scope is sufficient.", "Retry with explicit approval only after blocker is resolved."]
+        })
+      ]
+    };
+  }
+
+  const folder = created.folder;
+  return {
+    ...basePlan,
+    ok: true,
+    dry_run: false,
+    approval_required: false,
+    validation_status: "created",
+    created_folder: {
+      id: folder.id,
+      name: folder.name,
+      mimeType: folder.mimeType,
+      webViewLink: folder.webViewLink,
+      parents: folder.parents
+    },
+    receipts: [
+      createReceipt({
+        ok: true,
+        provider: "google_workspace",
+        action: "drive_create_folder",
+        category: "create",
+        operation: "drive_folder_create",
+        requestedCapability: "Create Google Drive folder through AUTO BUILDER MCP.",
+        authStatus: "verified",
+        executionMode: "api",
+        status: "completed",
+        projectId: input.root_folder_id,
+        resourceId: folder.id,
+        resourceUrl: folder.webViewLink,
+        logs: ["Google Drive folder created.", "No secret values returned."],
+        artifacts: ["drive-folder-create", folder.id ?? "unknown"],
+        fallbackMode: "No fallback needed after successful API creation.",
+        nextActions: ["Call drive_list_tree to verify folder visibility.", "Write or persist the Drive receipt.", "Use the folder id for follow-up uploads only after approval."]
+      })
+    ],
+    next_actions: ["Call drive_list_tree to verify folder visibility.", "Use created_folder.id for future approved Drive operations."]
+  };
 }
 
 export function driveUploadFile(input: { root_folder_id: string; name: string; source_path?: string; mime_type?: string; parent_folder_id?: string; dry_run?: boolean }) {
