@@ -1,12 +1,7 @@
 import { createSign } from "crypto";
 import { createMcpUniverseReceipt, recordMcpUniverseReceipt } from "./receipts";
 
-type DriveToolInput = {
-  mode?: string;
-  tool?: string;
-  approved?: boolean;
-  approvalId?: string;
-  approvalPhrase?: string;
+type DriveBulkFileInput = {
   targetFolderIdOrUrl?: string;
   targetFolderAlias?: string;
   targetName?: string;
@@ -15,11 +10,30 @@ type DriveToolInput = {
   sourceUrl?: string;
   mimeType?: string;
   uploadMode?: "raw" | "native_google_docs" | "native_google_sheets" | "native_google_slides";
+  idempotencyKey?: string;
+};
+
+type DriveBulkFolderInput = {
+  targetFolderIdOrUrl?: string;
+  targetFolderAlias?: string;
+  targetName?: string;
+  idempotencyKey?: string;
+};
+
+type DriveToolInput = DriveBulkFileInput & {
+  mode?: string;
+  tool?: string;
+  approved?: boolean;
+  approvalId?: string;
+  approvalPhrase?: string;
   sourceFileId?: string;
   destinationFolderIdOrUrl?: string;
   destinationFolderAlias?: string;
   receiptPayload?: unknown;
-  idempotencyKey?: string;
+  bulkFiles?: DriveBulkFileInput[] | string;
+  bulkFolders?: DriveBulkFolderInput[] | string;
+  targetNames?: string[] | string;
+  sharedDriveId?: string;
 };
 
 type DriveItem = {
@@ -41,6 +55,7 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 const APPROVAL_PHRASE = "APPROVE DRIVE TOOL WRITE";
+const MAX_BULK_ITEMS = 25;
 
 export const AUTO_WORKFLOW_CANONICAL_FOLDERS: Record<string, string> = {
   auto_workflow_root: "13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM",
@@ -131,6 +146,10 @@ function getGoogleCredentialInputs(): GoogleCredential {
   };
 }
 
+function getDelegatedUserEmail() {
+  return process.env.GOOGLE_WORKSPACE_IMPERSONATED_USER ?? process.env.GOOGLE_DELEGATED_USER_EMAIL ?? process.env.GOOGLE_DRIVE_IMPERSONATED_USER_EMAIL;
+}
+
 function base64Url(value: string | Buffer) {
   return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
@@ -142,8 +161,11 @@ async function getAccessToken() {
   if (!credentials.clientEmail || !credentials.privateKey) {
     throw new Error("Google Drive auth requires an access token, GOOGLE_SERVICE_ACCOUNT_JSON, or client email plus private key.");
   }
+  const delegatedUserEmail = getDelegatedUserEmail();
   const now = Math.floor(Date.now() / 1000);
-  const signingInput = `${base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${base64Url(JSON.stringify({ iss: credentials.clientEmail, scope: DRIVE_SCOPE, aud: TOKEN_URL, exp: now + 3600, iat: now }))}`;
+  const jwtClaims: Record<string, string | number> = { iss: credentials.clientEmail, scope: DRIVE_SCOPE, aud: TOKEN_URL, exp: now + 3600, iat: now };
+  if (delegatedUserEmail) jwtClaims.sub = delegatedUserEmail;
+  const signingInput = `${base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${base64Url(JSON.stringify(jwtClaims))}`;
   const signer = createSign("RSA-SHA256");
   signer.update(signingInput);
   signer.end();
@@ -187,29 +209,38 @@ function escapeDriveQuery(value: string) {
 }
 
 async function listFolder(accessToken: string, folderId: string) {
+  const files: DriveItem[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      q: `'${escapeDriveQuery(folderId)}' in parents and trashed = false`,
+      fields: "nextPageToken,files(id,name,mimeType,webViewLink,parents)",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+      pageSize: "1000"
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+    const result = await driveFetch<{ files?: DriveItem[]; nextPageToken?: string }>(accessToken, `${DRIVE_API}/files?${params.toString()}`);
+    files.push(...(result.files ?? []));
+    pageToken = result.nextPageToken;
+  } while (pageToken);
+  return files;
+}
+
+async function findExistingFile(accessToken: string, folderId: string, name: string, mimeType?: string) {
+  const mimeClause = mimeType ? ` and mimeType = '${escapeDriveQuery(mimeType)}'` : "";
   const params = new URLSearchParams({
-    q: `'${escapeDriveQuery(folderId)}' in parents and trashed = false`,
+    q: `'${escapeDriveQuery(folderId)}' in parents and name = '${escapeDriveQuery(name)}'${mimeClause} and trashed = false`,
     fields: "files(id,name,mimeType,webViewLink,parents)",
     supportsAllDrives: "true",
     includeItemsFromAllDrives: "true",
-    pageSize: "1000"
-  });
-  const result = await driveFetch<{ files: DriveItem[] }>(accessToken, `${DRIVE_API}/files?${params.toString()}`);
-  return result.files;
-}
-
-async function findExistingFile(accessToken: string, folderId: string, name: string) {
-  const params = new URLSearchParams({
-    q: `'${escapeDriveQuery(folderId)}' in parents and name = '${escapeDriveQuery(name)}' and trashed = false`,
-    fields: "files(id,name,mimeType,webViewLink,parents)",
-    supportsAllDrives: "true",
-    includeItemsFromAllDrives: "true"
+    orderBy: "createdTime"
   });
   const result = await driveFetch<{ files: DriveItem[] }>(accessToken, `${DRIVE_API}/files?${params.toString()}`);
   return result.files[0] ?? null;
 }
 
-async function contentFromInput(input: DriveToolInput) {
+async function contentFromInput(input: DriveToolInput | DriveBulkFileInput) {
   if (typeof input.sourceText === "string") {
     return { buffer: Buffer.from(input.sourceText, "utf8"), mimeType: input.mimeType ?? "text/plain; charset=UTF-8" };
   }
@@ -224,23 +255,52 @@ async function contentFromInput(input: DriveToolInput) {
   throw new Error("Drive file writes require sourceText, sourceBase64, or sourceUrl in server execution.");
 }
 
-function googleMimeForUpload(input: DriveToolInput, fallbackMime: string) {
+function googleMimeForUpload(input: DriveToolInput | DriveBulkFileInput, fallbackMime: string) {
   if (input.uploadMode === "native_google_docs") return "application/vnd.google-apps.document";
   if (input.uploadMode === "native_google_sheets") return "application/vnd.google-apps.spreadsheet";
   if (input.uploadMode === "native_google_slides") return "application/vnd.google-apps.presentation";
   return fallbackMime;
 }
 
-async function uploadFile(accessToken: string, input: DriveToolInput, imageMode = false) {
+function bulkArrayFromUnknown<T>(value: T[] | string | undefined, label: string) {
+  if (!value) return [] as T[];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) return parsed as T[];
+  } catch {
+    // Fall through to clearer error below.
+  }
+  throw new Error(`${label} must be an array or a JSON-encoded array.`);
+}
+
+function targetNamesFromUnknown(value: string[] | string | undefined) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    // Support comma-separated GET probes.
+  }
+  return value.split(",").map((name) => name.trim()).filter(Boolean);
+}
+
+function assertBulkLimit(count: number) {
+  if (count > MAX_BULK_ITEMS) throw new Error(`Bulk Drive operations are capped at ${MAX_BULK_ITEMS} items per approved call.`);
+}
+
+async function uploadFile(accessToken: string, input: DriveToolInput | DriveBulkFileInput, imageMode = false) {
   const targetFolderId = folderIdFromUrlOrAlias(input.targetFolderAlias ?? input.targetFolderIdOrUrl);
   if (!targetFolderId) throw new Error("targetFolderIdOrUrl or targetFolderAlias is required.");
   if (!input.targetName) throw new Error("targetName is required.");
-  const existing = await findExistingFile(accessToken, targetFolderId, input.targetName);
+  const source = await contentFromInput(input);
+  const metadataMimeType = googleMimeForUpload(input, imageMode ? input.mimeType ?? source.mimeType ?? "image/png" : source.mimeType);
+  const existing = await findExistingFile(accessToken, targetFolderId, input.targetName, metadataMimeType);
   if (existing) return { action: "existing", file: existing, targetFolderId, idempotent: true };
 
-  const source = await contentFromInput(input);
   const boundary = `auto_builder_drive_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  const metadata = { name: input.targetName, mimeType: googleMimeForUpload(input, imageMode ? input.mimeType ?? "image/png" : source.mimeType), parents: [targetFolderId] };
+  const metadata = { name: input.targetName, mimeType: metadataMimeType, parents: [targetFolderId] };
   const multipart = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`),
     Buffer.from(`--${boundary}\r\nContent-Type: ${source.mimeType}\r\n\r\n`),
@@ -254,6 +314,44 @@ async function uploadFile(accessToken: string, input: DriveToolInput, imageMode 
     body: multipart
   });
   return { action: "created", file: created, targetFolderId, idempotent: true };
+}
+
+async function createFolder(accessToken: string, input: DriveToolInput | DriveBulkFolderInput) {
+  const targetFolderId = folderIdFromUrlOrAlias(input.targetFolderAlias ?? input.targetFolderIdOrUrl) ?? AUTO_WORKFLOW_CANONICAL_FOLDERS.auto_workflow_root;
+  if (!input.targetName) throw new Error("targetName is required for drive_create_folder.");
+  const folderMime = "application/vnd.google-apps.folder";
+  const existing = await findExistingFile(accessToken, targetFolderId, input.targetName, folderMime);
+  if (existing) return { action: "existing", folder: existing, targetFolderId, idempotent: true };
+  const created = await driveFetch<DriveItem>(accessToken, `${DRIVE_API}/files?supportsAllDrives=true&fields=id,name,mimeType,webViewLink,parents`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: input.targetName, mimeType: folderMime, parents: [targetFolderId], appProperties: { autoBuilderMcpCreated: "true" } })
+  });
+  return { action: "created", folder: created, targetFolderId, idempotent: true };
+}
+
+async function bulkUploadFiles(accessToken: string, input: DriveToolInput, imageMode = false) {
+  const files = bulkArrayFromUnknown<DriveBulkFileInput>(input.bulkFiles, "bulkFiles");
+  assertBulkLimit(files.length);
+  if (!files.length) throw new Error("bulkFiles is required for bulk Drive uploads.");
+  const uploaded = [];
+  for (const file of files) {
+    uploaded.push(await uploadFile(accessToken, { ...input, ...file }, imageMode));
+  }
+  return { action: imageMode ? "bulk_images_uploaded" : "bulk_files_uploaded", count: uploaded.length, uploaded };
+}
+
+async function bulkCreateFolders(accessToken: string, input: DriveToolInput) {
+  const explicitFolders = bulkArrayFromUnknown<DriveBulkFolderInput>(input.bulkFolders, "bulkFolders");
+  const nameFolders = targetNamesFromUnknown(input.targetNames).map((targetName) => ({ targetName }));
+  const folders = explicitFolders.length ? explicitFolders : nameFolders;
+  assertBulkLimit(folders.length);
+  if (!folders.length) throw new Error("bulkFolders or targetNames is required for drive_bulk_create_folders.");
+  const created = [];
+  for (const folder of folders) {
+    created.push(await createFolder(accessToken, { ...input, ...folder }));
+  }
+  return { action: "bulk_folders_created", count: created.length, folders: created };
 }
 
 async function moveFile(accessToken: string, input: DriveToolInput) {
@@ -300,6 +398,10 @@ export async function runApprovedDriveToolWrite(input: DriveToolInput) {
   let result: unknown;
   if (tool === "drive_put_file" || tool === "drive_upload_file") result = await uploadFile(accessToken, input);
   else if (tool === "drive_upload_image") result = await uploadFile(accessToken, input, true);
+  else if (tool === "drive_bulk_put_files" || tool === "drive_bulk_upload_files") result = await bulkUploadFiles(accessToken, input);
+  else if (tool === "drive_bulk_upload_images") result = await bulkUploadFiles(accessToken, input, true);
+  else if (tool === "drive_create_folder") result = await createFolder(accessToken, input);
+  else if (tool === "drive_bulk_create_folders") result = await bulkCreateFolders(accessToken, input);
   else if (tool === "drive_move_file") result = await moveFile(accessToken, input);
   else if (tool === "drive_write_receipt") result = await writeReceipt(accessToken, input);
   else return { ok: false, productionActionAllowed: false, status: "blocked", blocker: `Unsupported approved Drive tool: ${tool}`, noMutationPerformed: true };
@@ -309,14 +411,14 @@ export async function runApprovedDriveToolWrite(input: DriveToolInput) {
     category: "system",
     action: `${tool}_approved_write`,
     autonomyLevel: 4,
-    riskClass: tool === "drive_move_file" ? "high" : "medium",
+    riskClass: tool === "drive_move_file" || tool === "drive_bulk_create_folders" ? "high" : "medium",
     approvalState: "approved",
     target: "/api/mcp-universe/wave-2/drive",
     resultSummary: `Approved Drive tool ${tool} completed against canonical AUTO WORKFLOW folder map.`,
     validationStatus: "passed",
     rollbackRef: null,
     nextAction: "Verify Drive folder contents and capture canonical receipt.",
-    inputs: { ...input, sourceText: input.sourceText ? "redacted" : undefined, sourceBase64: input.sourceBase64 ? "redacted" : undefined }
+    inputs: { ...input, sourceText: input.sourceText ? "redacted" : undefined, sourceBase64: input.sourceBase64 ? "redacted" : undefined, bulkFiles: input.bulkFiles ? "redacted" : undefined }
   });
   const recorded = await recordMcpUniverseReceipt(receipt);
 
