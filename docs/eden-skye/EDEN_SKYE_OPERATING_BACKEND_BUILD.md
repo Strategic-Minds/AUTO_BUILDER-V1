@@ -12,7 +12,9 @@ Status: branch-safe implementation for Vercel preview and Supabase migration rev
 - `/api/cron/eden-skye-five-minute`
 - `supabase/migrations/20260609050000_eden_skye_operating_system.sql`
 - `supabase/migrations/20260609053000_eden_model_profiles_and_workflow_capabilities.sql`
-- `supabase/migrations/20260609060000_eden_image_asset_queue.sql`
+- `supabase/migrations/20260609060620_eden_image_asset_queue.sql`
+- `supabase/migrations/20260609062702_eden_draft_ops_queue_keys.sql`
+- `supabase/migrations/20260609062835_eden_draft_ops_queue_conflict_targets.sql`
 
 ## Operating Model
 
@@ -51,6 +53,17 @@ What it does not do:
 - No social posting, comment, reply, DM, or external scheduling.
 - No production migration.
 
+## Draft Operating Queue
+
+The workflow package also seeds draft-only operating queues after the Supabase preview branch has the draft queue migrations.
+
+- `eden_content_items`: first draft-only calendar item per model/faceless account.
+- `eden_engagement_tickets`: approval-gated response templates for comments, replies, messages, waitlist, brand intake, and quarantine.
+- `eden_experiments`: website, membership, model, faceless-page, image-style, and scheduling A/B tests.
+- `eden_memory_entries`: durable operating memory and self-reflection facts for the Eden Skye loop.
+
+These records are idempotent, receipt-gated, and locked from external dispatch.
+
 ## Safety Gates
 
 The implementation is draft-first. It does not perform live publishing, outbound comments, replies, DMs, adult-content release, payment activation, Shopify/Xyla publication, n8n dispatch, paid media generation, Google Drive archive writes, or production Supabase migration.
@@ -71,12 +84,13 @@ Required image states:
 ## Next Validation
 
 1. Let Vercel build preview from PR #35.
-2. Let the Supabase preview branch apply `20260609060000_eden_image_asset_queue.sql`.
+2. Let the Supabase preview branch apply `20260609060620_eden_image_asset_queue.sql`, `20260609062702_eden_draft_ops_queue_keys.sql`, and `20260609062835_eden_draft_ops_queue_conflict_targets.sql`.
 3. Smoke `/api/eden-skye/os` and every operation route.
 4. Smoke `/api/eden-skye/workflows` and every child workflow route.
 5. Confirm `image_inventory` creates or updates 160 `eden_assets` queue records.
-6. Confirm workflow supervisor writes receipts and agent run records when Supabase env is configured.
-7. Smoke `/admin/eden-skye`.
-8. Confirm cron returns 401 when protected or supervisor results when authorized.
-9. Approve Supabase migration separately before applying anywhere beyond the preview branch.
-10. Approve any real Drive upload/import/move or paid image/video generation separately.
+6. Confirm `create_drafts`, `approval_queue`, `schedule_drafts`, and `memory_reflection` seed draft-only queues.
+7. Confirm workflow supervisor writes receipts and agent run records when Supabase env is configured.
+8. Smoke `/admin/eden-skye`.
+9. Confirm cron returns 401 when protected or supervisor results when authorized.
+10. Approve Supabase migration separately before applying anywhere beyond the preview branch.
+11. Approve any real Drive upload/import/move or paid image/video generation separately.
