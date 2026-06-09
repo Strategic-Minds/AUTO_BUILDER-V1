@@ -6,6 +6,8 @@ export type RuntimeProviderReadiness = {
   notes: string;
 };
 
+const METRICOOL_DEFAULT_BASE_URL = 'https://app.metricool.com';
+
 const METRICOOL_BASE_URL_ENVS = [
   'METRICOOL_API_URL',
   'METRICOOL_BASE_URL',
@@ -172,13 +174,18 @@ function autoBuilderRedeployReadiness(): RuntimeProviderReadiness {
 
 function metricoolReadiness(): RuntimeProviderReadiness {
   const names = [...METRICOOL_BASE_URL_ENVS, ...METRICOOL_TOKEN_ENVS];
+  const hasBaseUrlOverride = anyEnvPresent(METRICOOL_BASE_URL_ENVS);
+  const hasToken = anyEnvPresent(METRICOOL_TOKEN_ENVS);
 
   return {
     provider: 'metricool',
-    ready: anyEnvPresent(METRICOOL_BASE_URL_ENVS) && anyEnvPresent(METRICOOL_TOKEN_ENVS),
-    requiredEnv: [METRICOOL_BASE_URL_ENVS.join(' or '), METRICOOL_TOKEN_ENVS.join(' or ')],
-    configuredEnv: configured(names),
-    notes: 'Required for Metricool draft scheduling and analytics. Supports Eden Skye and Vercel env aliases for API URL/base URL and token/API key.'
+    ready: hasToken,
+    requiredEnv: [METRICOOL_TOKEN_ENVS.join(' or '), `optional ${METRICOOL_BASE_URL_ENVS.join(' or ')} override; defaults to ${METRICOOL_DEFAULT_BASE_URL}`],
+    configuredEnv: {
+      ...configured(names),
+      METRICOOL_DEFAULT_BASE_URL_ASSUMED: hasToken && !hasBaseUrlOverride
+    },
+    notes: 'Required for Metricool draft scheduling and analytics. Supports Eden Skye and Vercel env aliases. When no base URL override is configured, the adapter assumes the Metricool app API host.'
   };
 }
 
