@@ -21,6 +21,7 @@ export const nashvilleResinWorxSocialBridge = {
   brand: "Nashville Resin Worx",
   adminEmail: "info@epoxywillchangeyourlife.com",
   twilioFromNumber: "+15616780328",
+  twilioAllowedToNumber: "+17722090266",
   schedules: [
     {
       id: "nrw_morning_social_discovery",
@@ -59,6 +60,7 @@ export const nashvilleResinWorxSocialBridge = {
     },
     twilio: {
       bridgeId: "twilio_lead_communications_bridge",
+      defaultAllowedToNumbers: ["+17722090266"],
       requiredEnvNames: [
         "TWILIO_ACCOUNT_SID",
         "TWILIO_AUTH_TOKEN",
