@@ -11,6 +11,19 @@ import {
 
 export const runtime = "nodejs";
 
+function scaffoldErrorResponse(error: unknown) {
+  return NextResponse.json(
+    {
+      ok: false,
+      productionActionAllowed: false,
+      status: "drive_scaffold_failed",
+      error: error instanceof Error ? error.message : String(error),
+      noDeleteRenameMovePublishPaymentOrMessagingPerformed: true
+    },
+    { status: 500 }
+  );
+}
+
 export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun");
   const approvalProbe = request.nextUrl.searchParams.get("approvalProbe");
@@ -58,13 +71,20 @@ export async function GET(request: NextRequest) {
   }
 
   if (approvedScaffold === "1") {
-    const result = await runApprovedDriveScaffoldWrite({
-      ...buildApprovedDriveScaffoldPayload(),
-      approved: request.nextUrl.searchParams.get("approved") === "true",
-      approvalId: request.nextUrl.searchParams.get("approvalId") ?? undefined,
-      approvalPhrase: request.nextUrl.searchParams.get("approvalPhrase") ?? undefined
-    });
-    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    try {
+      const filesEnabled = request.nextUrl.searchParams.get("files") !== "false";
+      const result = await runApprovedDriveScaffoldWrite({
+        ...buildApprovedDriveScaffoldPayload(),
+        approved: request.nextUrl.searchParams.get("approved") === "true",
+        approvalId: request.nextUrl.searchParams.get("approvalId") ?? undefined,
+        approvalPhrase: request.nextUrl.searchParams.get("approvalPhrase") ?? undefined,
+        create_readme_files: filesEnabled,
+        create_admin_control_pack: filesEnabled
+      });
+      return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    } catch (error) {
+      return scaffoldErrorResponse(error);
+    }
   }
 
   return NextResponse.json({
@@ -89,7 +109,8 @@ export async function GET(request: NextRequest) {
     approvedScaffoldGet: {
       method: "GET",
       path: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
-      note: "Fallback for tool runtimes that can fetch Vercel GET URLs but cannot issue POST. Same approval phrase and safety limits apply."
+      folderOnlyPath: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
+      note: "Fallback for tool runtimes that can fetch Vercel GET URLs but cannot issue POST. Same approval phrase and safety limits apply. files=false creates the folder tree without starter docs."
     },
     note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run and guarded approved scaffold execution. POST validates custom Drive payloads or executes the approved full scaffold writer when the exact approval payload is supplied."
   });
@@ -103,11 +124,15 @@ export async function POST(request: NextRequest) {
 
   const payload = body as Record<string, unknown>;
   if (payload.mode === "approved_write" && payload.tool === "run_drive_job") {
-    const result = await runApprovedDriveScaffoldWrite({
-      ...buildApprovedDriveScaffoldPayload(),
-      ...payload
-    });
-    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    try {
+      const result = await runApprovedDriveScaffoldWrite({
+        ...buildApprovedDriveScaffoldPayload(),
+        ...payload
+      });
+      return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    } catch (error) {
+      return scaffoldErrorResponse(error);
+    }
   }
 
   const result = await runWave2DriveDryRun(payload);
