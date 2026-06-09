@@ -11,6 +11,8 @@ import {
 
 export const runtime = "nodejs";
 
+const DRIVE_SCAFFOLD_ENV_REFRESH = "2026-06-09T03:59Z";
+
 function scaffoldErrorResponse(error: unknown) {
   return NextResponse.json(
     {
@@ -92,6 +94,7 @@ export async function GET(request: NextRequest) {
     productionActionAllowed: false,
     tools: wave2DriveTools,
     mode: "dry_run_ready",
+    envRefresh: DRIVE_SCAFFOLD_ENV_REFRESH,
     sampleDryRun: "/api/mcp-universe/wave-2/drive?dryRun=sample",
     fullScaffoldDryRun: "/api/mcp-universe/wave-2/drive?dryRun=fullScaffold",
     createFolderDryRun: "/api/mcp-universe/wave-2/drive?dryRun=createFolder",
