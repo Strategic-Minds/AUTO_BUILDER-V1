@@ -31,10 +31,14 @@ export async function recordMcpUniverseReceipt(receipt: McpUniverseReceipt) {
 
   try {
     const result = await insertTelemetry("runtime_telemetry_events", {
-      worker: "auto-builder-mcp-universe",
-      status: receipt.validationStatus === "failed" ? "failed" : "success",
-      event_type: "mcp_universe_receipt",
-      evidence: JSON.stringify({ receipt, blocker }),
+      telemetry_key: receipt.receiptId,
+      event_status: receipt.validationStatus === "failed" ? "failed" : "success",
+      event_payload: {
+        eventType: "mcp_universe_receipt",
+        worker: "auto-builder-mcp-universe",
+        receipt,
+        blocker
+      },
       created_at: receipt.timestamp
     });
 
