@@ -1,0 +1,42 @@
+{
+  "id": "eden-skye-operating-backend",
+  "status": "branch_safe_implementation",
+  "liveActionsAllowed": false,
+  "dataLayer": "supabase",
+  "runtime": "vercel",
+  "sourceControl": "github",
+  "routes": [
+    "/admin/eden-skye",
+    "/api/eden-skye/os",
+    "/api/eden-skye/os/discover",
+    "/api/eden-skye/os/analyze",
+    "/api/eden-skye/os/create",
+    "/api/eden-skye/os/quarantine",
+    "/api/eden-skye/os/approve",
+    "/api/eden-skye/os/schedule",
+    "/api/eden-skye/os/validate",
+    "/api/eden-skye/os/heal",
+    "/api/eden-skye/os/dispatch",
+    "/api/cron/eden-skye-five-minute"
+  ],
+  "supabaseTables": [
+    "eden_models",
+    "eden_assets",
+    "eden_content_items",
+    "eden_engagement_tickets",
+    "eden_experiments",
+    "eden_agent_runs",
+    "eden_memory_entries",
+    "eden_receipts"
+  ],
+  "protectedActions": [
+    "live social publishing",
+    "outbound comments/replies/DMs",
+    "adult-content release",
+    "payment or membership activation",
+    "Shopify/Xyla product publication",
+    "n8n dispatch",
+    "credentialed browser action",
+    "production Supabase migration"
+  ]
+}
