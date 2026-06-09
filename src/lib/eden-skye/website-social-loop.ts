@@ -1,3 +1,5 @@
+const METRICOOL_DEFAULT_BASE_URL = "https://app.metricool.com";
+
 const METRICOOL_BASE_URL_ENVS = [
   "METRICOOL_API_URL",
   "METRICOOL_BASE_URL",
@@ -50,12 +52,13 @@ function readyAny(names: string[]) {
 }
 
 export function getEdenSkyeWebsiteSocialLoopReadiness() {
+  const hasMetricoolBaseOverride = readyAny(METRICOOL_BASE_URL_ENVS);
   const env = {
     vercel: envPresent("VERCEL_TOKEN") && readyAny(["EDEN_SKYE_VERCEL_PROJECT_ID", "TARGET_VERCEL_PROJECT_ID"]),
     supabase: envPresent("SUPABASE_SERVICE_ROLE_KEY") && readyAny(["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]),
     googleWorkspace: envPresent("GOOGLE_CLIENT_EMAIL") && envPresent("GOOGLE_PRIVATE_KEY"),
     heygen: envPresent("HEYGEN_API_KEY"),
-    metricool: readyAny(METRICOOL_BASE_URL_ENVS) && readyAny(METRICOOL_TOKEN_ENVS),
+    metricool: readyAny(METRICOOL_TOKEN_ENVS),
     shopifyXyla: readyAny(SHOPIFY_TOKEN_ENVS) && readyAny(SHOPIFY_SHOP_ENVS),
     aiGateway: envPresent("AI_GATEWAY_API_KEY"),
     stripeOrShopifyPayments: readyAny(["STRIPE_SECRET_KEY", ...SHOPIFY_TOKEN_ENVS])
@@ -67,6 +70,7 @@ export function getEdenSkyeWebsiteSocialLoopReadiness() {
     secretsExposed: false,
     targetDomain: "edenskyestudios.com",
     readiness: env,
+    metricoolBaseUrlMode: hasMetricoolBaseOverride ? "env_override" : `default:${METRICOOL_DEFAULT_BASE_URL}`,
     acceptedEnvAliases: {
       metricoolBaseUrl: METRICOOL_BASE_URL_ENVS,
       metricoolToken: METRICOOL_TOKEN_ENVS,
