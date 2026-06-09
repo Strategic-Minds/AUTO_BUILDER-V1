@@ -98,6 +98,18 @@ function base64Url(value: string | Buffer) {
   return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
+function extractPrivateKeyFromJson(value: string) {
+  try {
+    const parsed = JSON.parse(value) as { private_key?: unknown };
+    if (typeof parsed.private_key === "string") {
+      return parsed.private_key;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function normalizePrivateKey(value: string) {
   let key = value.trim();
 
@@ -107,12 +119,21 @@ function normalizePrivateKey(value: string) {
 
   key = key.replace(/\\n/g, "\n");
 
+  const jsonKey = extractPrivateKeyFromJson(key);
+  if (jsonKey) {
+    return normalizePrivateKey(jsonKey);
+  }
+
   if (key.includes("-----BEGIN PRIVATE KEY-----")) {
     return key;
   }
 
   try {
     const decoded = Buffer.from(key, "base64").toString("utf8").trim().replace(/\\n/g, "\n");
+    const decodedJsonKey = extractPrivateKeyFromJson(decoded);
+    if (decodedJsonKey) {
+      return normalizePrivateKey(decodedJsonKey);
+    }
     if (decoded.includes("-----BEGIN PRIVATE KEY-----")) {
       return decoded;
     }
