@@ -12,12 +12,26 @@ import {
   AUTO_WORKFLOW_CANONICAL_FOLDERS,
   runApprovedDriveToolWrite
 } from "@/lib/autobuilder-v2/mcp-universe/drive-tool-writer";
+import {
+  runDriveDedupeQuarantine,
+  runDriveDuplicateScan
+} from "@/lib/autobuilder-v2/mcp-universe/drive-dedupe-writer";
 
 export const runtime = "nodejs";
 
 const AUTO_WORKFLOW_ROOT_FOLDER_ID = "13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM";
 const APPROVED_DRIVE_TOOL_WRITE_PHRASE = "APPROVE DRIVE TOOL WRITE";
-const APPROVED_TOOL_NAMES = new Set(["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_list_tree", "drive_write_receipt"]);
+const DRIVE_DEDUPE_TOOLS = ["drive_duplicate_scan", "drive_dedupe_quarantine"] as const;
+const APPROVED_TOOL_NAMES = new Set([
+  "drive_put_file",
+  "drive_upload_file",
+  "drive_upload_image",
+  "drive_move_file",
+  "drive_list_folder",
+  "drive_list_tree",
+  "drive_write_receipt",
+  ...DRIVE_DEDUPE_TOOLS
+]);
 
 function scaffoldErrorResponse(error: unknown) {
   return NextResponse.json(
@@ -63,6 +77,12 @@ function getPayloadRootFolderId(payload: Record<string, unknown>) {
   return typeof rootFolderId === "string" ? rootFolderId : undefined;
 }
 
+function numberParam(value: string | null) {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function getApprovedToolPayload(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   return {
@@ -71,6 +91,11 @@ function getApprovedToolPayload(request: NextRequest) {
     approved: params.get("approved") === "true",
     approvalId: params.get("approvalId") ?? undefined,
     approvalPhrase: params.get("approvalPhrase") ?? undefined,
+    rootFolderId: params.get("rootFolderId") ?? undefined,
+    root_folder_id: params.get("root_folder_id") ?? undefined,
+    quarantineFolderId: params.get("quarantineFolderId") ?? undefined,
+    quarantineFolderAlias: params.get("quarantineFolderAlias") ?? undefined,
+    maxDepth: numberParam(params.get("maxDepth")),
     targetFolderAlias: params.get("targetFolderAlias") ?? undefined,
     targetFolderIdOrUrl: params.get("targetFolderIdOrUrl") ?? undefined,
     destinationFolderAlias: params.get("destinationFolderAlias") ?? undefined,
@@ -81,8 +106,15 @@ function getApprovedToolPayload(request: NextRequest) {
     sourceUrl: params.get("sourceUrl") ?? undefined,
     sourceFileId: params.get("sourceFileId") ?? undefined,
     mimeType: params.get("mimeType") ?? undefined,
+    uploadMode: params.get("uploadMode") ?? undefined,
     idempotencyKey: params.get("idempotencyKey") ?? undefined
   };
+}
+
+async function runApprovedToolPayload(payload: Record<string, unknown>) {
+  if (payload.tool === "drive_duplicate_scan") return runDriveDuplicateScan(payload);
+  if (payload.tool === "drive_dedupe_quarantine") return runDriveDedupeQuarantine(payload);
+  return runApprovedDriveToolWrite(payload);
 }
 
 export async function GET(request: NextRequest) {
@@ -167,6 +199,19 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  if (dryRun === "duplicateScan") {
+    try {
+      const result = await runDriveDuplicateScan({
+        rootFolderId: request.nextUrl.searchParams.get("rootFolderId") ?? AUTO_WORKFLOW_ROOT_FOLDER_ID,
+        quarantineFolderId: request.nextUrl.searchParams.get("quarantineFolderId") ?? undefined,
+        maxDepth: numberParam(request.nextUrl.searchParams.get("maxDepth")) ?? 8
+      });
+      return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    } catch (error) {
+      return scaffoldErrorResponse(error);
+    }
+  }
+
   if (approvalProbe === "1") {
     const result = await runWave2DriveDryRun({
       mode: "approved_write",
@@ -214,17 +259,18 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const result = await runApprovedDriveToolWrite(getApprovedToolPayload(request));
+      const result = await runApprovedToolPayload(getApprovedToolPayload(request));
       return NextResponse.json(result, { status: result.ok ? 200 : 409 });
     } catch (error) {
       return scaffoldErrorResponse(error);
     }
   }
 
+  const allDriveTools = [...wave2DriveTools, ...DRIVE_DEDUPE_TOOLS];
   return NextResponse.json({
     ok: true,
     productionActionAllowed: false,
-    tools: wave2DriveTools,
+    tools: allDriveTools,
     mode: "dry_run_ready",
     canonicalFolders: AUTO_WORKFLOW_CANONICAL_FOLDERS,
     sampleDryRun: "/api/mcp-universe/wave-2/drive?dryRun=sample",
@@ -233,24 +279,25 @@ export async function GET(request: NextRequest) {
     putFileDryRun: "/api/mcp-universe/wave-2/drive?dryRun=putFile",
     uploadImageDryRun: "/api/mcp-universe/wave-2/drive?dryRun=uploadImage",
     moveFileDryRun: "/api/mcp-universe/wave-2/drive?dryRun=moveFile",
+    duplicateScanDryRun: "/api/mcp-universe/wave-2/drive?dryRun=duplicateScan&maxDepth=8",
     approvalProbe: "/api/mcp-universe/wave-2/drive?approvalProbe=1",
     approvedToolGet: {
       method: "GET",
-      tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt"],
+      tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt", "drive_duplicate_scan", "drive_dedupe_quarantine"],
       required: {
-        approvedTool: "drive_put_file | drive_upload_file | drive_upload_image | drive_move_file | drive_list_folder | drive_write_receipt",
-        approved: true,
-        approvalId: "operator approval id",
+        approvedTool: "drive_put_file | drive_upload_file | drive_upload_image | drive_move_file | drive_list_folder | drive_write_receipt | drive_duplicate_scan | drive_dedupe_quarantine",
+        approved: "true required for writes only",
+        approvalId: "operator approval id required for writes only",
         approvalPhrase: APPROVED_DRIVE_TOOL_WRITE_PHRASE
       },
-      note: "GET harness exists for connected MCP/Vercel evidence tools that cannot POST. It calls the same approved Drive tool writer and uses the same allowlist/approval gate."
+      note: "GET harness exists for connected MCP/Vercel evidence tools that cannot POST. drive_duplicate_scan is read-only. drive_dedupe_quarantine is quarantine-only and requires approval."
     },
     approvedToolPost: {
       method: "POST",
-      tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt"],
+      tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt", "drive_duplicate_scan", "drive_dedupe_quarantine"],
       approvalPhrase: APPROVED_DRIVE_TOOL_WRITE_PHRASE,
       targetFolders: "Use canonical folder aliases from canonicalFolders or explicit folder IDs.",
-      note: "Mutating Drive tool writes require approved=true, approvalId, and approvalPhrase. drive_list_folder is read-only. Deletes, renames, publishes, payments, live social, adult-content release, and customer messaging are not supported."
+      note: "Mutating Drive tool writes require approved=true, approvalId, and approvalPhrase. drive_list_folder and drive_duplicate_scan are read-only. Deletes, renames, publishes, payments, live social, adult-content release, and customer messaging are not supported."
     },
     approvedScaffoldPost: {
       method: "POST",
@@ -269,7 +316,7 @@ export async function GET(request: NextRequest) {
       autoWorkflowRootFolderId: AUTO_WORKFLOW_ROOT_FOLDER_ID,
       note: "Approved scaffold GET is constrained to the existing AUTO WORKFLOW root folder. No outside/root-level folder creation is allowed. files=false creates the folder tree without starter docs."
     },
-    note: "GET supports dry-runs and guarded AUTO WORKFLOW approved scaffold execution. POST executes approved canonical Drive file operations or validates custom Drive payloads."
+    note: "GET supports dry-runs, duplicate scanning, guarded duplicate quarantine, and guarded AUTO WORKFLOW approved scaffold execution. POST executes approved canonical Drive file operations or validates custom Drive payloads."
   });
 }
 
@@ -291,6 +338,15 @@ export async function POST(request: NextRequest) {
         ...payload,
         root_folder_id: requestedRootFolderId
       });
+      return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+    } catch (error) {
+      return scaffoldErrorResponse(error);
+    }
+  }
+
+  if (typeof payload.tool === "string" && DRIVE_DEDUPE_TOOLS.includes(payload.tool as (typeof DRIVE_DEDUPE_TOOLS)[number])) {
+    try {
+      const result = await runApprovedToolPayload(payload);
       return NextResponse.json(result, { status: result.ok ? 200 : 409 });
     } catch (error) {
       return scaffoldErrorResponse(error);
