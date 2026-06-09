@@ -45,6 +45,7 @@ function edenUniversalRuntimeReadiness(): RuntimeProviderReadiness {
     GOOGLE_PRIVATE_KEY: envPresent('GOOGLE_PRIVATE_KEY'),
     SHOPIFY_ADMIN_TOKEN: envPresent('SHOPIFY_ADMIN_TOKEN'),
     SHOPIFY_SHOP: envPresent('SHOPIFY_SHOP'),
+    SHOPIFY_STORE_DOMAIN: envPresent('SHOPIFY_STORE_DOMAIN'),
     HEYGEN_API_KEY: envPresent('HEYGEN_API_KEY')
   };
 
@@ -106,6 +107,29 @@ function autoBuilderRedeployReadiness(): RuntimeProviderReadiness {
   };
 }
 
+function metricoolReadiness(): RuntimeProviderReadiness {
+  return anyOfReadiness(
+    'metricool',
+    [
+      ['METRICOOL_API_URL', 'METRICOOL_BASE_URL'],
+      ['METRICOOL_API_TOKEN', 'METRICOOL_API_KEY', 'METRICOOL_TOKEN']
+    ],
+    'Required for Metricool draft scheduling and analytics. Supports existing Vercel env aliases for API URL/base URL and token/API key.'
+  );
+}
+
+function xylaShopifyReadiness(): RuntimeProviderReadiness {
+  return anyOfReadiness(
+    'xyla_shopify_bridge',
+    [
+      ['SHOPIFY_ADMIN_TOKEN'],
+      ['SHOPIFY_SHOP', 'SHOPIFY_STORE_DOMAIN'],
+      ['SHOPIFY_XYLA_ENABLED', 'EDEN_CLOSET_SHOPIFY_ENABLED']
+    ],
+    'Xyla is treated as a Shopify-operated storefront/content bridge. It can create draft Shopify records, collections, metafields, and feed packets only when explicitly enabled; no separate Xyla MCP is required.'
+  );
+}
+
 export function getRuntimeProviderStatus() {
   const providers = [
     anyOfReadiness('bridge_event_bus', [['BRIDGE_SECRET', 'AUTO_BUILDER_BRIDGE_TOKEN', 'ADMIN_API_TOKEN', 'BRIDGE_API_KEY'], ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'], ['SUPABASE_SERVICE_ROLE_KEY']], 'Required for HMAC/bearer event bus writes, registry, retry, and receipts.'),
@@ -116,16 +140,17 @@ export function getRuntimeProviderStatus() {
     autoBuilderRedeployReadiness(),
     readiness('google_chat', ['GOOGLE_CHAT_WEBHOOK_URL'], 'Draft route works without sending; live send also requires GOOGLE_CHAT_SEND_ENABLED=true and approval.'),
     readiness('ai_gateway', ['AI_GATEWAY_API_KEY'], 'Required for AI Gateway model routing, budget caps, fallback, and cost receipts.'),
-    readiness('n8n', ['N8N_WEBHOOK_URL', 'N8N_API_KEY'], 'Required for n8n webhook replay and external workflow routing.'),
-    readiness('metricool', ['METRICOOL_API_URL', 'METRICOOL_API_TOKEN'], 'Required for Metricool social draft scheduling and analytics bridge.'),
+    readiness('n8n', ['N8N_WEBHOOK_URL', 'N8N_API_KEY'], 'Optional for later n8n webhook replay and external workflow routing. Eden website/social loop does not depend on n8n readiness.'),
+    metricoolReadiness(),
     readiness('heygen', ['HEYGEN_API_KEY'], 'Required for HeyGen avatar/video draft generation.'),
-    readiness('meta_facebook', ['META_ACCESS_TOKEN', 'META_FACEBOOK_PAGE_ID'], 'Required for direct Meta Facebook Graph API writes.'),
-    readiness('instagram', ['META_ACCESS_TOKEN', 'META_INSTAGRAM_BUSINESS_ACCOUNT_ID'], 'Required for direct Instagram Graph API writes.'),
+    xylaShopifyReadiness(),
+    readiness('meta_facebook', ['META_ACCESS_TOKEN', 'META_FACEBOOK_PAGE_ID'], 'Required for direct Meta Facebook Graph API writes. Metricool remains the preferred scheduling bridge when direct Meta is absent.'),
+    readiness('instagram', ['META_ACCESS_TOKEN', 'META_INSTAGRAM_BUSINESS_ACCOUNT_ID'], 'Required for direct Instagram Graph API writes. Metricool remains the preferred scheduling bridge when direct Instagram is absent.'),
     readiness('google_workspace', ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY'], 'Required for server-side Google Workspace writes from Vercel.'),
     readiness('notion', ['NOTION_API_KEY'], 'Required for server-side Notion writes.'),
     readiness('klaviyo', ['KLAVIYO_API_KEY'], 'Required for Klaviyo draft/campaign API actions.'),
-    readiness('xyla', ['XYLA_API_KEY'], 'Required for Xyla provider actions.'),
-    readiness('opus', ['OPUS_API_KEY'], 'Required for Opus provider actions.')
+    readiness('xyla', ['XYLA_API_KEY'], 'Optional direct Xyla provider path. If absent, Eden uses the Shopify-operated Xyla bridge and Metricool-first scheduling.'),
+    readiness('opus', ['OPUS_API_KEY'], 'Optional repurposing provider; not required for Eden website/social loop.')
   ];
 
   return {
