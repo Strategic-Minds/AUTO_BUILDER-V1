@@ -34,6 +34,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/eden-skye-five-minute",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/browser/process",
       "schedule": "*/10 * * * *"
     }
