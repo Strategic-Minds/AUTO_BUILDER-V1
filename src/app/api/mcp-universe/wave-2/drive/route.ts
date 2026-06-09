@@ -11,6 +11,8 @@ import {
 
 export const runtime = "nodejs";
 
+const AUTO_WORKFLOW_ROOT_FOLDER_ID = "13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM";
+
 function scaffoldErrorResponse(error: unknown) {
   return NextResponse.json(
     {
@@ -30,6 +32,23 @@ function getRequestedRootFolderId(request: NextRequest) {
     request.nextUrl.searchParams.get("root_folder_id") ??
     request.nextUrl.searchParams.get("parentFolderId") ??
     undefined
+  );
+}
+
+function assertAutoWorkflowRoot(rootFolderId: string | undefined) {
+  if (rootFolderId === AUTO_WORKFLOW_ROOT_FOLDER_ID) return null;
+
+  return NextResponse.json(
+    {
+      ok: false,
+      productionActionAllowed: false,
+      status: "blocked_wrong_root_folder",
+      requiredRootFolderId: AUTO_WORKFLOW_ROOT_FOLDER_ID,
+      receivedRootFolderId: rootFolderId ?? null,
+      blocker: "Approved AUTO WORKFLOW scaffold GET must target the existing AUTO WORKFLOW folder. No outside/root-level folder creation is allowed.",
+      noMutationPerformed: true
+    },
+    { status: 409 }
   );
 }
 
@@ -81,13 +100,17 @@ export async function GET(request: NextRequest) {
 
   if (approvedScaffold === "1") {
     try {
+      const requestedRootFolderId = getRequestedRootFolderId(request);
+      const rootBlocker = assertAutoWorkflowRoot(requestedRootFolderId);
+      if (rootBlocker) return rootBlocker;
+
       const filesEnabled = request.nextUrl.searchParams.get("files") !== "false";
       const result = await runApprovedDriveScaffoldWrite({
         ...buildApprovedDriveScaffoldPayload(),
         approved: request.nextUrl.searchParams.get("approved") === "true",
         approvalId: request.nextUrl.searchParams.get("approvalId") ?? undefined,
         approvalPhrase: request.nextUrl.searchParams.get("approvalPhrase") ?? undefined,
-        root_folder_id: getRequestedRootFolderId(request),
+        root_folder_id: requestedRootFolderId,
         create_readme_files: filesEnabled,
         create_admin_control_pack: filesEnabled
       });
@@ -118,12 +141,11 @@ export async function GET(request: NextRequest) {
     },
     approvedScaffoldGet: {
       method: "GET",
-      path: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&rootFolderId=<folderId>&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
-      folderOnlyPath: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&rootFolderId=<folderId>&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
-      autoWorkflowFolderOnlyPath: "/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&rootFolderId=13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE",
-      note: "Fallback for tool runtimes that can fetch Vercel GET URLs but cannot issue POST. Same approval phrase and safety limits apply. files=false creates the folder tree without starter docs. rootFolderId lets AUTO WORKFLOW be scaffolded directly."
+      folderOnlyPath: `/api/mcp-universe/wave-2/drive?approvedScaffold=1&approved=true&files=false&rootFolderId=${AUTO_WORKFLOW_ROOT_FOLDER_ID}&approvalId=<id>&approvalPhrase=APPROVE%20DRIVE%20SCAFFOLD%20WRITE`,
+      autoWorkflowRootFolderId: AUTO_WORKFLOW_ROOT_FOLDER_ID,
+      note: "Approved scaffold GET is constrained to the existing AUTO WORKFLOW root folder. No outside/root-level folder creation is allowed. files=false creates the folder tree without starter docs."
     },
-    note: "GET supports canonical Eden/AUTO SOCIAL full scaffold dry-run and guarded approved scaffold execution. POST validates custom Drive payloads or executes the approved full scaffold writer when the exact approval payload is supplied."
+    note: "GET supports dry-runs and guarded AUTO WORKFLOW approved scaffold execution. POST validates custom Drive payloads or executes the approved full scaffold writer when the exact approval payload is supplied."
   });
 }
 
