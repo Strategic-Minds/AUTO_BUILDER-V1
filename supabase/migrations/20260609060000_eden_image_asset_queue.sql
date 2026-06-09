@@ -2,8 +2,7 @@ alter table if exists public.eden_assets
   add column if not exists asset_key text;
 
 create unique index if not exists eden_assets_asset_key_uidx
-  on public.eden_assets(asset_key)
-  where asset_key is not null;
+  on public.eden_assets(asset_key);
 
 create index if not exists eden_assets_qa_approval_idx
   on public.eden_assets(qa_status, approval_state, created_at desc);
