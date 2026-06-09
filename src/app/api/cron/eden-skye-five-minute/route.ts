@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildEdenReceipt, type EdenOperation } from "@/lib/eden-skye-os";
+import { runEdenWorkflowSupervisor } from "@/lib/eden-skye-workflows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,12 +13,12 @@ function authorized(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  const operations: EdenOperation[] = ["discover", "analyze", "create", "validate", "heal"];
+  const supervisor = await runEdenWorkflowSupervisor({ trigger: "vercel_cron_five_minute", simulateOnly: true });
   return NextResponse.json({
-    ok: true,
+    ok: supervisor.ok,
     job: "eden-skye-five-minute",
     productionActionAllowed: false,
     timestamp: new Date().toISOString(),
-    receipts: operations.map((operation) => buildEdenReceipt(operation))
+    supervisor
   });
 }
