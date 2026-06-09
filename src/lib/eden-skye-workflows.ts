@@ -26,6 +26,7 @@ export type EdenWorkflowName =
   | "dispatch_approved";
 
 export type EdenWorkflowMode = "simulation" | "dry_run" | "approval_gated";
+export type EdenWorkflowStatus = "completed" | "blocked_for_approval" | "failed";
 
 export type EdenWorkflowSpec = {
   name: EdenWorkflowName;
@@ -45,6 +46,28 @@ export type EdenWorkflowInput = {
   simulateOnly?: boolean;
   requestedBy?: string;
   payload?: Record<string, unknown>;
+};
+
+export type EdenChildWorkflowResult = {
+  ok: boolean;
+  runId: string;
+  workflow: EdenWorkflowName;
+  operation?: EdenOperation;
+  description?: string;
+  status: EdenWorkflowStatus;
+  gate?: EdenGate;
+  trigger: string;
+  queueLane?: string;
+  mode?: EdenWorkflowMode;
+  productionActionAllowed: false;
+  externalWritesAllowed: false;
+  approvalRequired?: boolean;
+  maxRetries?: number;
+  toolScope?: string[];
+  persistence?: unknown;
+  agentRunPersistence?: unknown;
+  receipt?: unknown;
+  error?: string;
 };
 
 export const edenChildWorkflowSpecs: EdenWorkflowSpec[] = [
@@ -191,17 +214,22 @@ function workflowGate(spec: EdenWorkflowSpec): EdenGate {
   return gateForOperation(spec.operation);
 }
 
-async function persistWorkflowAgentRun(spec: EdenWorkflowSpec, result: Record<string, unknown>) {
+function asJsonRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+async function persistWorkflowAgentRun(spec: EdenWorkflowSpec, result: unknown) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { mode: "memory_only", ok: true, reason: "Supabase env not configured" };
 
+  const resultRecord = asJsonRecord(result);
   const { error } = await supabase.from("eden_agent_runs").insert({
     agent_name: `eden_workflow_${spec.name}`,
-    trigger: String(result.trigger || "manual_or_cron"),
-    status: result.status === "blocked_for_approval" ? "blocked" : "completed",
+    trigger: String(resultRecord.trigger || "manual_or_cron"),
+    status: resultRecord.status === "blocked_for_approval" ? "blocked" : "completed",
     gate: workflowGate(spec),
     production_action_allowed: false,
-    logs: [result],
+    logs: [resultRecord],
     reflection: {
       workflow: spec.name,
       queue_lane: spec.queueLane,
@@ -215,21 +243,25 @@ async function persistWorkflowAgentRun(spec: EdenWorkflowSpec, result: Record<st
   return { mode: "supabase", ok: true };
 }
 
-export async function runEdenChildWorkflow(name: EdenWorkflowName, input: EdenWorkflowInput = {}) {
+export async function runEdenChildWorkflow(name: EdenWorkflowName, input: EdenWorkflowInput = {}): Promise<EdenChildWorkflowResult> {
   const spec = edenChildWorkflowSpecs.find((item) => item.name === name);
   if (!spec) {
     return {
       ok: false,
+      runId: buildWorkflowRunId(name),
       workflow: name,
+      status: "failed",
+      trigger: input.trigger || "manual_or_cron",
       error: "Unknown Eden Skye child workflow",
-      productionActionAllowed: false
+      productionActionAllowed: false,
+      externalWritesAllowed: false
     };
   }
 
   const trigger = input.trigger || "manual_or_cron";
   const runId = buildWorkflowRunId(spec.name);
   const gate = workflowGate(spec);
-  const status = spec.approvalRequired ? "blocked_for_approval" : "completed";
+  const status: EdenWorkflowStatus = spec.approvalRequired ? "blocked_for_approval" : "completed";
   const receipt = buildEdenReceipt(spec.operation, {
     runId,
     workflow: spec.name,
@@ -245,7 +277,7 @@ export async function runEdenChildWorkflow(name: EdenWorkflowName, input: EdenWo
   });
   const persistence = await persistEdenReceipt(receipt);
 
-  const result = {
+  const result: EdenChildWorkflowResult = {
     ok: true,
     runId,
     workflow: spec.name,
@@ -272,7 +304,7 @@ export async function runEdenChildWorkflow(name: EdenWorkflowName, input: EdenWo
 export async function runEdenWorkflowSupervisor(input: EdenWorkflowInput = {}) {
   const trigger = input.trigger || "manual_or_cron";
   const runId = buildWorkflowRunId("supervisor");
-  const childResults = [];
+  const childResults: EdenChildWorkflowResult[] = [];
 
   for (const spec of edenChildWorkflowSpecs) {
     childResults.push(await runEdenChildWorkflow(spec.name, { ...input, trigger, simulateOnly: input.simulateOnly !== false }));
@@ -280,7 +312,7 @@ export async function runEdenWorkflowSupervisor(input: EdenWorkflowInput = {}) {
 
   const completed = childResults.filter((item) => item.ok && item.status === "completed").length;
   const blockedForApproval = childResults.filter((item) => item.ok && item.status === "blocked_for_approval").length;
-  const failed = childResults.filter((item) => !item.ok).length;
+  const failed = childResults.filter((item) => !item.ok || item.status === "failed").length;
   const connectors = getConnectorReadiness();
   const registry = buildModelRegistrySeed();
 
