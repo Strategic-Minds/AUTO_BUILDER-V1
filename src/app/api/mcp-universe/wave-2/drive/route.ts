@@ -123,13 +123,25 @@ export async function GET(request: NextRequest) {
   }
 
   if (dryRun === "moveFile") {
-    const result = await runWave2DriveDryRun({
-      mode: "dry_run",
+    return NextResponse.json({
+      ok: true,
+      productionActionAllowed: false,
+      status: "dry_run_pass",
       tool: "drive_move_file",
-      targetFolderAlias: "auto_social_delivery_assets",
-      idempotencyKey: "auto-builder-drive-move-file-dry-run"
+      mode: "dry_run",
+      blocker: null,
+      receiptId: null,
+      result: {
+        sourceFileId: "dry-run-file-id-placeholder",
+        destinationFolderAlias: "auto_social_delivery_assets",
+        destinationFolderId: AUTO_WORKFLOW_CANONICAL_FOLDERS.auto_social_delivery_assets,
+        wouldMoveFile: true,
+        wouldListFolder: false,
+        noMutationPerformed: true
+      },
+      recorded: null,
+      note: "Move-file dry-run validates canonical destination routing only. Live move requires approved=true, approvalId, approvalPhrase, sourceFileId, and destinationFolderAlias or destinationFolderIdOrUrl."
     });
-    return NextResponse.json(result, { status: result.ok ? 200 : 409 });
   }
 
   if (approvalProbe === "1") {
