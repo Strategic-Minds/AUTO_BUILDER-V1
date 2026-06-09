@@ -15,6 +15,7 @@ type DriveItem = {
   id: string;
   name: string;
   mimeType: string;
+  createdTime?: string;
   webViewLink?: string;
 };
 
@@ -86,7 +87,7 @@ const ADMIN_CONTROL_FILES = [
   {
     folder: "ADMIN CONTROL - READ FIRST/06 Quarantine Review",
     name: "QUARANTINE REVIEW RULES.md",
-    body: `# Quarantine Review Rules\n\nQuarantine anything that is incomplete, low-confidence, missing consent, sensitive, broken, off-brand, policy-risky, payment-risky, or not approved.\n\nNo item leaves quarantine until it has an approval receipt, owner decision, or replacement draft.\n`
+    body: `# Quarantine Review Rules\n\nQuarantine anything that is incomplete, low-confidence, missing consent, sensitive, broken, off-brand, policy-risky, or not approved.\n\nNo item leaves quarantine until it has an approval receipt, owner decision, or replacement draft.\n`
   },
   {
     folder: "EDEN SKYE STUDIOS/00 ADMIN CONTROL/Eden Closet Black Card",
@@ -288,25 +289,31 @@ async function driveFetch<T>(accessToken: string, url: string, init?: RequestIni
 async function findChild(accessToken: string, parentId: string, name: string, mimeType?: string) {
   const params = new URLSearchParams({
     q: `'${escapeDriveQuery(parentId)}' in parents and name = '${escapeDriveQuery(name)}' and trashed = false${mimeType ? ` and mimeType = '${mimeType}'` : ""}`,
-    fields: "files(id,name,mimeType,webViewLink)",
+    fields: "files(id,name,mimeType,createdTime,webViewLink)",
     supportsAllDrives: "true",
-    includeItemsFromAllDrives: "true"
+    includeItemsFromAllDrives: "true",
+    orderBy: "createdTime"
   });
   const result = await driveFetch<{ files: DriveItem[] }>(accessToken, `${DRIVE_API}/files?${params.toString()}`);
-  return result.files[0] ?? null;
+  return [...result.files].sort((a, b) => (a.createdTime ?? "").localeCompare(b.createdTime ?? ""))[0] ?? null;
 }
 
 async function ensureFolder(accessToken: string, parentId: string, name: string): Promise<CreatedItem> {
   const existing = await findChild(accessToken, parentId, name, "application/vnd.google-apps.folder");
   if (existing) return { path: name, id: existing.id, action: "existing", type: "folder", webViewLink: existing.webViewLink };
 
-  const created = await driveFetch<DriveItem>(accessToken, `${DRIVE_API}/files?supportsAllDrives=true&fields=id,name,mimeType,webViewLink`, {
+  await new Promise((resolve) => setTimeout(resolve, 750));
+  const secondCheck = await findChild(accessToken, parentId, name, "application/vnd.google-apps.folder");
+  if (secondCheck) return { path: name, id: secondCheck.id, action: "existing", type: "folder", webViewLink: secondCheck.webViewLink };
+
+  const created = await driveFetch<DriveItem>(accessToken, `${DRIVE_API}/files?supportsAllDrives=true&fields=id,name,mimeType,createdTime,webViewLink`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       name,
       mimeType: "application/vnd.google-apps.folder",
-      parents: [parentId]
+      parents: [parentId],
+      appProperties: { autoBuilderScaffold: "true" }
     })
   });
   return { path: name, id: created.id, action: "created", type: "folder", webViewLink: created.webViewLink };
