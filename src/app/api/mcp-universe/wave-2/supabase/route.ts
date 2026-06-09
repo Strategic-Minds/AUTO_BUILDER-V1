@@ -62,10 +62,11 @@ function validateSupabaseJob(input: SupabaseJobInput) {
   if (tool === "supabase_get_advisors" && !input.advisorType) missing.push("advisorType");
 
   const isWrite = writeTools.has(tool);
+  const isDryRun = mode === "dry_run";
   const approvedMode = mode === "approved_execute" || mode === "approved_migration" || mode === "approved_branch_admin";
-  const blockedByApproval = isWrite && (approvalMissing(input) || !approvedMode);
-  const liveExecutionDisabled = isWrite && !process.env.WAVE2_SUPABASE_APPROVED_EXECUTE_ENABLED;
-  const productionBlocked = isWrite && input.targetEnvironment === "production" && !process.env.WAVE2_SUPABASE_PRODUCTION_APPROVED_ENABLED;
+  const blockedByApproval = isWrite && !isDryRun && (approvalMissing(input) || !approvedMode);
+  const liveExecutionDisabled = isWrite && !isDryRun && !process.env.WAVE2_SUPABASE_APPROVED_EXECUTE_ENABLED;
+  const productionBlocked = isWrite && !isDryRun && input.targetEnvironment === "production" && !process.env.WAVE2_SUPABASE_PRODUCTION_APPROVED_ENABLED;
 
   return { tool, mode, missing, isWrite, blockedByApproval, liveExecutionDisabled, productionBlocked };
 }
@@ -95,7 +96,7 @@ async function runSupabaseAdapter(input: SupabaseJobInput) {
     resultSummary: blocked
       ? "Supabase Wave 2 request blocked before database mutation."
       : isWrite
-        ? "Supabase Wave 2 approved payload validated; connector execution must be performed by the native Supabase MCP."
+        ? "Supabase Wave 2 payload validated; dry-run performs no database mutation and approved execution must use the native Supabase MCP."
         : "Supabase Wave 2 read/dry-run payload validated.",
     validationStatus: blocked ? "blocked" : "passed",
     rollbackRef: input.idempotencyKey ?? null,
