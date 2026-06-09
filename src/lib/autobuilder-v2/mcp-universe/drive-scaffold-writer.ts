@@ -117,15 +117,37 @@ function decodeBase64Maybe(value: string) {
   }
 }
 
+function credentialFromParsedJson(parsed: unknown, source: string): GoogleCredential | null {
+  if (typeof parsed === "string") {
+    return parseGoogleCredentialJson(parsed, `${source}_nested_string`);
+  }
+
+  if (!parsed || typeof parsed !== "object") return null;
+
+  const record = parsed as { client_email?: unknown; clientEmail?: unknown; private_key?: unknown; privateKey?: unknown };
+  const clientEmail =
+    typeof record.client_email === "string" ? record.client_email :
+    typeof record.clientEmail === "string" ? record.clientEmail :
+    undefined;
+  const privateKey =
+    typeof record.private_key === "string" ? record.private_key :
+    typeof record.privateKey === "string" ? record.privateKey :
+    undefined;
+
+  if (clientEmail || privateKey) return { clientEmail, privateKey, source };
+  return null;
+}
+
 function parseGoogleCredentialJson(value: string, source: string): GoogleCredential | null {
-  const candidates = [stripWrappingQuotes(value), decodeBase64Maybe(stripWrappingQuotes(value))].filter((candidate): candidate is string => Boolean(candidate));
+  const raw = stripWrappingQuotes(value);
+  const decoded = decodeBase64Maybe(raw);
+  const candidates = [value.trim(), raw, decoded].filter((candidate): candidate is string => Boolean(candidate));
 
   for (const candidate of candidates) {
     try {
-      const parsed = JSON.parse(candidate.replace(/\\n/g, "\n")) as { client_email?: unknown; private_key?: unknown };
-      const clientEmail = typeof parsed.client_email === "string" ? parsed.client_email : undefined;
-      const privateKey = typeof parsed.private_key === "string" ? parsed.private_key : undefined;
-      if (clientEmail || privateKey) return { clientEmail, privateKey, source };
+      const parsed = JSON.parse(candidate);
+      const credential = credentialFromParsedJson(parsed, source);
+      if (credential) return credential;
     } catch {
       // Try the next supported credential shape.
     }
@@ -147,27 +169,38 @@ function normalizePrivateKey(value: string) {
 }
 
 function getGoogleCredentialInputs(): GoogleCredential {
-  const jsonCredential =
-    process.env.GOOGLE_SERVICE_ACCOUNT_JSON ??
-    process.env.GOOGLE_CREDENTIALS_JSON ??
-    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ??
-    process.env.GOOGLE_PRIVATE_KEY_JSON;
+  const jsonCredentialEnvNames = [
+    "GOOGLE_SERVICE_ACCOUNT_JSON",
+    "GOOGLE_CREDENTIALS_JSON",
+    "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+    "GOOGLE_PRIVATE_KEY_JSON"
+  ];
+  let partialJsonCredential: GoogleCredential | null = null;
 
-  if (jsonCredential) {
-    const parsed = parseGoogleCredentialJson(jsonCredential, "service_account_json");
-    if (parsed?.clientEmail || parsed?.privateKey) return parsed;
+  for (const envName of jsonCredentialEnvNames) {
+    const jsonCredential = process.env[envName];
+    if (!jsonCredential) continue;
+
+    const parsed = parseGoogleCredentialJson(jsonCredential, envName);
+    if (parsed?.clientEmail && parsed.privateKey) return parsed;
+    if (parsed && !partialJsonCredential) partialJsonCredential = parsed;
   }
 
   const privateKeyFromEnv = process.env.GOOGLE_PRIVATE_KEY ?? process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
   const parsedPrivateKeyJson = privateKeyFromEnv ? parseGoogleCredentialJson(privateKeyFromEnv, "private_key_env_json") : null;
+  const partial = partialJsonCredential ?? parsedPrivateKeyJson;
 
   return {
     clientEmail:
+      partial?.clientEmail ??
       process.env.GOOGLE_CLIENT_EMAIL ??
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ??
-      parsedPrivateKeyJson?.clientEmail,
-    privateKey: parsedPrivateKeyJson?.privateKey ?? privateKeyFromEnv,
-    source: parsedPrivateKeyJson ? "private_key_env_json" : "separate_env_values"
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    privateKey: partial?.privateKey ?? parsedPrivateKeyJson?.privateKey ?? privateKeyFromEnv,
+    source: partial
+      ? `${partial.source}_with_split_env_fallback`
+      : parsedPrivateKeyJson
+        ? "private_key_env_json"
+        : "separate_env_values"
   };
 }
 
