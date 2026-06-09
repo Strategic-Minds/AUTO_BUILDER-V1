@@ -22,6 +22,7 @@ export const runtime = "nodejs";
 const AUTO_WORKFLOW_ROOT_FOLDER_ID = "13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM";
 const APPROVED_DRIVE_TOOL_WRITE_PHRASE = "APPROVE DRIVE TOOL WRITE";
 const DRIVE_DEDUPE_TOOLS = ["drive_duplicate_scan", "drive_dedupe_quarantine"] as const;
+const DRIVE_BULK_TOOLS = ["drive_create_folder", "drive_bulk_create_folders", "drive_bulk_put_files", "drive_bulk_upload_files", "drive_bulk_upload_images"] as const;
 const APPROVED_TOOL_NAMES = new Set([
   "drive_put_file",
   "drive_upload_file",
@@ -30,8 +31,10 @@ const APPROVED_TOOL_NAMES = new Set([
   "drive_list_folder",
   "drive_list_tree",
   "drive_write_receipt",
+  ...DRIVE_BULK_TOOLS,
   ...DRIVE_DEDUPE_TOOLS
 ]);
+const APPROVED_TOOL_LIST = [...APPROVED_TOOL_NAMES];
 
 function scaffoldErrorResponse(error: unknown) {
   return NextResponse.json(
@@ -83,6 +86,15 @@ function numberParam(value: string | null) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function jsonParam(value: string | null) {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
 function getApprovedToolPayload(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   return {
@@ -101,13 +113,16 @@ function getApprovedToolPayload(request: NextRequest) {
     destinationFolderAlias: params.get("destinationFolderAlias") ?? undefined,
     destinationFolderIdOrUrl: params.get("destinationFolderIdOrUrl") ?? undefined,
     targetName: params.get("targetName") ?? undefined,
+    targetNames: jsonParam(params.get("targetNames")),
     sourceText: params.get("sourceText") ?? undefined,
     sourceBase64: params.get("sourceBase64") ?? undefined,
     sourceUrl: params.get("sourceUrl") ?? undefined,
     sourceFileId: params.get("sourceFileId") ?? undefined,
     mimeType: params.get("mimeType") ?? undefined,
     uploadMode: params.get("uploadMode") ?? undefined,
-    idempotencyKey: params.get("idempotencyKey") ?? undefined
+    idempotencyKey: params.get("idempotencyKey") ?? undefined,
+    bulkFiles: jsonParam(params.get("bulkFiles")),
+    bulkFolders: jsonParam(params.get("bulkFolders"))
   };
 }
 
@@ -150,6 +165,45 @@ export async function GET(request: NextRequest) {
       idempotencyKey: "auto-builder-drive-create-folder-get-dry-run"
     });
     return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  }
+
+  if (dryRun === "bulkCreateFolders") {
+    return NextResponse.json({
+      ok: true,
+      productionActionAllowed: false,
+      status: "dry_run_pass",
+      tool: "drive_bulk_create_folders",
+      maxBulkItems: 25,
+      examplePost: {
+        mode: "approved_write",
+        tool: "drive_bulk_create_folders",
+        approved: true,
+        approvalPhrase: APPROVED_DRIVE_TOOL_WRITE_PHRASE,
+        targetFolderAlias: "auto_workflow_root",
+        targetNames: ["Example Folder A", "Example Folder B"]
+      },
+      noMutationPerformed: true
+    });
+  }
+
+  if (dryRun === "bulkUpload") {
+    return NextResponse.json({
+      ok: true,
+      productionActionAllowed: false,
+      status: "dry_run_pass",
+      tools: ["drive_bulk_put_files", "drive_bulk_upload_files", "drive_bulk_upload_images"],
+      maxBulkItems: 25,
+      examplePost: {
+        mode: "approved_write",
+        tool: "drive_bulk_upload_images",
+        approved: true,
+        approvalPhrase: APPROVED_DRIVE_TOOL_WRITE_PHRASE,
+        targetFolderAlias: "auto_social_media_engine",
+        bulkFiles: [{ targetName: "image-1.png", sourceBase64: "base64-redacted", mimeType: "image/png" }]
+      },
+      credentialGate: "Requires OAuth user token, Workspace delegated user, or Shared Drive ownership for new raw uploads.",
+      noMutationPerformed: true
+    });
   }
 
   if (dryRun === "putFile") {
@@ -253,7 +307,7 @@ export async function GET(request: NextRequest) {
         productionActionAllowed: false,
         status: "blocked_unsupported_drive_tool",
         tool: approvedTool,
-        allowedTools: [...APPROVED_TOOL_NAMES],
+        allowedTools: APPROVED_TOOL_LIST,
         noMutationPerformed: true
       }, { status: 409 });
     }
@@ -266,7 +320,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const allDriveTools = [...wave2DriveTools, ...DRIVE_DEDUPE_TOOLS];
+  const allDriveTools = Array.from(new Set([...wave2DriveTools, ...DRIVE_BULK_TOOLS, ...DRIVE_DEDUPE_TOOLS]));
   return NextResponse.json({
     ok: true,
     productionActionAllowed: false,
@@ -276,6 +330,8 @@ export async function GET(request: NextRequest) {
     sampleDryRun: "/api/mcp-universe/wave-2/drive?dryRun=sample",
     fullScaffoldDryRun: "/api/mcp-universe/wave-2/drive?dryRun=fullScaffold",
     createFolderDryRun: "/api/mcp-universe/wave-2/drive?dryRun=createFolder",
+    bulkCreateFoldersDryRun: "/api/mcp-universe/wave-2/drive?dryRun=bulkCreateFolders",
+    bulkUploadDryRun: "/api/mcp-universe/wave-2/drive?dryRun=bulkUpload",
     putFileDryRun: "/api/mcp-universe/wave-2/drive?dryRun=putFile",
     uploadImageDryRun: "/api/mcp-universe/wave-2/drive?dryRun=uploadImage",
     moveFileDryRun: "/api/mcp-universe/wave-2/drive?dryRun=moveFile",
@@ -283,20 +339,21 @@ export async function GET(request: NextRequest) {
     approvalProbe: "/api/mcp-universe/wave-2/drive?approvalProbe=1",
     approvedToolGet: {
       method: "GET",
-      tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt", "drive_duplicate_scan", "drive_dedupe_quarantine"],
+      tools: APPROVED_TOOL_LIST,
       required: {
-        approvedTool: "drive_put_file | drive_upload_file | drive_upload_image | drive_move_file | drive_list_folder | drive_write_receipt | drive_duplicate_scan | drive_dedupe_quarantine",
+        approvedTool: APPROVED_TOOL_LIST.join(" | "),
         approved: "true required for writes only",
         approvalId: "operator approval id required for writes only",
         approvalPhrase: APPROVED_DRIVE_TOOL_WRITE_PHRASE
       },
-      note: "GET harness exists for connected MCP/Vercel evidence tools that cannot POST. drive_duplicate_scan is read-only. drive_dedupe_quarantine is quarantine-only and requires approval."
+      note: "GET harness exists for connected MCP/Vercel evidence tools that cannot POST. Bulk upload tools should use POST. drive_duplicate_scan is read-only. drive_dedupe_quarantine is quarantine-only and requires approval."
     },
     approvedToolPost: {
       method: "POST",
-      tools: ["drive_put_file", "drive_upload_file", "drive_upload_image", "drive_move_file", "drive_list_folder", "drive_write_receipt", "drive_duplicate_scan", "drive_dedupe_quarantine"],
+      tools: APPROVED_TOOL_LIST,
       approvalPhrase: APPROVED_DRIVE_TOOL_WRITE_PHRASE,
       targetFolders: "Use canonical folder aliases from canonicalFolders or explicit folder IDs.",
+      credentialGate: "Raw uploads require OAuth user token, Workspace delegated user, or Shared Drive ownership. Service accounts alone cannot own uploaded bytes.",
       note: "Mutating Drive tool writes require approved=true, approvalId, and approvalPhrase. drive_list_folder and drive_duplicate_scan are read-only. Deletes, renames, publishes, payments, live social, adult-content release, and customer messaging are not supported."
     },
     approvedScaffoldPost: {
@@ -316,7 +373,7 @@ export async function GET(request: NextRequest) {
       autoWorkflowRootFolderId: AUTO_WORKFLOW_ROOT_FOLDER_ID,
       note: "Approved scaffold GET is constrained to the existing AUTO WORKFLOW root folder. No outside/root-level folder creation is allowed. files=false creates the folder tree without starter docs."
     },
-    note: "GET supports dry-runs, duplicate scanning, guarded duplicate quarantine, and guarded AUTO WORKFLOW approved scaffold execution. POST executes approved canonical Drive file operations or validates custom Drive payloads."
+    note: "GET supports dry-runs, duplicate scanning, guarded duplicate quarantine, and guarded AUTO WORKFLOW approved scaffold execution. POST executes approved canonical Drive file operations, bulk folder/file operations, or validates custom Drive payloads."
   });
 }
 
