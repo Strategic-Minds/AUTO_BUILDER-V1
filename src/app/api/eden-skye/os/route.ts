@@ -18,8 +18,15 @@ export async function GET() {
     connectors: getConnectorReadiness(),
     workflows: getEdenWorkflowReadiness(),
     routes: [
+      "/",
+      "/admin/eden-skye",
       "/api/eden-skye/os",
       "/api/eden-skye/admin-control",
+      "/api/eden-skye/edens-closet",
+      "/api/eden-skye/approvals/image_linking",
+      "/api/eden-skye/approvals/scheduling",
+      "/api/eden-skye/approvals/dispatch",
+      "/api/eden-skye/approvals/edens_closet",
       "/api/eden-skye/os/discover",
       "/api/eden-skye/os/analyze",
       "/api/eden-skye/os/create",
@@ -42,8 +49,7 @@ export async function GET() {
       "/api/eden-skye/workflows/heal",
       "/api/eden-skye/workflows/memory_reflection",
       "/api/eden-skye/workflows/dispatch_approved",
-      "/api/cron/eden-skye-five-minute",
-      "/admin/eden-skye"
+      "/api/cron/eden-skye-five-minute"
     ]
   });
 }
