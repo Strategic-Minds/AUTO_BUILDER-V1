@@ -1,0 +1,60 @@
+name: MCP Connector Diagnostics
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+jobs:
+  validate-mcp-connector-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate MCP strict tools
+        run: npm run validate:mcp-tools
+
+      - name: Validate stale connector diagnostics
+        run: node scripts/validate-connector-diagnostics.mjs
+
+      - name: Validate production MCP endpoints
+        run: |
+          node <<'NODE'
+          const urls = {
+            tools: 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/tools',
+            manifest: 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/manifest',
+            plugin: 'https://auto-builder-strategic-minds-advisory.vercel.app/.well-known/ai-plugin.json'
+          };
+
+          async function fetchJson(name, url) {
+            const response = await fetch(url, { headers: { accept: 'application/json' } });
+            if (!response.ok) throw new Error(`${name} returned ${response.status}`);
+            return response.json();
+          }
+
+          const tools = await fetchJson('tools', urls.tools);
+          const manifest = await fetchJson('manifest', urls.manifest);
+          const plugin = await fetchJson('plugin', urls.plugin);
+
+          if (!Array.isArray(tools.tools) || tools.tools.length !== 20) {
+            throw new Error(`tools endpoint exposes ${tools.tools?.length ?? 'unknown'} tools, expected 20`);
+          }
+          if (!Array.isArray(manifest.tools) || manifest.tools.length !== 20) {
+            throw new Error(`manifest endpoint exposes ${manifest.tools?.length ?? 'unknown'} tools, expected 20`);
+          }
+          if (!JSON.stringify(plugin).includes('/api/mcp')) {
+            throw new Error('plugin endpoint does not advertise /api/mcp');
+          }
+
+          console.log('Production MCP endpoint validation passed.');
+          NODE
