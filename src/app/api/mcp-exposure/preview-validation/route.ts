@@ -116,6 +116,19 @@ async function findReceipt(telemetryKey: string) {
 }
 
 export async function GET(request: NextRequest) {
+  if (process.env.VERCEL_ENV === "production") {
+    return NextResponse.json(
+      {
+        ok: false,
+        status: "blocked_in_production",
+        reason: "Preview validation route is disabled in production to prevent validation-triggered telemetry writes.",
+        cloudOnly: true,
+        noLocalFallback: true
+      },
+      { status: 403 }
+    );
+  }
+
   const origin = request.nextUrl.origin;
   const validationRunId = `preview-validation-${new Date().toISOString()}-${crypto.randomUUID()}`;
   const basePayload = {
