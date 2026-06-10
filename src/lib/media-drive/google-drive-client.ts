@@ -2,7 +2,7 @@ export type DriveFileRef = {
   id: string;
   name: string;
   mimeType?: string;
-  webViewLink?: string;
+  planned_url?: string;
   parents?: string[];
 };
 
@@ -37,7 +37,7 @@ export class MediaDriveClient {
       id,
       name: input.filename,
       mimeType: input.mimeType,
-      webViewLink: `https://drive.google.com/file/d/${id}/view`,
+      planned_url: `planned-drive-file:${id}`,
       parents: [input.folderId],
       sizeBytes: 0,
       sha256: 'planned'
@@ -58,7 +58,7 @@ export class MediaDriveClient {
       file_id: input.fileId,
       previous_parent_ids: input.fromFolderId ? [input.fromFolderId] : [],
       new_parent_id: input.toFolderId,
-      web_view_link: `https://drive.google.com/file/d/${input.fileId}/view`
+      planned_url: `planned-drive-file:${input.fileId}`
     };
   }
 
@@ -67,7 +67,7 @@ export class MediaDriveClient {
       folder_id: input.folderId,
       previous_parent_ids: input.fromFolderId ? [input.fromFolderId] : [],
       new_parent_id: input.toFolderId,
-      web_view_link: `https://drive.google.com/drive/folders/${input.folderId}`
+      planned_url: `planned-drive-folder:${input.folderId}`
     };
   }
 
@@ -76,7 +76,7 @@ export class MediaDriveClient {
     return {
       source_file_id: input.fileId,
       copied_file_id: copiedId,
-      copied_file_url: `https://drive.google.com/file/d/${copiedId}/view`,
+      copied_file_planned_url: `planned-drive-file:${copiedId}`,
       target_folder_id: input.toFolderId,
       name: input.newName
     };
