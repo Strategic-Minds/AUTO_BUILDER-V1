@@ -26,16 +26,40 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const jobModeSchema = z.enum(['read', 'dry_run', 'draft', 'execute', 'rollback']);
+const driveModeSchema = z.enum(['read', 'dry_run', 'draft', 'execute', 'rollback', 'approved_write']);
 const dryRunExecuteModeSchema = z.enum(['dry_run', 'execute']);
 const dryRunRollbackModeSchema = z.enum(['dry_run', 'rollback']);
 const payloadSchema = z.object({}).passthrough().optional();
 const universalJobSchema = { job_id: z.string(), mode: jobModeSchema.optional(), action: z.string().optional(), target_system: z.string().optional(), provider: z.string().optional(), command_folder_id: z.string().optional(), payload: payloadSchema };
-const driveJobSchema = { job_id: z.string().optional(), mode: jobModeSchema.optional(), command_folder_id: z.string().optional(), root_folder_id: z.string().optional(), folder_id: z.string().optional(), parent_folder_id: z.string().optional(), folder_name: z.string().optional(), file_id: z.string().optional(), destination_parent_folder_id: z.string().optional(), current_parent_folder_id: z.string().optional(), receipt_folder_id: z.string().optional(), system: z.string().optional(), action: z.string().optional(), status: z.string().optional(), summary: z.string().optional() };
+const driveJobSchema = {
+  job_id: z.string().optional(),
+  mode: driveModeSchema.optional(),
+  approved: z.boolean().optional(),
+  approvalId: z.string().optional(),
+  approvalPhrase: z.string().optional(),
+  command_folder_id: z.string().optional(),
+  root_folder_id: z.string().optional(),
+  create_missing_folders: z.boolean().optional(),
+  folder_manifest: z.array(z.string()).optional(),
+  write_receipts: z.boolean().optional(),
+  blocked_actions: z.array(z.string()).optional(),
+  folder_id: z.string().optional(),
+  parent_folder_id: z.string().optional(),
+  folder_name: z.string().optional(),
+  file_id: z.string().optional(),
+  destination_parent_folder_id: z.string().optional(),
+  current_parent_folder_id: z.string().optional(),
+  receipt_folder_id: z.string().optional(),
+  system: z.string().optional(),
+  action: z.string().optional(),
+  status: z.string().optional(),
+  summary: z.string().optional()
+};
 const platformSchema = { job_id: z.string(), mode: dryRunExecuteModeSchema.optional(), command_folder_id: z.string().optional(), owner: z.string().optional(), repo_name: z.string().optional(), visibility: z.enum(['private', 'public', 'internal']).optional(), description: z.string().optional(), initialize_readme: z.boolean().optional(), team_id: z.string().optional(), project_id: z.string().optional(), project_name: z.string().optional(), workflow_name: z.string().optional(), route: z.string().optional(), schedule: z.string().optional(), timezone: z.string().optional(), agent_name: z.string().optional(), agent_scope: z.string().optional(), allowed_tools: z.array(z.string()).optional(), gateway_name: z.string().optional(), providers: z.array(z.string()).optional(), models: z.array(z.string()).optional(), git_repo: z.string().optional(), framework: z.string().optional(), root_directory: z.string().optional() };
 const rollbackSchema = { job_id: z.string(), mode: dryRunRollbackModeSchema.optional(), original_job_id: z.string(), rollback_type: z.string(), command_folder_id: z.string().optional(), rollback_payload: payloadSchema };
 
 function mcpText(value: unknown) { return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] }; }
-function readBootstrapStatus() { return { route: '/api/mcp-minimal/mcp', purpose: 'Minimal Auto Builder 2 MCP route for ChatGPT ingestion-safe discovery.', activeOperatingMap, expectedCallableMcpTools: expectedCallableMcpToolNames, defaultCommandFolderId, constraints: ['Only the 20 required Auto Builder 2 tools are registered.', 'No browser tools are registered.', 'No Eden dotted aliases are registered.', 'Write-capable tools default to dry_run unless mode=execute is explicitly supplied.'] }; }
+function readBootstrapStatus() { return { route: '/api/mcp-minimal/mcp', purpose: 'Minimal Auto Builder 2 MCP route for ChatGPT ingestion-safe discovery.', activeOperatingMap, expectedCallableMcpTools: expectedCallableMcpToolNames, defaultCommandFolderId, constraints: ['Only the 20 required Auto Builder 2 tools are registered.', 'No browser tools are registered.', 'No Eden dotted aliases are registered.', 'Write-capable tools default to dry_run unless mode=execute or governed approved_write is explicitly supplied.'] }; }
 
 const handler = createMcpHandler(
   (server) => {
@@ -46,7 +70,7 @@ const handler = createMcpHandler(
     server.registerTool('read_text_file', { title: 'Read Text File', description: 'Return a safe summary for minimal MCP route source files.', inputSchema: { path: z.string(), startLine: z.number().int().min(1).optional(), endLine: z.number().int().min(1).optional() } }, async ({ path }) => mcpText({ path, route: '/api/mcp-minimal/mcp', note: 'Minimal MCP route source is in GitHub. Use GitHub fetch_file for exact source content.', expectedCallableMcpTools: expectedCallableMcpToolNames }));
     server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (payload) => mcpText(runJob(payload as never)));
     server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (payload) => mcpText(runUniversalJob(payload as never)));
-    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Dry-run-first Google Drive job planner.', inputSchema: driveJobSchema }, async (payload) => mcpText(runDriveJobTool(payload as never)));
+    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Governed Google Drive job runner for dry-run folder manifests and approved folder creation.', inputSchema: driveJobSchema }, async (payload) => mcpText(await runDriveJobTool(payload as never)));
     server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read/planning tool for Google Drive tree listing.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveListTreeTool(payload as never)));
     server.registerTool('drive_create_folder', { title: 'Drive Create Folder', description: 'Dry-run or explicit execute Google Drive folder creation.', inputSchema: { ...driveJobSchema, mode: dryRunExecuteModeSchema.optional() } }, async (payload) => mcpText(await driveCreateFolderTool(payload as never)));
     server.registerTool('drive_move_folder', { title: 'Drive Move Folder', description: 'Dry-run-first Google Drive folder move planner.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveMoveFolderTool(payload as never)));

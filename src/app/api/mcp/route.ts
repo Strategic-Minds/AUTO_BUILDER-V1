@@ -66,9 +66,16 @@ const universalJobSchema = {
 
 const driveJobSchema = {
   job_id: z.string().optional(),
-  mode: jobModeSchema.optional(),
+  mode: z.enum(['dry_run', 'approved_write', 'read', 'draft', 'execute', 'rollback']).optional(),
+  approved: z.boolean().optional(),
+  approvalId: z.string().optional(),
+  approvalPhrase: z.string().optional(),
   command_folder_id: z.string().optional(),
   root_folder_id: z.string().optional(),
+  create_missing_folders: z.boolean().optional(),
+  folder_manifest: z.array(z.string()).optional(),
+  write_receipts: z.boolean().optional(),
+  blocked_actions: z.array(z.string()).optional(),
   folder_id: z.string().optional(),
   parent_folder_id: z.string().optional(),
   folder_name: z.string().optional(),
@@ -195,8 +202,8 @@ const handler = createMcpHandler(
       mcpText(runUniversalJob(input as never))
     );
 
-    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Dry-run-first Google Drive job planner.', inputSchema: driveJobSchema }, async (input) =>
-      mcpText(runDriveJobTool(input as never))
+    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Governed Google Drive job runner for dry-run folder manifests and approved folder creation.', inputSchema: driveJobSchema }, async (input) =>
+      mcpText(await runDriveJobTool(input as never))
     );
 
     server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read or plan a Google Drive folder tree listing.', inputSchema: driveJobSchema }, async (input) =>

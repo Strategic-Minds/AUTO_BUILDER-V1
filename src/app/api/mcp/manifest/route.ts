@@ -21,8 +21,12 @@ export async function GET() {
     endpoints: {
       mcp: '/api/mcp',
       tools: '/api/mcp/tools',
-      openapi: '/docs/auto-builder-2-gpt-actions.openapi.yaml',
       plugin: '/.well-known/ai-plugin.json'
+    },
+    discovery: {
+      authoritative: 'mcp',
+      openapiAdvertised: false,
+      reason: 'MCP streamable-http discovery is authoritative. No OpenAPI URL is advertised unless a live endpoint exists and is validator-covered.'
     },
     activeOperatingMap,
     tools: expectedCallableMcpToolNames,
@@ -30,7 +34,7 @@ export async function GET() {
     requiredEnvNames,
     governance: {
       defaultMode: 'dry_run',
-      executionRule: 'Live mutations require mode=execute and any provider-specific approval/adapter gate.',
+      executionRule: 'Live mutations require mode=execute or governed approved_write plus any provider-specific approval/adapter gate.',
       secretRule: 'Return environment variable names only; never return token, key, password, connection string, or private key values.',
       rollbackRule: 'Every write-like action must return rollback metadata.'
     }

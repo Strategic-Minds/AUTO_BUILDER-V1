@@ -8,6 +8,7 @@ import { runUniversalJob as runUniversalJobWithFallbacks } from "./universal-job
 
 export const jobModes = ["read", "dry_run", "draft", "execute", "rollback"] as const;
 export type JobMode = (typeof jobModes)[number];
+type DriveRunMode = JobMode | "approved_write";
 
 export type UniversalJobInput = {
   job_id: string;
@@ -123,7 +124,12 @@ function recordArray(value: unknown): JsonRecord[] {
 }
 
 function normalizeMode(mode: unknown, fallback: JobMode = "dry_run"): JobMode {
+  if (mode === "approved_write") return "execute";
   return typeof mode === "string" && jobModes.includes(mode as JobMode) ? (mode as JobMode) : fallback;
+}
+
+function normalizeDriveMode(mode: unknown): DriveRunMode {
+  return mode === "approved_write" ? "approved_write" : normalizeMode(mode);
 }
 
 function existingRunnerMode(mode: JobMode): "dry_run" | "approval_gated" | "execute" {
@@ -249,6 +255,42 @@ function providerStatus(value: unknown, fallback: string): string {
   return fallback;
 }
 
+function folderManifestRecords(input: JsonRecord): JsonRecord[] {
+  const manifest = stringArray(input.folder_manifest);
+  if (manifest.length === 0) return recordArray(input.folders);
+  const rootFolderId = commandFolderId(input);
+  return manifest.map((name) => ({ name, parent_folder_id: rootFolderId, path: name }));
+}
+
+function isApprovedDriveManifestWrite(input: JsonRecord, driveMode: DriveRunMode) {
+  return driveMode === "approved_write" && boolValue(input.approved) === true && Boolean(stringValue(input.approvalId));
+}
+
+async function executeApprovedFolderManifest(input: JsonRecord) {
+  const rootFolderId = commandFolderId(input);
+  const folders = folderManifestRecords(input);
+  const created: unknown[] = [];
+  const failed: unknown[] = [];
+
+  for (const folder of folders) {
+    const folderName = stringValue(folder.name) ?? stringValue(folder.path) ?? "unnamed-folder";
+    const parentFolderId = stringValue(folder.parent_folder_id) ?? rootFolderId;
+    const providerResult = await createDriveFolderWithAdapter({
+      root_folder_id: parentFolderId,
+      name: folderName,
+      parent_folder_id: parentFolderId,
+      dry_run: false,
+      approved_actions: ["create_missing_folders"],
+      approval_phrase: "APPROVE DRIVE FOLDER CREATE"
+    });
+    const providerRecord = providerResult as JsonRecord;
+    if (providerRecord.ok === true || providerRecord.validation_status === "created") created.push(providerResult);
+    else failed.push(providerResult);
+  }
+
+  return { created, failed, requestedCount: folders.length };
+}
+
 export function runJob(input: UniversalJobInput & JsonRecord): ToolResult {
   const mode = normalizeMode(input.mode);
   const targetSystem = input.target_system ?? stringValue(input.provider) ?? "universal";
@@ -302,21 +344,23 @@ export function runUniversalJob(input: UniversalJobInput & JsonRecord): ToolResu
   });
 }
 
-export function runDriveJobTool(input: JsonRecord): ToolResult {
+export async function runDriveJobTool(input: JsonRecord): Promise<ToolResult> {
+  const driveMode = normalizeDriveMode(input.mode);
   const mode = normalizeMode(input.mode);
-  const actions = actionNamesFrom(input.drive_actions ?? input.actions, ["validate_tree", "write_receipts"]);
+  const actions = actionNamesFrom(input.drive_actions ?? input.actions, [input.create_missing_folders === true ? "create_missing_folders" : "validate_tree", "write_receipts"]);
+  const folders = folderManifestRecords(input).map((folder) => ({
+    name: stringValue(folder.name) ?? "unnamed-folder",
+    parent_folder_id: stringValue(folder.parent_folder_id) ?? commandFolderId(input),
+    path: stringValue(folder.path)
+  }));
   const providerResult = runDriveJob({
     job_id: jobId(input, "drive-job"),
     mode: mode === "read" ? "validate_only" : "missing_only",
     root_folder_id: commandFolderId(input),
-    dry_run: mode !== "execute",
+    dry_run: driveMode !== "approved_write" && mode !== "execute",
     actions,
     blocked_actions: stringArray(input.blocked_actions),
-    folders: recordArray(input.folders).map((folder) => ({
-      name: stringValue(folder.name) ?? "unnamed-folder",
-      parent_folder_id: stringValue(folder.parent_folder_id),
-      path: stringValue(folder.path)
-    })),
+    folders,
     files: recordArray(input.files).map((file) => ({
       name: stringValue(file.name) ?? "unnamed-file",
       source_path: stringValue(file.source_path),
@@ -338,17 +382,32 @@ export function runDriveJobTool(input: JsonRecord): ToolResult {
     receipt_folder_id: stringValue(input.receipt_folder_id)
   });
 
+  const approvedManifestRequested = input.create_missing_folders === true && folders.length > 0 && driveMode === "approved_write";
+  const approvedManifestGate = isApprovedDriveManifestWrite(input, driveMode);
+  const approvedManifestResult = approvedManifestRequested && approvedManifestGate
+    ? await executeApprovedFolderManifest(input)
+    : null;
+  const manifestBlocked = approvedManifestRequested && !approvedManifestGate
+    ? "approved_write folder_manifest execution requires approved=true and approvalId."
+    : null;
+
   return result({
     job_id: jobId(input, "drive-job"),
     mode,
     action: "run_drive_job",
     target_system: "google_drive",
     command_folder_id: commandFolderId(input),
+    status: approvedManifestResult
+      ? approvedManifestResult.failed.length === 0 ? "created" : "partial_failure"
+      : manifestBlocked ? "blocked" : undefined,
     data: {
       drive_actions: sanitizeForResponse(input.drive_actions ?? input.actions ?? actions),
-      provider_result: providerResult
+      folder_manifest: sanitizeForResponse(input.folder_manifest ?? []),
+      provider_result: providerResult,
+      approved_manifest_result: sanitizeForResponse(approvedManifestResult),
+      blocker: manifestBlocked
     },
-    receipt: receiptFor(input),
+    receipt: receiptFor(input, approvedManifestResult ? "receipt_required_after_approved_write" : undefined),
     rollback: rollbackFor(input)
   });
 }
