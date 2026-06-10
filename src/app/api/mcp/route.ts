@@ -27,6 +27,11 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const connectorSchemaVersion = 'strict-20-2026-06-10';
+const productionMcpUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp';
+const productionManifestUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/manifest';
+const productionToolsUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/tools';
+
 const visibleRepoPaths = [
   'README.md',
   'docs/handoffs/dev-handoff.md',
@@ -125,13 +130,19 @@ const rollbackSchema = {
 };
 
 function mcpText(value: unknown) {
+  return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
+}
+
+function connectorIntegrity() {
   return {
-    content: [
-      {
-        type: 'text' as const,
-        text: JSON.stringify(value, null, 2)
-      }
-    ]
+    connector_schema_version: connectorSchemaVersion,
+    expected_tool_count: expectedCallableMcpToolNames.length,
+    production_mcp_url: productionMcpUrl,
+    production_manifest_url: productionManifestUrl,
+    production_tools_url: productionToolsUrl,
+    stale_schema_instructions: 'If ChatGPT exposes fewer than 20 AUTO_BUILDER_2 tools, refresh or re-register the connector against production_mcp_url until api_tool.list_resources reports 20 tools.',
+    server_truth: 'Production MCP manifest and tools endpoints are the authoritative strict-20 surfaces.',
+    no_write_fix_rule: 'Do not run Drive writes, folder creation, uploads, or approved_write jobs to fix connector registration.'
   };
 }
 
@@ -141,6 +152,9 @@ function strictStatus() {
     service: 'auto-builder-2-strict-mcp',
     transport: 'streamable-http',
     environment: process.env.VERCEL ? 'vercel' : 'local',
+    connectorIntegrity: connectorIntegrity(),
+    connector_schema_version: connectorSchemaVersion,
+    expected_tool_count: expectedCallableMcpToolNames.length,
     activeOperatingMap,
     expectedCallableMcpTools: expectedCallableMcpToolNames,
     executionTools: autoBuilder2ExecutionToolNames,
@@ -163,106 +177,35 @@ function strictStatus() {
 
 const handler = createMcpHandler(
   (server) => {
-    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the Auto Builder 2 strict MCP server is alive.', inputSchema: {} }, async () =>
+    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the Auto Builder 2 strict MCP server is alive and diagnose stale ChatGPT connector registration.', inputSchema: {} }, async () =>
       mcpText({ ...strictStatus(), timestamp: new Date().toISOString() })
     );
-
-    server.registerTool('get_repo_summary', { title: 'Get Repo Summary', description: 'Return Auto Builder 2 operating map and expected callable tool summary.', inputSchema: {} }, async () =>
-      mcpText(strictStatus())
-    );
-
+    server.registerTool('get_repo_summary', { title: 'Get Repo Summary', description: 'Return Auto Builder 2 operating map and expected callable tool summary.', inputSchema: {} }, async () => mcpText(strictStatus()));
     server.registerTool('list_repo_files', { title: 'List Repo Files', description: 'List safe bundled repo files exposed for read-only inspection.', inputSchema: listRepoFilesSchema }, async ({ subpath, limit }) => {
       const prefix = subpath ? subpath.replace(/\/$/, '') : '';
-      const files = visibleRepoPaths
-        .filter((path) => !prefix || path === prefix || path.startsWith(`${prefix}/`))
-        .slice(0, limit ?? 200)
-        .map((path) => ({ path, type: 'file' }));
-
+      const files = visibleRepoPaths.filter((path) => !prefix || path === prefix || path.startsWith(`${prefix}/`)).slice(0, limit ?? 200).map((path) => ({ path, type: 'file' }));
       return mcpText(files);
     });
-
-    server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect bootstrap status and callable tool expectations.', inputSchema: {} }, async () =>
-      mcpText(strictStatus())
-    );
-
-    server.registerTool('read_text_file', { title: 'Read Text File', description: 'Read safe bundled control-plane file metadata by path.', inputSchema: readTextFileSchema }, async ({ path, startLine, endLine }) =>
-      mcpText({
-        path,
-        startLine,
-        endLine,
-        note: 'Strict MCP route exposes safe bundled file metadata. Use GitHub for exact source audit when needed.'
-      })
-    );
-
-    server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (input) =>
-      mcpText(runJob(input as never))
-    );
-
-    server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (input) =>
-      mcpText(runUniversalJob(input as never))
-    );
-
-    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Governed Google Drive job runner for dry-run folder manifests and approved folder creation.', inputSchema: driveJobSchema }, async (input) =>
-      mcpText(await runDriveJobTool(input as never))
-    );
-
-    server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read or plan a Google Drive folder tree listing.', inputSchema: driveJobSchema }, async (input) =>
-      mcpText(driveListTreeTool(input as never))
-    );
-
-    server.registerTool('drive_create_folder', { title: 'Drive Create Folder', description: 'Dry-run-first Google Drive folder creation planner.', inputSchema: { ...driveJobSchema, mode: dryRunExecuteModeSchema.optional() } }, async (input) =>
-      mcpText(await driveCreateFolderTool(input as never))
-    );
-
-    server.registerTool('drive_move_folder', { title: 'Drive Move Folder', description: 'Dry-run-first Google Drive folder move planner.', inputSchema: driveJobSchema }, async (input) =>
-      mcpText(driveMoveFolderTool(input as never))
-    );
-
-    server.registerTool('drive_move_file', { title: 'Drive Move File', description: 'Dry-run-first Google Drive file move planner.', inputSchema: driveJobSchema }, async (input) =>
-      mcpText(driveMoveFileTool(input as never))
-    );
-
-    server.registerTool('drive_write_receipt', { title: 'Drive Write Receipt', description: 'Dry-run-first Google Drive receipt planner.', inputSchema: driveJobSchema }, async (input) =>
-      mcpText(driveWriteReceiptTool(input as never))
-    );
-
-    server.registerTool('run_platform_provisioning_job', { title: 'Run Platform Provisioning Job', description: 'Dry-run-first GitHub/Vercel/AI Gateway provisioning planner.', inputSchema: platformProvisioningSchema }, async (input) =>
-      mcpText(await runPlatformProvisioningJobTool(input as never))
-    );
-
-    server.registerTool('create_github_repo', { title: 'Create GitHub Repo', description: 'Dry-run-first GitHub repository creation planner.', inputSchema: platformProvisioningSchema }, async (input) =>
-      mcpText(await createGithubRepoTool(input as never))
-    );
-
-    server.registerTool('create_vercel_project', { title: 'Create Vercel Project', description: 'Dry-run-first Vercel project creation planner.', inputSchema: platformProvisioningSchema }, async (input) =>
-      mcpText(await createVercelProjectTool(input as never))
-    );
-
-    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow or cron planner.', inputSchema: platformProvisioningSchema }, async (input) =>
-      mcpText(createVercelWorkflowTool(input as never))
-    );
-
-    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformProvisioningSchema }, async (input) =>
-      mcpText(createVercelAgentTool(input as never))
-    );
-
-    server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformProvisioningSchema }, async (input) =>
-      mcpText(createAiGatewayTool(input as never))
-    );
-
-    server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode.', inputSchema: rollbackSchema }, async (input) =>
-      mcpText(rollbackTool(input as never))
-    );
+    server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect bootstrap status, callable tool expectations, and stale ChatGPT connector diagnostics.', inputSchema: {} }, async () => mcpText(strictStatus()));
+    server.registerTool('read_text_file', { title: 'Read Text File', description: 'Read safe bundled control-plane file metadata by path.', inputSchema: readTextFileSchema }, async ({ path, startLine, endLine }) => mcpText({ path, startLine, endLine, connectorIntegrity: connectorIntegrity(), note: 'Strict MCP route exposes safe bundled file metadata. Use GitHub for exact source audit when needed.' }));
+    server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (input) => mcpText(runJob(input as never)));
+    server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (input) => mcpText(runUniversalJob(input as never)));
+    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Governed Google Drive job runner for dry-run folder manifests and approved folder creation.', inputSchema: driveJobSchema }, async (input) => mcpText(await runDriveJobTool(input as never)));
+    server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read or plan a Google Drive folder tree listing.', inputSchema: driveJobSchema }, async (input) => mcpText(driveListTreeTool(input as never)));
+    server.registerTool('drive_create_folder', { title: 'Drive Create Folder', description: 'Dry-run-first Google Drive folder creation planner.', inputSchema: { ...driveJobSchema, mode: dryRunExecuteModeSchema.optional() } }, async (input) => mcpText(await driveCreateFolderTool(input as never)));
+    server.registerTool('drive_move_folder', { title: 'Drive Move Folder', description: 'Dry-run-first Google Drive folder move planner.', inputSchema: driveJobSchema }, async (input) => mcpText(driveMoveFolderTool(input as never)));
+    server.registerTool('drive_move_file', { title: 'Drive Move File', description: 'Dry-run-first Google Drive file move planner.', inputSchema: driveJobSchema }, async (input) => mcpText(driveMoveFileTool(input as never)));
+    server.registerTool('drive_write_receipt', { title: 'Drive Write Receipt', description: 'Dry-run-first Google Drive receipt planner.', inputSchema: driveJobSchema }, async (input) => mcpText(driveWriteReceiptTool(input as never)));
+    server.registerTool('run_platform_provisioning_job', { title: 'Run Platform Provisioning Job', description: 'Dry-run-first GitHub/Vercel/AI Gateway provisioning planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await runPlatformProvisioningJobTool(input as never)));
+    server.registerTool('create_github_repo', { title: 'Create GitHub Repo', description: 'Dry-run-first GitHub repository creation planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await createGithubRepoTool(input as never)));
+    server.registerTool('create_vercel_project', { title: 'Create Vercel Project', description: 'Dry-run-first Vercel project creation planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await createVercelProjectTool(input as never)));
+    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow or cron planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createVercelWorkflowTool(input as never)));
+    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createVercelAgentTool(input as never)));
+    server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createAiGatewayTool(input as never)));
+    server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode.', inputSchema: rollbackSchema }, async (input) => mcpText(rollbackTool(input as never)));
   },
-  {
-    instructions:
-      'AUTO BUILDER 2 strict ChatGPT MCP route. Exposes exactly the 20 required tools. Write-capable tools are dry-run-first and require explicit execute or rollback mode.'
-  },
-  {
-    basePath: '/api',
-    maxDuration: 60,
-    verboseLogs: false
-  }
+  { instructions: 'AUTO BUILDER 2 strict ChatGPT MCP route. Exposes exactly the 20 required tools. Write-capable tools are dry-run-first and require explicit execute or rollback mode. Health and bootstrap tools include connector_schema_version strict-20-2026-06-10 and stale connector diagnostics.' },
+  { basePath: '/api', maxDuration: 60, verboseLogs: false }
 );
 
 export { handler as GET, handler as POST, handler as DELETE };
