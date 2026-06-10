@@ -1,107 +1,57 @@
 import { NextResponse } from 'next/server';
 
+import {
+  activeOperatingMap,
+  autoBuilder2ExecutionToolNames,
+  expectedCallableMcpToolNames,
+  readInspectionToolNames,
+  requiredEnvNames
+} from '@/lib/autobuilder-v2/execution-tools';
+
 export const dynamic = 'force-dynamic';
+
+const toolDescriptions: Record<string, string> = {
+  health_check: 'Confirm the Auto Builder 2 MCP server is alive before using other tools.',
+  get_repo_summary: 'Inspect repo, provider, active operating map, and advertised execution surfaces.',
+  list_repo_files: 'List the bundled repo paths exposed through the MCP control-plane view.',
+  read_bootstrap_status: 'Inspect package metadata, scripts, bootstrap status, and callable tool expectations.',
+  read_text_file: 'Read a bundled UTF-8 control-plane file by path.',
+  run_job: 'Generic GPT-safe job entrypoint with dry-run default, receipts, rollback metadata, and universal routing.',
+  run_universal_job: 'Cross-stack universal automation runner for governed end-to-end operations.',
+  run_drive_job: 'Plan or route Google Drive jobs with dry-run default and receipt metadata.',
+  drive_list_tree: 'Read or plan a Google Drive folder tree listing.',
+  drive_create_folder: 'Dry-run or approval-gated Google Drive folder creation.',
+  drive_move_folder: 'Plan moving a Google Drive folder and return rollback parent metadata.',
+  drive_move_file: 'Plan moving a Google Drive file and return rollback parent metadata.',
+  drive_write_receipt: 'Plan writing a Google Drive receipt without exposing secrets.',
+  run_platform_provisioning_job: 'Route GitHub, Vercel, and AI Gateway provisioning actions.',
+  create_github_repo: 'Dry-run or approval-gated GitHub repository creation.',
+  create_vercel_project: 'Dry-run or approval-gated Vercel project creation.',
+  create_vercel_workflow: 'Plan Vercel workflow or cron creation.',
+  create_vercel_agent: 'Plan Vercel agent creation.',
+  create_ai_gateway: 'Plan AI Gateway creation.',
+  rollback: 'Plan rollback or return adapter-required metadata for provider rollback.'
+};
 
 export async function GET() {
   return NextResponse.json({
-    app: 'AUTO BUILDER',
-    version: '0.3.0',
-    tools: [
-      {
-        name: 'autobuilder_stack_status',
-        title: 'AUTO BUILDER Stack Status',
-        description: 'Returns AUTO BUILDER stack, governance posture, canon links, and closed-loop target.',
-      },
-      {
-        name: 'governance_preflight',
-        title: 'Governance Preflight',
-        description: 'Classifies requested action as safe, blocked, or requiring Jeremy approval.',
-      },
-      {
-        name: 'create_repurpose_task_packet',
-        title: 'Create Repurpose Task Packet',
-        description: 'Creates governed task packet for video repurposing, Drive handoff, publishing, and attribution.',
-      },
-      {
-        name: 'recursive_prompt_chain_next',
-        title: 'Recursive Prompt Chain Next',
-        description: 'Extracts or creates the next executable GPT instruction from the prior response final block.',
-      },
-      {
-        name: 'run_drive_job',
-        title: 'Run Drive Job',
-        description: 'Plans governed Google Drive folder, file, image, move, receipt, and validation jobs with dry-run defaults.',
-      },
-      {
-        name: 'drive_list_tree',
-        title: 'Drive List Tree',
-        description: 'Plans and validates listing a Google Drive folder tree.',
-      },
-      {
-        name: 'drive_create_folder',
-        title: 'Drive Create Folder',
-        description: 'Plans Google Drive folder creation by default and executes only with dry_run=false, approved_actions, and the exact approval phrase.',
-      },
-      {
-        name: 'drive_upload_file',
-        title: 'Drive Upload File',
-        description: 'Plans upload of a file into Google Drive.',
-      },
-      {
-        name: 'drive_upload_image',
-        title: 'Drive Upload Image',
-        description: 'Plans upload of an image into Google Drive.',
-      },
-      {
-        name: 'drive_move_file',
-        title: 'Drive Move File',
-        description: 'Plans moving a Google Drive file to another folder.',
-      },
-      {
-        name: 'drive_move_folder',
-        title: 'Drive Move Folder',
-        description: 'Plans moving a Google Drive folder to another folder.',
-      },
-      {
-        name: 'drive_write_receipt',
-        title: 'Drive Write Receipt',
-        description: 'Plans writing a Google Drive job receipt.',
-      },
-      {
-        name: 'run_eden_social_loop',
-        title: 'Run Eden Skye Social Loop',
-        description: 'Runs the EdenSkyeStudios.com website, social, model, membership, validation, quarantine, and memory loop in dry-run/draft mode.',
-      },
-      {
-        name: 'run_eden_website_build_workflow',
-        title: 'Run Eden Website Build Workflow',
-        description: 'Plans the Vercel Workflow backend/frontend build for EdenSkyeStudios.com and Eden Closet without production deployment.',
-      },
-      {
-        name: 'run_metricool_job',
-        title: 'Run Metricool Job',
-        description: 'Prepares Metricool draft scheduling and analytics jobs. Public posting remains approval-gated.',
-      },
-      {
-        name: 'run_shopify_xyla_job',
-        title: 'Run Shopify Xyla Job',
-        description: 'Uses Shopify as the Xyla operating bridge for draft collections, feed packets, products, metafields, and model/member content surfaces.',
-      },
-      {
-        name: 'run_edens_closet_membership_job',
-        title: "Run Eden's Closet Membership Job",
-        description: 'Plans Black Card membership products, age gate, entitlement, sign-in, and draft checkout flows. Billing activation and adult-content release require explicit approval.',
-      },
-    ],
+    app: 'AUTO BUILDER 2',
+    version: '0.4.0',
+    transport: 'streamable-http',
+    activeOperatingMap,
+    tools: expectedCallableMcpToolNames.map((name) => ({
+      name,
+      title: name,
+      description: toolDescriptions[name] ?? 'Auto Builder MCP tool.',
+      group: readInspectionToolNames.some((toolName) => toolName === name) ? 'inspection' : 'execution'
+    })),
+    executionTools: autoBuilder2ExecutionToolNames,
+    requiredEnvNames,
     governance: {
-      protectedMutationRule:
-        'No workflow, governance, source-truth, billing, deployment, database, Shopify, Stripe money movement, Vercel env, Supabase schema, Drive canon, Sheets canon, or authority-file mutation without Jeremy explicit current-session command.',
-      driveFolderCreateRule:
-        'drive_create_folder defaults to dry-run. Live folder creation requires dry_run=false, approved_actions including create_missing_folders, and approval_phrase exactly APPROVE DRIVE FOLDER CREATE.',
-      edenClosetRule:
-        'Eden Closet / Black Card membership work defaults to design, schema, draft checkout, and compliance planning only. Payment activation, adult-content release, public publishing, and subscriber messaging require explicit approval.',
-      socialPublishingRule:
-        'Metricool and Shopify/Xyla jobs default to draft packets. Public posts, comments, replies, DMs, and paid campaigns require approval.'
-    },
+      defaultWriteMode: 'dry_run',
+      executeRule: 'Write-capable tools must not mutate external systems unless mode is execute and the provider-specific adapter/approval gate allows it.',
+      secretRule: 'Responses return required environment variable names only; secret values are never returned.',
+      rollbackRule: 'Every write-like result includes rollback metadata or an adapter-required rollback note.'
+    }
   });
 }

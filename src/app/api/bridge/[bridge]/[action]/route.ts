@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { insertTelemetry, readTelemetryByQuery, updateTelemetry } from "@/lib/telemetry-store";
+import { requiresOperatorAuth, verifyExecutionRouteAuth } from "@/lib/autobuilder-v2/execution-route-auth";
+import {
+  createAiGatewayTool,
+  createGithubRepoTool,
+  createVercelAgentTool,
+  createVercelProjectTool,
+  createVercelWorkflowTool,
+  driveCreateFolderTool,
+  driveListTreeTool,
+  driveMoveFileTool,
+  driveMoveFolderTool,
+  driveWriteReceiptTool,
+  runDriveJobTool,
+  runPlatformProvisioningJobTool
+} from "@/lib/autobuilder-v2/execution-tools";
 
 const BRIDGE_MAP: Record<string, string> = {
   "web-research": "web_research_bridge",
@@ -9,15 +24,40 @@ const BRIDGE_MAP: Record<string, string> = {
   "shopify-commerce": "shopify_commerce_bridge"
 };
 
+const executionBridgeHandlers = {
+  "drive/run-drive-job": runDriveJobTool,
+  "drive/list-tree": driveListTreeTool,
+  "drive/create-folder": driveCreateFolderTool,
+  "drive/move-folder": driveMoveFolderTool,
+  "drive/move-file": driveMoveFileTool,
+  "drive/write-receipt": driveWriteReceiptTool,
+  "platform/run-platform-provisioning-job": runPlatformProvisioningJobTool,
+  "github/create-repo": createGithubRepoTool,
+  "vercel/create-project": createVercelProjectTool,
+  "vercel/create-workflow": createVercelWorkflowTool,
+  "vercel/create-agent": createVercelAgentTool,
+  "ai-gateway/create": createAiGatewayTool
+} as const;
+
 function tableFor(bridge: string) {
   return BRIDGE_MAP[bridge] as keyof typeof BRIDGE_MAP | undefined;
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ bridge: string; action: string }> }) {
   const { bridge, action } = await params;
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const executionHandler = executionBridgeHandlers[`${bridge}/${action}` as keyof typeof executionBridgeHandlers];
+  if (executionHandler) {
+    if (requiresOperatorAuth(body)) {
+      const auth = verifyExecutionRouteAuth(request);
+      if (!auth.ok) return NextResponse.json({ ok: false, error: auth.message }, { status: auth.status });
+    }
+
+    return NextResponse.json(await executionHandler(body as never));
+  }
+
   const table = tableFor(bridge);
   if (!table) return NextResponse.json({ error: "Unsupported bridge" }, { status: 404 });
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const now = new Date().toISOString();
 
   if (action === "task") {

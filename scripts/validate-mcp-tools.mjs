@@ -1,0 +1,162 @@
+import { readFileSync } from 'node:fs';
+
+const expectedCallableTools = [
+  'health_check',
+  'get_repo_summary',
+  'list_repo_files',
+  'read_bootstrap_status',
+  'read_text_file',
+  'run_job',
+  'run_universal_job',
+  'run_drive_job',
+  'drive_list_tree',
+  'drive_create_folder',
+  'drive_move_folder',
+  'drive_move_file',
+  'drive_write_receipt',
+  'run_platform_provisioning_job',
+  'create_github_repo',
+  'create_vercel_project',
+  'create_vercel_workflow',
+  'create_vercel_agent',
+  'create_ai_gateway',
+  'rollback'
+];
+
+const requiredEnvNames = [
+  'AUTO_BUILDER_OPERATOR_TOKEN',
+  'AUTO_BUILDER_BRIDGE_TOKEN',
+  'GOOGLE_CLIENT_EMAIL',
+  'GOOGLE_PRIVATE_KEY',
+  'GOOGLE_DRIVE_ROOT_FOLDER_ID',
+  'GITHUB_TOKEN',
+  'GITHUB_ORG',
+  'VERCEL_TOKEN',
+  'VERCEL_TEAM_ID',
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'SHOPIFY_SHOP',
+  'SHOPIFY_ADMIN_TOKEN',
+  'AI_GATEWAY_API_KEY',
+  'OPENAI_API_KEY',
+  'GROQ_API_KEY'
+];
+
+function assert(condition, message) {
+  if (!condition) {
+    console.error(message);
+    process.exit(1);
+  }
+}
+
+function read(path) {
+  return readFileSync(path, 'utf8');
+}
+
+const routeSource = read('src/app/api/mcp/route.ts');
+const executionSource = read('src/lib/autobuilder-v2/execution-tools.ts');
+const toolsRouteSource = read('src/app/api/mcp/tools/route.ts');
+const manifestSource = read('src/app/api/mcp/manifest/route.ts');
+const runJobRouteSource = read('src/app/api/bridge/run-job/route.ts');
+const runUniversalJobRouteSource = read('src/app/api/bridge/run-universal-job/route.ts');
+const rollbackRouteSource = read('src/app/api/bridge/rollback/route.ts');
+const bridgeExecutionRouteSource = read('src/app/api/bridge/[bridge]/[action]/route.ts');
+const packageJson = JSON.parse(read('package.json'));
+
+for (const toolName of expectedCallableTools) {
+  assert(
+    routeSource.includes(`server.registerTool('${toolName}'`),
+    `MCP route is missing callable tool registration: ${toolName}`
+  );
+  assert(
+    executionSource.includes(`"${toolName}"`) || ['health_check', 'get_repo_summary', 'list_repo_files', 'read_bootstrap_status', 'read_text_file'].includes(toolName),
+    `Execution tool registry is missing: ${toolName}`
+  );
+}
+
+assert(
+  packageJson.scripts?.['validate:mcp-tools'] === 'node scripts/validate-mcp-tools.mjs',
+  'package.json is missing validate:mcp-tools script.'
+);
+
+for (const marker of [
+  'sanitizeForResponse',
+  'secretKeyPattern',
+  'receipt:',
+  'rollback:',
+  'would_create_folder',
+  'would_move_folder',
+  'would_move_file',
+  'would_create_repo',
+  'would_create_vercel_project',
+  'would_create_workflow',
+  'would_create_agent',
+  'would_create_ai_gateway',
+  'rollback_plan',
+  'not_implemented',
+  'mode !== "execute"'
+]) {
+  assert(executionSource.includes(marker), `Execution contract missing marker: ${marker}`);
+}
+
+for (const metadataSource of [toolsRouteSource, manifestSource]) {
+  assert(metadataSource.includes('expectedCallableMcpToolNames'), 'MCP metadata route does not use expectedCallableMcpToolNames.');
+  assert(metadataSource.includes('activeOperatingMap'), 'MCP metadata route does not expose activeOperatingMap.');
+}
+
+assert(runJobRouteSource.includes('runJob'), 'Static /api/bridge/run-job route is not wired to runJob.');
+assert(runUniversalJobRouteSource.includes('runUniversalJob'), 'Static /api/bridge/run-universal-job route is not wired to runUniversalJob.');
+assert(rollbackRouteSource.includes('rollbackTool'), 'Static /api/bridge/rollback route is not wired to rollbackTool.');
+
+for (const routeSource of [runJobRouteSource, runUniversalJobRouteSource, rollbackRouteSource]) {
+  assert(routeSource.includes('requiresOperatorAuth'), 'Static bridge route missing execute/rollback auth guard.');
+  assert(routeSource.includes('verifyExecutionRouteAuth'), 'Static bridge route missing bearer auth verification.');
+}
+
+for (const marker of [
+  'drive/run-drive-job',
+  'drive/list-tree',
+  'drive/create-folder',
+  'drive/move-folder',
+  'drive/move-file',
+  'drive/write-receipt',
+  'platform/run-platform-provisioning-job',
+  'github/create-repo',
+  'vercel/create-project',
+  'vercel/create-workflow',
+  'vercel/create-agent',
+  'ai-gateway/create',
+  'requiresOperatorAuth',
+  'verifyExecutionRouteAuth'
+]) {
+  assert(bridgeExecutionRouteSource.includes(marker), `Two-segment bridge route missing marker: ${marker}`);
+}
+
+for (const envName of requiredEnvNames) {
+  assert(executionSource.includes(`"${envName}"`), `Required env name missing from execution contract: ${envName}`);
+  const envValue = process.env[envName];
+  if (envValue && envValue.length >= 8) {
+    for (const [path, source] of [
+      ['src/app/api/mcp/route.ts', routeSource],
+      ['src/lib/autobuilder-v2/execution-tools.ts', executionSource],
+      ['src/app/api/mcp/tools/route.ts', toolsRouteSource],
+      ['src/app/api/mcp/manifest/route.ts', manifestSource],
+      ['src/app/api/bridge/run-job/route.ts', runJobRouteSource],
+      ['src/app/api/bridge/run-universal-job/route.ts', runUniversalJobRouteSource],
+      ['src/app/api/bridge/rollback/route.ts', rollbackRouteSource],
+      ['src/app/api/bridge/[bridge]/[action]/route.ts', bridgeExecutionRouteSource]
+    ]) {
+      assert(!source.includes(envValue), `Secret value for ${envName} appears in ${path}.`);
+    }
+  }
+}
+
+for (const forbidden of ['Strategic-Minds/SANDBOX"', 'Strategic-Minds/FRONTEND"']) {
+  const activeMapStart = executionSource.indexOf('export const activeOperatingMap');
+  const activeMapEnd = executionSource.indexOf('} as const;', activeMapStart);
+  const activeMapSource = activeMapStart >= 0 && activeMapEnd > activeMapStart ? executionSource.slice(activeMapStart, activeMapEnd) : '';
+  assert(!activeMapSource.includes(forbidden), `Active operating map includes forbidden repo: ${forbidden}`);
+}
+
+console.log(`MCP tool validation passed: ${expectedCallableTools.length} required callable tools are registered with dry-run, receipt, rollback, and secret-safety markers.`);
