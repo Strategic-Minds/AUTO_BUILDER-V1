@@ -29,7 +29,11 @@ function baseSchema(required: string[], properties: Record<string, unknown>) {
 function toolInputSchema(name: string) {
   const common = {
     project_slug: { type: 'string' },
-    write_receipt: { type: 'boolean', default: true }
+    write_receipt: { type: 'boolean', default: true },
+    require_durable_receipt: { type: 'boolean', default: false },
+    approved_write: { type: 'boolean', default: false },
+    approved_write_dry_run: { type: 'boolean', default: false },
+    approved_write_token: { type: 'string' }
   };
 
   const schemas: Record<string, unknown> = {
@@ -133,7 +137,14 @@ function mcpTools() {
       defaultMode: 'autonomous_logged',
       liveMutation: true,
       requiresReceipt: true,
-      hardGate: MEDIA_DRIVE_HARD_GATES
+      hardGate: MEDIA_DRIVE_HARD_GATES,
+      liveAdapterGates: [
+        'MEDIA_DRIVE_LIVE_ENABLED=1',
+        'MEDIA_DRIVE_APPROVED_WRITE_ENABLED=1',
+        'MEDIA_DRIVE_APPROVED_WRITE_TOKEN when configured',
+        'approved_write=true',
+        'approved_write_dry_run=false'
+      ]
     }
   }));
 }
@@ -147,7 +158,13 @@ function statusPayload() {
     tools: MEDIA_DRIVE_TOOLS,
     rootFolderId: ROOT_FOLDER_ID,
     hardGates: MEDIA_DRIVE_HARD_GATES,
-    note: 'Scaffolded MCP route delegates tool execution to shared runMediaDriveTool(). Live Google Drive and image adapters must be wired before production deployment.'
+    liveAdapter: {
+      enabled: process.env.MEDIA_DRIVE_LIVE_ENABLED === '1',
+      approvedWritesEnabled: process.env.MEDIA_DRIVE_APPROVED_WRITE_ENABLED === '1',
+      approvedWriteTokenConfigured: Boolean(process.env.MEDIA_DRIVE_APPROVED_WRITE_TOKEN),
+      receiptPersistenceEnabled: process.env.MEDIA_DRIVE_RECEIPT_PERSISTENCE_ENABLED === '1'
+    },
+    note: 'MCP route delegates tool execution to shared runMediaDriveTool(). Live mutations require explicit cloud env gates plus approved_write controls; preview validators remain non-production gates.'
   };
 }
 
@@ -167,8 +184,8 @@ export async function POST(request: Request) {
     return jsonRpc(body.id, {
       protocolVersion: '2024-11-05',
       capabilities: { tools: { listChanged: true } },
-      serverInfo: { name: 'auto-builder-2-media-drive-pipeline', version: '0.1.0' },
-      instructions: 'AUTO BUILDER 2 Media Drive Pipeline. Tools are autonomous_logged inside scoped folders and hard-gated for public sharing, deletion, source-truth movement, permission changes, external sends, and spend overflow.'
+      serverInfo: { name: 'auto-builder-2-media-drive-pipeline', version: '0.2.0' },
+      instructions: 'AUTO BUILDER 2 Media Drive Pipeline. Tools are autonomous_logged inside scoped folders and hard-gated for public sharing, deletion, source-truth movement, permission changes, external sends, and spend overflow. Live mutations require cloud env gates, approved_write=true, and a valid approved-write token when configured.'
     });
   }
 
