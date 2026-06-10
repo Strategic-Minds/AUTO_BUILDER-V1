@@ -8,6 +8,7 @@
     "start": "next start",
     "validate:factory": "node scripts/validate-factory.mjs",
     "validate:mcp-tools": "node scripts/validate-mcp-tools.mjs",
+    "validate:autonomous-control-plane": "node scripts/validate-autonomous-control-plane.mjs",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs"
   },
   "dependencies": {

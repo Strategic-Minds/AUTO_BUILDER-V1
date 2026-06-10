@@ -1,0 +1,92 @@
+name: Autonomous Control Plane Preview QA
+
+on:
+  pull_request:
+    paths:
+      - 'src/app/autonomous-control-plane/**'
+      - 'src/app/api/autonomous-control-plane/**'
+      - 'src/app/api/cron/autonomous-control-plane/**'
+      - 'src/lib/autonomous-control-plane/**'
+      - 'scripts/validate-autonomous-control-plane.mjs'
+      - 'docs/autonomous-control-plane/**'
+      - '.github/workflows/autonomous-control-plane-preview.yml'
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Preview URL to verify. Falls back to localhost after local build.'
+        required: false
+        type: string
+
+jobs:
+  validate-and-browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate autonomous control plane markers
+        run: npm run validate:autonomous-control-plane
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local server
+        if: ${{ inputs.preview_url == '' }}
+        run: |
+          npm run start > /tmp/autonomous-control-plane-next.log 2>&1 &
+          echo $! > /tmp/autonomous-control-plane-next.pid
+          npx wait-on http://127.0.0.1:3000/autonomous-control-plane
+
+      - name: Browser QA and route checks
+        env:
+          TARGET_URL: ${{ inputs.preview_url != '' && inputs.preview_url || 'http://127.0.0.1:3000' }}
+        run: |
+          node <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const base = process.env.TARGET_URL.replace(/\/$/, '');
+          const errors = [];
+          const browser = await chromium.launch();
+          const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+          page.on('console', (message) => {
+            if (message.type() === 'error') errors.push(message.text());
+          });
+          const response = await page.goto(`${base}/autonomous-control-plane`, { waitUntil: 'networkidle' });
+          if (!response || !response.ok()) throw new Error(`control plane page returned ${response?.status()}`);
+          const text = await page.textContent('body');
+          for (const marker of ['Strategic Minds', 'Self-Build Queue', 'Governance Gates', 'Evidence Receipts']) {
+            if (!text.includes(marker)) throw new Error(`Missing page marker: ${marker}`);
+          }
+          const overlay = await page.locator('[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay').count();
+          if (overlay > 0) throw new Error('Framework error overlay detected.');
+          await page.screenshot({ path: 'autonomous-control-plane-desktop.png', fullPage: true });
+          const state = await (await page.request.get(`${base}/api/autonomous-control-plane/state`)).json();
+          if (state.system.productionActionAllowed !== false) throw new Error('State endpoint allowed production actions.');
+          const loop = await (await page.request.get(`${base}/api/autonomous-control-plane/run-loop`)).json();
+          if (loop.productionActionAllowed !== false) throw new Error('Run-loop endpoint allowed production actions.');
+          const cron = await page.request.get(`${base}/api/cron/autonomous-control-plane?dryRun=1`);
+          if (!cron.ok()) throw new Error(`Cron dry-run returned ${cron.status()}`);
+          if (errors.length) throw new Error(`Console errors: ${errors.join('\n')}`);
+          await browser.close();
+          fs.writeFileSync('autonomous-control-plane-browser-receipt.json', JSON.stringify({ base, ok: true, checkedAt: new Date().toISOString() }, null, 2));
+          NODE
+
+      - name: Upload browser QA evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomous-control-plane-browser-qa
+          path: |
+            autonomous-control-plane-desktop.png
+            autonomous-control-plane-browser-receipt.json
