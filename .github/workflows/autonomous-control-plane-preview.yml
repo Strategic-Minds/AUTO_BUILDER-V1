@@ -83,6 +83,40 @@ jobs:
           fs.writeFileSync('autonomous-control-plane-browser-receipt.json', JSON.stringify({ base, ok: true, checkedAt: new Date().toISOString() }, null, 2));
           NODE
 
+      - name: Production browser QA and route checks
+        env:
+          TARGET_URL: https://auto-builder-strategic-minds-advisory.vercel.app
+        run: |
+          node <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          const base = process.env.TARGET_URL.replace(/\/$/, '');
+          const errors = [];
+          const browser = await chromium.launch();
+          const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+          page.on('console', (message) => {
+            if (message.type() === 'error') errors.push(message.text());
+          });
+          const response = await page.goto(`${base}/autonomous-control-plane`, { waitUntil: 'networkidle' });
+          if (!response || !response.ok()) throw new Error(`production control plane page returned ${response?.status()}`);
+          const text = await page.textContent('body');
+          for (const marker of ['Strategic Minds', 'Self-Build Queue', 'Governance Gates', 'Evidence Receipts']) {
+            if (!text.includes(marker)) throw new Error(`Missing production page marker: ${marker}`);
+          }
+          const overlay = await page.locator('[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay').count();
+          if (overlay > 0) throw new Error('Framework error overlay detected on production alias.');
+          await page.screenshot({ path: 'autonomous-control-plane-production-desktop.png', fullPage: true });
+          const state = await (await page.request.get(`${base}/api/autonomous-control-plane/state`)).json();
+          if (state.system.productionActionAllowed !== false) throw new Error('Production state endpoint allowed production actions.');
+          const loop = await (await page.request.get(`${base}/api/autonomous-control-plane/run-loop`)).json();
+          if (loop.productionActionAllowed !== false) throw new Error('Production run-loop endpoint allowed production actions.');
+          const cron = await page.request.get(`${base}/api/cron/autonomous-control-plane?dryRun=1`);
+          if (!cron.ok()) throw new Error(`Production cron dry-run returned ${cron.status()}`);
+          if (errors.length) throw new Error(`Production console errors: ${errors.join('\n')}`);
+          await browser.close();
+          fs.writeFileSync('autonomous-control-plane-production-browser-receipt.json', JSON.stringify({ base, ok: true, checkedAt: new Date().toISOString() }, null, 2));
+          NODE
+
       - name: Upload browser QA evidence
         uses: actions/upload-artifact@v4
         with:
@@ -90,3 +124,5 @@ jobs:
           path: |
             autonomous-control-plane-desktop.png
             autonomous-control-plane-browser-receipt.json
+            autonomous-control-plane-production-desktop.png
+            autonomous-control-plane-production-browser-receipt.json
