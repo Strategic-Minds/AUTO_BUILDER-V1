@@ -1,13 +1,25 @@
 name: Media Drive Pipeline Preview Validation
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - auto-builder/media-drive-live-adapters-20260610
     paths:
       - 'src/app/api/mcp-media-drive*/**'
       - 'src/lib/media-drive/**'
       - 'docs/build-packets/media-drive-pipeline.md'
+      - 'docs/build-packets/media-drive-live-adapters.md'
+      - 'docs/smoke-tests/media-drive-pipeline-smoke.md'
+      - '.github/workflows/media-drive-pipeline-preview.yml'
+  pull_request:
+    branches:
+      - main
+      - auto-builder/media-drive-pipeline
+    paths:
+      - 'src/app/api/mcp-media-drive*/**'
+      - 'src/lib/media-drive/**'
+      - 'docs/build-packets/media-drive-pipeline.md'
+      - 'docs/build-packets/media-drive-live-adapters.md'
       - 'docs/smoke-tests/media-drive-pipeline-smoke.md'
       - '.github/workflows/media-drive-pipeline-preview.yml'
   workflow_dispatch:
@@ -47,6 +59,7 @@ jobs:
             'src/lib/media-drive/receipts.ts',
             'src/lib/media-drive/types.ts',
             'docs/build-packets/media-drive-pipeline.md',
+            'docs/build-packets/media-drive-live-adapters.md',
             'docs/smoke-tests/media-drive-pipeline-smoke.md'
           ];
           for (const file of requiredFiles) {
@@ -58,19 +71,25 @@ jobs:
           const governance = fs.readFileSync('src/lib/media-drive/governance.ts', 'utf8');
           const receipts = fs.readFileSync('src/lib/media-drive/receipts.ts', 'utf8');
           const types = fs.readFileSync('src/lib/media-drive/types.ts', 'utf8');
+          const packet = fs.readFileSync('docs/build-packets/media-drive-live-adapters.md', 'utf8');
           const markers = [
             [route, 'tools/list'],
             [route, 'tools/call'],
             [route, 'MEDIA_DRIVE_HARD_GATES'],
+            [route, 'approved_write_dry_run'],
             [smoke, 'liveMutation: false'],
             [smoke, 'drive_write_receipt'],
             [preview, 'blocked_in_production'],
             [preview, 'method: \'POST\''],
-            [preview, 'hard_gated'],
+            [preview, 'approvedWriteDryRun'],
+            [preview, 'durableReceiptPersistence'],
             [governance, 'source_truth_move'],
             [governance, 'client_delivery_overwrite'],
             [receipts, '[REDACTED]'],
-            [types, 'drive_write_receipt']
+            [receipts, 'runtime_telemetry_events'],
+            [types, 'MediaDriveAdapterMode'],
+            [types, 'drive_write_receipt'],
+            [packet, 'Production-Safe Live-Write Rollout Plan']
           ];
           for (const [content, marker] of markers) {
             if (!content.includes(marker)) throw new Error(`Missing marker: ${marker}`);
@@ -102,6 +121,8 @@ jobs:
             console.error(JSON.stringify(payload, null, 2));
             throw new Error('Media Drive preview validation did not pass');
           }
+          if (payload.validations?.approvedWriteDryRun !== true) throw new Error('Approved-write dry run validation must pass');
+          if (payload.validations?.durableReceiptPersistence !== true) throw new Error('Durable receipt persistence validation must pass');
           if (payload.liveMutation !== false) throw new Error('Preview validation must not allow live mutation');
           if (payload.productionApprovalReady !== false) throw new Error('Draft PR must not report production approval ready');
           console.log('Media Drive preview POST validation passed.');
