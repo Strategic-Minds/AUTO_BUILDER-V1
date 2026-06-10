@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
       type: 'none'
     },
     api: {
-      type: 'none',
-      reason: 'MCP streamable-http discovery is authoritative for this connector. No OpenAPI fallback is advertised because stale OpenAPI files caused tool-count drift.'
+      type: 'openapi',
+      url: `${baseUrl}/api/mcp/manifest`,
+      is_user_authenticated: false
     },
     logo_url: `${baseUrl}/favicon.ico`,
     contact_email: 'strategicmindsadvisory@gmail.com',
@@ -32,7 +33,9 @@ export async function GET(request: NextRequest) {
       transport: 'streamable-http',
       url: `${baseUrl}/api/mcp`,
       manifest_url: `${baseUrl}/api/mcp/manifest`,
-      tools_url: `${baseUrl}/api/mcp/tools`
+      tools_url: `${baseUrl}/api/mcp/tools`,
+      authoritative: true,
+      openapi_fallback: false
     }
   });
 }
