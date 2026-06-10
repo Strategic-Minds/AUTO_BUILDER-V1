@@ -25,6 +25,11 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const connectorSchemaVersion = 'strict-20-2026-06-10';
+const productionMcpUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp';
+const productionManifestUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/manifest';
+const productionToolsUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/tools';
+
 const jobModeSchema = z.enum(['read', 'dry_run', 'draft', 'execute', 'rollback']);
 const driveModeSchema = z.enum(['read', 'dry_run', 'draft', 'execute', 'rollback', 'approved_write']);
 const dryRunExecuteModeSchema = z.enum(['dry_run', 'execute']);
@@ -59,15 +64,16 @@ const platformSchema = { job_id: z.string(), mode: dryRunExecuteModeSchema.optio
 const rollbackSchema = { job_id: z.string(), mode: dryRunRollbackModeSchema.optional(), original_job_id: z.string(), rollback_type: z.string(), command_folder_id: z.string().optional(), rollback_payload: payloadSchema };
 
 function mcpText(value: unknown) { return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] }; }
-function readBootstrapStatus() { return { route: '/api/mcp-minimal/mcp', purpose: 'Minimal Auto Builder 2 MCP route for ChatGPT ingestion-safe discovery.', activeOperatingMap, expectedCallableMcpTools: expectedCallableMcpToolNames, defaultCommandFolderId, constraints: ['Only the 20 required Auto Builder 2 tools are registered.', 'No browser tools are registered.', 'No Eden dotted aliases are registered.', 'Write-capable tools default to dry_run unless mode=execute or governed approved_write is explicitly supplied.'] }; }
+function connectorIntegrity() { return { connector_schema_version: connectorSchemaVersion, expected_tool_count: expectedCallableMcpToolNames.length, production_mcp_url: productionMcpUrl, production_manifest_url: productionManifestUrl, production_tools_url: productionToolsUrl, stale_schema_instructions: 'If ChatGPT exposes fewer than 20 AUTO_BUILDER_2 tools, refresh or re-register the connector against production_mcp_url until api_tool.list_resources reports 20 tools.', server_truth: 'Production MCP manifest and tools endpoints are the authoritative strict-20 surfaces.', no_write_fix_rule: 'Do not run Drive writes, folder creation, uploads, or approved_write jobs to fix connector registration.' }; }
+function readBootstrapStatus() { return { route: '/api/mcp-minimal/mcp', purpose: 'Minimal Auto Builder 2 MCP route for ChatGPT ingestion-safe discovery.', connectorIntegrity: connectorIntegrity(), connector_schema_version: connectorSchemaVersion, expected_tool_count: expectedCallableMcpToolNames.length, activeOperatingMap, expectedCallableMcpTools: expectedCallableMcpToolNames, defaultCommandFolderId, constraints: ['Only the 20 required Auto Builder 2 tools are registered.', 'No browser tools are registered.', 'No Eden dotted aliases are registered.', 'Write-capable tools default to dry_run unless mode=execute or governed approved_write is explicitly supplied.'] }; }
 
 const handler = createMcpHandler(
   (server) => {
-    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the minimal Auto Builder 2 MCP route is alive.', inputSchema: {} }, async () => mcpText({ status: 'ok', service: 'auto-builder-2-minimal-mcp', transport: 'streamable-http', environment: process.env.VERCEL ? 'vercel' : 'local', route: '/api/mcp-minimal/mcp', callableTools: expectedCallableMcpToolNames.length, timestamp: new Date().toISOString() }));
+    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the minimal Auto Builder 2 MCP route is alive and diagnose stale ChatGPT connector registration.', inputSchema: {} }, async () => mcpText({ status: 'ok', service: 'auto-builder-2-minimal-mcp', transport: 'streamable-http', environment: process.env.VERCEL ? 'vercel' : 'local', route: '/api/mcp-minimal/mcp', callableTools: expectedCallableMcpToolNames.length, connectorIntegrity: connectorIntegrity(), connector_schema_version: connectorSchemaVersion, expected_tool_count: expectedCallableMcpToolNames.length, timestamp: new Date().toISOString() }));
     server.registerTool('get_repo_summary', { title: 'Get Repo Summary', description: 'Return minimal Auto Builder 2 operating map and tool summary.', inputSchema: {} }, async () => mcpText(readBootstrapStatus()));
     server.registerTool('list_repo_files', { title: 'List Repo Files', description: 'Return the minimal route files relevant to this MCP surface.', inputSchema: { subpath: z.string().optional(), maxDepth: z.number().int().min(0).max(8).optional(), limit: z.number().int().min(1).max(500).optional() } }, async () => mcpText([{ path: 'src/app/api/mcp-minimal/[transport]/route.ts', type: 'file' }, { path: 'src/lib/autobuilder-v2/execution-tools.ts', type: 'file' }, { path: 'scripts/validate-mcp-tools.mjs', type: 'file' }]));
-    server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect minimal route status and expected callable tools.', inputSchema: {} }, async () => mcpText(readBootstrapStatus()));
-    server.registerTool('read_text_file', { title: 'Read Text File', description: 'Return a safe summary for minimal MCP route source files.', inputSchema: { path: z.string(), startLine: z.number().int().min(1).optional(), endLine: z.number().int().min(1).optional() } }, async ({ path }) => mcpText({ path, route: '/api/mcp-minimal/mcp', note: 'Minimal MCP route source is in GitHub. Use GitHub fetch_file for exact source content.', expectedCallableMcpTools: expectedCallableMcpToolNames }));
+    server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect minimal route status, expected callable tools, and stale ChatGPT connector diagnostics.', inputSchema: {} }, async () => mcpText(readBootstrapStatus()));
+    server.registerTool('read_text_file', { title: 'Read Text File', description: 'Return a safe summary for minimal MCP route source files.', inputSchema: { path: z.string(), startLine: z.number().int().min(1).optional(), endLine: z.number().int().min(1).optional() } }, async ({ path }) => mcpText({ path, route: '/api/mcp-minimal/mcp', note: 'Minimal MCP route source is in GitHub. Use GitHub fetch_file for exact source content.', connectorIntegrity: connectorIntegrity(), expectedCallableMcpTools: expectedCallableMcpToolNames }));
     server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (payload) => mcpText(runJob(payload as never)));
     server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (payload) => mcpText(runUniversalJob(payload as never)));
     server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Governed Google Drive job runner for dry-run folder manifests and approved folder creation.', inputSchema: driveJobSchema }, async (payload) => mcpText(await runDriveJobTool(payload as never)));
@@ -84,7 +90,7 @@ const handler = createMcpHandler(
     server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformSchema }, async (payload) => mcpText(createAiGatewayTool(payload as never)));
     server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode and provider adapter.', inputSchema: rollbackSchema }, async (payload) => mcpText(rollbackTool(payload as never)));
   },
-  { instructions: 'Minimal Auto Builder 2 MCP surface. This route intentionally registers only the 20 required tools with simple schemas and dry-run-first behavior.' },
+  { instructions: 'Minimal Auto Builder 2 MCP surface. This route intentionally registers only the 20 required tools with simple schemas, dry-run-first behavior, connector_schema_version strict-20-2026-06-10, and stale connector diagnostics.' },
   { basePath: '/api/mcp-minimal', maxDuration: 60, verboseLogs: false }
 );
 
