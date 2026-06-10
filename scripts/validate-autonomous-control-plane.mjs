@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 const requiredFiles = [
   'src/lib/autonomous-control-plane/state.ts',
+  'src/lib/autonomous-control-plane/persistence.ts',
   'src/app/autonomous-control-plane/page.tsx',
   'src/app/autonomous-control-plane/page.module.css',
   'src/app/api/autonomous-control-plane/state/route.ts',
@@ -24,6 +25,8 @@ for (const path of requiredFiles) {
 }
 
 const state = readFileSync('src/lib/autonomous-control-plane/state.ts', 'utf8');
+const persistence = readFileSync('src/lib/autonomous-control-plane/persistence.ts', 'utf8');
+const runLoop = readFileSync('src/app/api/autonomous-control-plane/run-loop/route.ts', 'utf8');
 const cron = readFileSync('src/app/api/cron/autonomous-control-plane/route.ts', 'utf8');
 const page = readFileSync('src/app/autonomous-control-plane/page.tsx', 'utf8');
 
@@ -39,6 +42,11 @@ assert(state.includes('productionActionAllowed: false'), 'State must keep produc
 assert(cron.includes('AUTONOMOUS_CONTROL_PLANE_CRON_SECRET'), 'Cron route must support signed cron secret.');
 assert(cron.includes('dryRun'), 'Cron route must expose dry-run evidence mode.');
 assert(cron.includes('productionActionAllowed: false'), 'Cron route must keep productionActionAllowed false.');
+assert(persistence.includes('AUTONOMOUS_CONTROL_PLANE_PERSISTENCE_ENABLED'), 'Persistence must require explicit enablement.');
+assert(persistence.includes('autonomous_control_plane_runs'), 'Persistence must write control-plane runs.');
+assert(persistence.includes('autonomous_control_plane_tasks'), 'Persistence must write control-plane tasks.');
+assert(runLoop.includes('persistAutonomousControlPlaneReceipt'), 'Run-loop route must call receipt persistence helper.');
+assert(runLoop.includes('productionActionAllowed: false'), 'Run-loop route must keep productionActionAllowed false.');
 assert(page.includes('Strategic Minds'), 'Preview page must render Strategic Minds positioning.');
 assert(page.includes('/api/autonomous-control-plane/run-loop'), 'Preview page must link to dry-run loop route.');
 

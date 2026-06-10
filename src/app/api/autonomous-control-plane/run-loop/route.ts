@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { persistAutonomousControlPlaneReceipt } from "@/lib/autonomous-control-plane/persistence";
 import { buildAutonomousDryRunReceipt } from "@/lib/autonomous-control-plane/state";
 import { runMcpSelfOperatingLoop } from "@/lib/autobuilder-v2/mcp-universe/self-operating-loop";
 
@@ -8,11 +9,13 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const controlPlaneReceipt = buildAutonomousDryRunReceipt();
   const mcpLoop = await runMcpSelfOperatingLoop();
+  const persistence = await persistAutonomousControlPlaneReceipt(controlPlaneReceipt);
 
   return NextResponse.json({
-    ok: controlPlaneReceipt.ok && mcpLoop.ok,
+    ok: controlPlaneReceipt.ok && mcpLoop.ok && persistence.ok,
     productionActionAllowed: false,
     controlPlaneReceipt,
+    persistence,
     mcpLoop: {
       ok: mcpLoop.ok,
       runId: mcpLoop.runId,
