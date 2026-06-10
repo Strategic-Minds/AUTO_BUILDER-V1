@@ -1,0 +1,31 @@
+{
+  "job_id": "eden-autonomous-build-dry-run-v1",
+  "mode": "dry_run",
+  "owner": "Auto Builder 2",
+  "target_repo": "Strategic-Minds/EDENSKYESTUDIOS",
+  "target_branch": "feature/eden-skye-automation-v1",
+  "control_plane_repo": "Strategic-Minds/AUTO_BUILDER",
+  "vercel_app": "edenskyestudios",
+  "supabase_project": "Strategic Minds Advisory",
+  "shopify_store": "Eden Skye Studios",
+  "drive_command_folder": "V2 MASTER AUTO BUILDER",
+  "mission": "Enable Eden Skye Studios dry-run autonomous build, analyze, validate, fix, heal, optimize, and enhance loop.",
+  "runtime_mode": "sandbox_only",
+  "blocked_actions": ["production_deploy", "shopify_live_publish", "social_publish", "customer_messages", "dns_changes", "secret_exposure", "destructive_actions"],
+  "platform_provisioning": {
+    "vercel_workflow": {"name": "eden-autonomous-build-workflow", "app": "edenskyestudios", "trigger": "every_5_minutes", "entrypoint": "/api/eden/cron", "mode": "dry_run"},
+    "vercel_agents": [
+      {"name": "eden-auto-build-agent", "purpose": "Detect missing runtime files and prepare safe repo patches."},
+      {"name": "eden-auto-analyze-agent", "purpose": "Analyze source-truth packets, website state, PWA state, Supabase schema status, and Shopify draft-feed readiness."},
+      {"name": "eden-auto-validate-agent", "purpose": "Validate runtime locks, packet order, missing files, receipt schema, and draft-only rules."},
+      {"name": "eden-auto-fix-agent", "purpose": "Prepare safe code fixes in sandbox branch only."},
+      {"name": "eden-auto-heal-agent", "purpose": "Detect recurring failures and prepare rollback-safe repair tasks."},
+      {"name": "eden-auto-optimize-agent", "purpose": "Recommend non-destructive performance, UX, SEO, PWA, and workflow improvements."},
+      {"name": "eden-auto-enhance-agent", "purpose": "Generate next enhancement tasks after validation passes."}
+    ],
+    "ai_gateway": {"name": "eden-ai-gateway", "mode": "draft_only", "providers": ["OpenAI", "Groq"], "policy": {"no_unverified_model_facts": true, "no_customer_messages": true, "no_live_publish": true}}
+  },
+  "repo_files_to_install": ["vercel.json", "public/icon.svg", "app/api/eden/cron/route.ts", "app/api/eden/status/route.ts", "app/api/eden/install/route.ts", "src/lib/eden/runtime/packet-loader.ts", "src/lib/eden/runtime/receipt-writer.ts", "src/lib/eden/runtime/validation-agent.ts", "src/lib/eden/runtime/workflow-runner.ts", "src/lib/eden/runtime/shopify-feed.ts", "supabase/migrations/001_eden_core_schema.sql"],
+  "success_tests": ["autobuilder_operating_map_verified", "vercel_workflow_config_exists_or_is_generated", "vercel_agents_config_exists_or_is_generated", "ai_gateway_config_exists_or_is_generated", "cron_route_exists", "status_route_returns_readiness", "install_route_reports_missing_files", "packet_loader_returns_source_truth_order", "validation_agent_blocks_locked_actions", "receipt_writer_returns_draft_receipt", "workflow_runner_returns_dry_run_result", "shopify_feed_returns_draft_only_payload", "supabase_schema_skeleton_exists", "production_readiness_remains_zero_until_approval"],
+  "expected_output": {"auto_build_status": "dry_run_ready", "readiness_report": true, "missing_runtime_files": true, "safe_patch_plan": true, "sandbox_receipt": true, "no_live_actions": true}
+}
