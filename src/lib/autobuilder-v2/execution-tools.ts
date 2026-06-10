@@ -623,16 +623,18 @@ export async function runPlatformProvisioningJobTool(input: JsonRecord): Promise
     target_system: "platform_provisioning",
     command_folder_id: commandFolderId(input),
     status: providerStatus(providerResult, "accepted"),
-    data: {
-      provider_result: providerResult
-    },
+    data: { provider_result: providerResult },
     receipt: receiptFor(input, "receipt_required_after_execute"),
-    rollback: rollbackFor(input, "rollback_metadata_required_after_execute")
+    rollback: rollbackFor(input)
   });
 }
 
 export async function createGithubRepoTool(input: JsonRecord): Promise<ToolResult> {
   const mode = normalizeMode(input.mode);
+  const owner = stringValue(input.owner) ?? stringValue(input.github_owner) ?? process.env.GITHUB_ORG ?? "unknown-owner";
+  const repoName = stringValue(input.repo_name) ?? stringValue(input.github_repo) ?? stringValue(input.name) ?? "unknown-repo";
+  const visibility = stringValue(input.visibility) ?? "private";
+
   if (mode !== "execute") {
     return result({
       job_id: jobId(input, "create-github-repo"),
@@ -641,19 +643,27 @@ export async function createGithubRepoTool(input: JsonRecord): Promise<ToolResul
       target_system: "github",
       command_folder_id: commandFolderId(input),
       data: {
-        planned_repo: stringValue(input.repo_name) ?? stringValue(input.name),
-        dry_run_only: true
+        would_create_repo: `${owner}/${repoName}`,
+        visibility,
+        initialize_readme: boolValue(input.initialize_readme) ?? true
       },
       receipt: receiptFor(input),
-      rollback: rollbackFor(input)
+      rollback: {
+        available: true,
+        status: "delete_repo_if_created",
+        repo: `${owner}/${repoName}`
+      }
     });
   }
 
   const providerResult = await createGithubRepoWithAdapter({
-    name: stringValue(input.repo_name) ?? stringValue(input.name) ?? "auto-builder-generated-repo",
-    github_owner: stringValue(input.owner) ?? stringValue(input.github_owner),
-    github_private: stringValue(input.visibility) !== "public",
+    job_id: jobId(input, "create-github-repo"),
+    mode: "execute",
+    name: repoName,
     description: stringValue(input.description),
+    github_owner: owner,
+    github_repo: repoName,
+    github_private: visibility !== "public",
     approved_actions: stringArray(input.approved_actions),
     blocked_actions: stringArray(input.blocked_actions)
   });
@@ -665,16 +675,21 @@ export async function createGithubRepoTool(input: JsonRecord): Promise<ToolResul
     target_system: "github",
     command_folder_id: commandFolderId(input),
     status: providerStatus(providerResult, "accepted"),
-    data: {
-      provider_result: providerResult
-    },
+    data: { provider_result: providerResult },
     receipt: receiptFor(input, "receipt_required_after_execute"),
-    rollback: rollbackFor(input, "rollback_metadata_required_after_execute")
+    rollback: {
+      available: true,
+      status: "delete_repo_if_created",
+      repo: `${owner}/${repoName}`
+    }
   });
 }
 
 export async function createVercelProjectTool(input: JsonRecord): Promise<ToolResult> {
   const mode = normalizeMode(input.mode);
+  const teamId = stringValue(input.team_id) ?? stringValue(input.vercel_team_id) ?? process.env.VERCEL_TEAM_ID ?? "unknown-team";
+  const projectName = stringValue(input.project_name) ?? stringValue(input.vercel_project_name) ?? stringValue(input.name) ?? "unknown-project";
+
   if (mode !== "execute") {
     return result({
       job_id: jobId(input, "create-vercel-project"),
@@ -683,17 +698,28 @@ export async function createVercelProjectTool(input: JsonRecord): Promise<ToolRe
       target_system: "vercel",
       command_folder_id: commandFolderId(input),
       data: {
-        planned_project: stringValue(input.project_name) ?? stringValue(input.name),
-        dry_run_only: true
+        would_create_vercel_project: projectName,
+        team_id: teamId,
+        git_repo: stringValue(input.git_repo),
+        framework: stringValue(input.framework) ?? "nextjs",
+        root_directory: stringValue(input.root_directory)
       },
       receipt: receiptFor(input),
-      rollback: rollbackFor(input)
+      rollback: {
+        available: true,
+        status: "delete_project_if_created",
+        project_name: projectName
+      }
     });
   }
 
   const providerResult = await createVercelProjectWithAdapter({
-    name: stringValue(input.project_name) ?? stringValue(input.name) ?? "auto-builder-generated-project",
-    team_id: stringValue(input.team_id) ?? stringValue(input.vercel_team_id),
+    job_id: jobId(input, "create-vercel-project"),
+    mode: "execute",
+    name: projectName,
+    description: stringValue(input.description),
+    vercel_team_id: teamId,
+    vercel_project_name: projectName,
     framework: stringValue(input.framework),
     git_repository_url: stringValue(input.git_repo) ?? stringValue(input.git_repository_url),
     root_directory: stringValue(input.root_directory),
@@ -708,92 +734,127 @@ export async function createVercelProjectTool(input: JsonRecord): Promise<ToolRe
     target_system: "vercel",
     command_folder_id: commandFolderId(input),
     status: providerStatus(providerResult, "accepted"),
-    data: {
-      provider_result: providerResult
-    },
+    data: { provider_result: providerResult },
     receipt: receiptFor(input, "receipt_required_after_execute"),
-    rollback: rollbackFor(input, "rollback_metadata_required_after_execute")
+    rollback: {
+      available: true,
+      status: "delete_project_if_created",
+      project_name: projectName
+    }
   });
 }
 
 export function createVercelWorkflowTool(input: JsonRecord): ToolResult {
-  const workflowName = stringValue(input.workflow_name) ?? stringValue(input.name) ?? "auto-builder-workflow";
+  const mode = normalizeMode(input.mode);
+  const workflowName = stringValue(input.workflow_name) ?? "auto-builder-workflow";
+  const route = stringValue(input.route) ?? "/api/workflows/auto-builder";
+  const schedule = stringValue(input.schedule) ?? "manual";
+
   return result({
     job_id: jobId(input, "create-vercel-workflow"),
-    mode: normalizeMode(input.mode),
+    mode,
     action: "create_vercel_workflow",
     target_system: "vercel",
     command_folder_id: commandFolderId(input),
+    status: mode === "execute" ? "not_implemented" : undefined,
     data: {
-      workflow_name: workflowName,
-      route: stringValue(input.route) ?? stringValue(input.workflow_entrypoint),
-      schedule: stringValue(input.schedule),
+      would_create_workflow: workflowName,
+      team_id: stringValue(input.team_id),
+      project_id: stringValue(input.project_id),
+      route,
+      schedule,
       timezone: stringValue(input.timezone) ?? "UTC",
-      status: "planned",
-      note: "Workflow creation is planned; bind to Vercel workflow route after approval."
+      adapter_required: mode === "execute" ? "Wire Vercel workflow/cron provisioning adapter." : undefined
     },
     receipt: receiptFor(input),
-    rollback: rollbackFor(input)
+    rollback: {
+      available: true,
+      status: "delete_workflow_or_cron_if_created",
+      workflow_name: workflowName
+    }
   });
 }
 
 export function createVercelAgentTool(input: JsonRecord): ToolResult {
-  const agentName = stringValue(input.agent_name) ?? stringValue(input.name) ?? "auto-builder-agent";
+  const mode = normalizeMode(input.mode);
+  const agentName = stringValue(input.agent_name) ?? "auto-builder-agent";
+
   return result({
     job_id: jobId(input, "create-vercel-agent"),
-    mode: normalizeMode(input.mode),
+    mode,
     action: "create_vercel_agent",
     target_system: "vercel",
     command_folder_id: commandFolderId(input),
+    status: mode === "execute" ? "not_implemented" : undefined,
     data: {
-      agent_name: agentName,
-      agent_scope: stringValue(input.agent_scope) ?? "scoped",
+      would_create_agent: agentName,
+      team_id: stringValue(input.team_id),
+      project_id: stringValue(input.project_id),
+      agent_scope: stringValue(input.agent_scope) ?? "project",
       allowed_tools: stringArray(input.allowed_tools),
-      status: "planned",
-      note: "Agent creation is planned; register after approval and validation."
+      adapter_required: mode === "execute" ? "Wire Vercel agent provisioning adapter when provider support is available." : undefined
     },
     receipt: receiptFor(input),
-    rollback: rollbackFor(input)
+    rollback: {
+      available: true,
+      status: "delete_agent_if_created",
+      agent_name: agentName
+    }
   });
 }
 
 export function createAiGatewayTool(input: JsonRecord): ToolResult {
-  const gatewayName = stringValue(input.gateway_name) ?? stringValue(input.name) ?? "auto-builder-gateway";
+  const mode = normalizeMode(input.mode);
+  const gatewayName = stringValue(input.gateway_name) ?? stringValue(input.ai_gateway_key_name) ?? "auto-builder-ai-gateway";
+
   return result({
     job_id: jobId(input, "create-ai-gateway"),
-    mode: normalizeMode(input.mode),
+    mode,
     action: "create_ai_gateway",
     target_system: "ai_gateway",
     command_folder_id: commandFolderId(input),
+    status: mode === "execute" ? "not_implemented" : undefined,
     data: {
-      gateway_name: gatewayName,
+      would_create_ai_gateway: gatewayName,
+      project_id: stringValue(input.project_id),
       providers: stringArray(input.providers),
       models: stringArray(input.models),
-      status: "planned",
-      note: "AI Gateway creation is planned; no provider spend or routing changed."
+      adapter_required: mode === "execute" ? "Wire AI Gateway provisioning adapter to AI_GATEWAY_API_KEY." : undefined
     },
     receipt: receiptFor(input),
-    rollback: rollbackFor(input)
+    rollback: {
+      available: true,
+      status: "delete_gateway_or_key_if_created",
+      gateway_name: gatewayName
+    }
   });
 }
 
-export function rollbackTool(input: JsonRecord & { job_id: string; original_job_id?: string; rollback_type?: string }): ToolResult {
+export function rollbackTool(input: JsonRecord): ToolResult {
+  const mode = normalizeMode(input.mode);
+  const originalJobId = stringValue(input.original_job_id) ?? "unknown-original-job";
+  const rollbackType = stringValue(input.rollback_type) ?? "manual";
+  const rollbackPayload = isRecord(input.rollback_payload) ? input.rollback_payload : {};
+
   return result({
-    job_id: input.job_id,
-    mode: normalizeMode(input.mode, "rollback"),
+    job_id: jobId(input, "rollback"),
+    mode: mode === "rollback" ? "rollback" : "dry_run",
     action: "rollback",
     target_system: "auto_builder",
     command_folder_id: commandFolderId(input),
-    status: normalizeMode(input.mode, "rollback") === "rollback" ? "rollback_planned" : "dry_run_complete",
+    status: mode === "rollback" ? "not_implemented" : "dry_run_complete",
     data: {
-      original_job_id: stringValue(input.original_job_id) ?? "unknown",
-      rollback_type: stringValue(input.rollback_type) ?? "unspecified",
-      rollback_payload: sanitizeForResponse(input.rollback_payload ?? input.payload ?? {})
+      rollback_plan: {
+        original_job_id: originalJobId,
+        rollback_type: rollbackType,
+        rollback_payload: sanitizeForResponse(rollbackPayload),
+        note: "Rollback routing is visible now; provider-specific rollback handlers must be wired before live rollback."
+      }
     },
-    receipt: receiptFor(input, "rollback_receipt_planned"),
+    receipt: receiptFor(input),
     rollback: {
-      available: false,
-      status: "rollback_action_is_terminal"
+      available: mode === "rollback",
+      status: mode === "rollback" ? "provider_rollback_adapter_required" : "rollback_plan_only"
     }
   });
 }
