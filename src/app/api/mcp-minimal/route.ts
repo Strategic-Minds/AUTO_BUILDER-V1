@@ -1,146 +1,208 @@
-import { createMcpHandler } from 'mcp-handler';
-import { z } from 'zod';
+import { NextResponse } from 'next/server';
 
 import {
-  activeOperatingMap,
-  createAiGatewayTool,
-  createGithubRepoTool,
-  createVercelAgentTool,
-  createVercelProjectTool,
-  createVercelWorkflowTool,
-  defaultCommandFolderId,
-  driveCreateFolderTool,
-  driveListTreeTool,
-  driveMoveFileTool,
-  driveMoveFolderTool,
-  driveWriteReceiptTool,
-  expectedCallableMcpToolNames,
-  rollbackTool,
-  runDriveJobTool,
-  runJob,
-  runPlatformProvisioningJobTool,
-  runUniversalJob
+  expectedCallableMcpToolNames
 } from '@/lib/autobuilder-v2/execution-tools';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const jobModeSchema = z.enum(['read', 'dry_run', 'draft', 'execute', 'rollback']);
-const dryRunExecuteModeSchema = z.enum(['dry_run', 'execute']);
-const dryRunRollbackModeSchema = z.enum(['dry_run', 'rollback']);
-
-const payloadSchema = z.object({}).passthrough().optional();
-
-const universalJobSchema = {
-  job_id: z.string(),
-  mode: jobModeSchema.optional(),
-  action: z.string().optional(),
-  target_system: z.string().optional(),
-  provider: z.string().optional(),
-  command_folder_id: z.string().optional(),
-  payload: payloadSchema
+type JsonRpcRequest = {
+  jsonrpc?: string;
+  id?: string | number | null;
+  method?: string;
+  params?: Record<string, unknown>;
 };
 
-const driveJobSchema = {
-  job_id: z.string().optional(),
-  mode: jobModeSchema.optional(),
-  command_folder_id: z.string().optional(),
-  root_folder_id: z.string().optional(),
-  folder_id: z.string().optional(),
-  parent_folder_id: z.string().optional(),
-  folder_name: z.string().optional(),
-  file_id: z.string().optional(),
-  destination_parent_folder_id: z.string().optional(),
-  current_parent_folder_id: z.string().optional(),
-  receipt_folder_id: z.string().optional(),
-  system: z.string().optional(),
-  action: z.string().optional(),
-  status: z.string().optional(),
-  summary: z.string().optional()
+const toolDescriptions: Record<string, string> = {
+  health_check: 'Confirm the minimal Auto Builder 2 MCP server is alive.',
+  get_repo_summary: 'Return minimal Auto Builder 2 operating map and tool summary.',
+  list_repo_files: 'Return the minimal route files relevant to this MCP surface.',
+  read_bootstrap_status: 'Inspect minimal route status and expected callable tools.',
+  read_text_file: 'Return a safe summary for minimal MCP route source files.',
+  run_job: 'Generic dry-run-first Auto Builder 2 job entrypoint.',
+  run_universal_job: 'Dry-run-first universal automation runner.',
+  run_drive_job: 'Dry-run-first Google Drive job planner.',
+  drive_list_tree: 'Read/planning tool for Google Drive tree listing.',
+  drive_create_folder: 'Dry-run or explicit execute Google Drive folder creation.',
+  drive_move_folder: 'Dry-run-first Google Drive folder move planner.',
+  drive_move_file: 'Dry-run-first Google Drive file move planner.',
+  drive_write_receipt: 'Dry-run-first Google Drive receipt planner.',
+  run_platform_provisioning_job: 'Dry-run-first GitHub/Vercel/AI Gateway provisioning planner.',
+  create_github_repo: 'Dry-run or explicit execute GitHub repo creation.',
+  create_vercel_project: 'Dry-run or explicit execute Vercel project creation.',
+  create_vercel_workflow: 'Dry-run-first Vercel workflow/cron planner.',
+  create_vercel_agent: 'Dry-run-first Vercel agent planner.',
+  create_ai_gateway: 'Dry-run-first AI Gateway planner.',
+  rollback: 'Dry-run rollback planner. Live rollback requires explicit rollback mode and provider adapter.'
+};
+
+const inputSchemas: Record<string, Record<string, unknown>> = {
+  health_check: { type: 'object', properties: {}, additionalProperties: false },
+  get_repo_summary: { type: 'object', properties: {}, additionalProperties: false },
+  list_repo_files: {
+    type: 'object',
+    properties: {
+      subpath: { type: 'string' },
+      maxDepth: { type: 'number' },
+      limit: { type: 'number' }
+    },
+    additionalProperties: false
+  },
+  read_bootstrap_status: { type: 'object', properties: {}, additionalProperties: false },
+  read_text_file: {
+    type: 'object',
+    properties: {
+      path: { type: 'string' },
+      startLine: { type: 'number' },
+      endLine: { type: 'number' }
+    },
+    required: ['path'],
+    additionalProperties: false
+  }
+};
+
+const universalSchema = {
+  type: 'object',
+  properties: {
+    job_id: { type: 'string' },
+    mode: { type: 'string', enum: ['read', 'dry_run', 'draft', 'execute', 'rollback'] },
+    action: { type: 'string' },
+    target_system: { type: 'string' },
+    provider: { type: 'string' },
+    command_folder_id: { type: 'string' },
+    payload: { type: 'object' }
+  },
+  required: ['job_id'],
+  additionalProperties: true
+};
+
+const driveSchema = {
+  type: 'object',
+  properties: {
+    job_id: { type: 'string' },
+    mode: { type: 'string', enum: ['read', 'dry_run', 'draft', 'execute', 'rollback'] },
+    command_folder_id: { type: 'string' },
+    root_folder_id: { type: 'string' },
+    folder_id: { type: 'string' },
+    parent_folder_id: { type: 'string' },
+    folder_name: { type: 'string' },
+    file_id: { type: 'string' },
+    destination_parent_folder_id: { type: 'string' },
+    current_parent_folder_id: { type: 'string' },
+    receipt_folder_id: { type: 'string' },
+    system: { type: 'string' },
+    action: { type: 'string' },
+    status: { type: 'string' },
+    summary: { type: 'string' }
+  },
+  additionalProperties: true
 };
 
 const platformSchema = {
-  job_id: z.string(),
-  mode: dryRunExecuteModeSchema.optional(),
-  command_folder_id: z.string().optional(),
-  owner: z.string().optional(),
-  repo_name: z.string().optional(),
-  visibility: z.enum(['private', 'public', 'internal']).optional(),
-  description: z.string().optional(),
-  initialize_readme: z.boolean().optional(),
-  team_id: z.string().optional(),
-  project_id: z.string().optional(),
-  project_name: z.string().optional(),
-  workflow_name: z.string().optional(),
-  route: z.string().optional(),
-  schedule: z.string().optional(),
-  timezone: z.string().optional(),
-  agent_name: z.string().optional(),
-  agent_scope: z.string().optional(),
-  allowed_tools: z.array(z.string()).optional(),
-  gateway_name: z.string().optional(),
-  providers: z.array(z.string()).optional(),
-  models: z.array(z.string()).optional(),
-  git_repo: z.string().optional(),
-  framework: z.string().optional(),
-  root_directory: z.string().optional()
+  type: 'object',
+  properties: {
+    job_id: { type: 'string' },
+    mode: { type: 'string', enum: ['dry_run', 'execute'] },
+    command_folder_id: { type: 'string' },
+    owner: { type: 'string' },
+    repo_name: { type: 'string' },
+    visibility: { type: 'string', enum: ['private', 'public', 'internal'] },
+    description: { type: 'string' },
+    initialize_readme: { type: 'boolean' },
+    team_id: { type: 'string' },
+    project_id: { type: 'string' },
+    project_name: { type: 'string' },
+    workflow_name: { type: 'string' },
+    route: { type: 'string' },
+    schedule: { type: 'string' },
+    timezone: { type: 'string' },
+    agent_name: { type: 'string' },
+    agent_scope: { type: 'string' },
+    allowed_tools: { type: 'array', items: { type: 'string' } },
+    gateway_name: { type: 'string' },
+    providers: { type: 'array', items: { type: 'string' } },
+    models: { type: 'array', items: { type: 'string' } },
+    git_repo: { type: 'string' },
+    framework: { type: 'string' },
+    root_directory: { type: 'string' }
+  },
+  required: ['job_id'],
+  additionalProperties: true
 };
 
 const rollbackSchema = {
-  job_id: z.string(),
-  mode: dryRunRollbackModeSchema.optional(),
-  original_job_id: z.string(),
-  rollback_type: z.string(),
-  command_folder_id: z.string().optional(),
-  rollback_payload: payloadSchema
+  type: 'object',
+  properties: {
+    job_id: { type: 'string' },
+    mode: { type: 'string', enum: ['dry_run', 'rollback'] },
+    original_job_id: { type: 'string' },
+    rollback_type: { type: 'string' },
+    command_folder_id: { type: 'string' },
+    rollback_payload: { type: 'object' }
+  },
+  required: ['job_id', 'original_job_id', 'rollback_type'],
+  additionalProperties: true
 };
 
-function mcpText(value: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
+for (const name of ['run_job', 'run_universal_job']) inputSchemas[name] = universalSchema;
+for (const name of ['run_drive_job', 'drive_list_tree', 'drive_create_folder', 'drive_move_folder', 'drive_move_file', 'drive_write_receipt']) inputSchemas[name] = driveSchema;
+for (const name of ['run_platform_provisioning_job', 'create_github_repo', 'create_vercel_project', 'create_vercel_workflow', 'create_vercel_agent', 'create_ai_gateway']) inputSchemas[name] = platformSchema;
+inputSchemas.rollback = rollbackSchema;
+
+function jsonRpc(id: JsonRpcRequest['id'], result: unknown, status = 200) {
+  return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, result }, { status });
 }
 
-function readBootstrapStatus() {
+function jsonRpcError(id: JsonRpcRequest['id'], code: number, message: string, status = 400) {
+  return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, error: { code, message } }, { status });
+}
+
+function routeInfo(route: string) {
   return {
-    route: '/api/mcp-minimal',
-    purpose: 'Minimal Auto Builder 2 MCP route for ChatGPT ingestion-safe discovery.',
-    activeOperatingMap,
-    expectedCallableMcpTools: expectedCallableMcpToolNames,
-    defaultCommandFolderId,
-    constraints: [
-      'Only the 20 required Auto Builder 2 tools are registered.',
-      'No browser tools are registered.',
-      'No Eden dotted aliases are registered.',
-      'Write-capable tools default to dry_run unless mode=execute is explicitly supplied.'
-    ]
+    route,
+    purpose: 'Direct JSON-RPC minimal Auto Builder 2 MCP endpoint.',
+    methods: ['initialize', 'tools/list'],
+    tools: expectedCallableMcpToolNames
   };
 }
 
-const handler = createMcpHandler(
-  (server) => {
-    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the minimal Auto Builder 2 MCP route is alive.', inputSchema: {} }, async () => mcpText({ status: 'ok', service: 'auto-builder-2-minimal-mcp', transport: 'streamable-http', environment: process.env.VERCEL ? 'vercel' : 'local', route: '/api/mcp-minimal', callableTools: expectedCallableMcpToolNames.length, timestamp: new Date().toISOString() }));
-    server.registerTool('get_repo_summary', { title: 'Get Repo Summary', description: 'Return minimal Auto Builder 2 operating map and tool summary.', inputSchema: {} }, async () => mcpText(readBootstrapStatus()));
-    server.registerTool('list_repo_files', { title: 'List Repo Files', description: 'Return the minimal route files relevant to this MCP surface.', inputSchema: { subpath: z.string().optional(), maxDepth: z.number().int().min(0).max(8).optional(), limit: z.number().int().min(1).max(500).optional() } }, async () => mcpText([{ path: 'src/app/api/mcp-minimal/route.ts', type: 'file' }, { path: 'src/lib/autobuilder-v2/execution-tools.ts', type: 'file' }, { path: 'scripts/validate-mcp-tools.mjs', type: 'file' }]));
-    server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect minimal route status and expected callable tools.', inputSchema: {} }, async () => mcpText(readBootstrapStatus()));
-    server.registerTool('read_text_file', { title: 'Read Text File', description: 'Return a safe summary for minimal MCP route source files.', inputSchema: { path: z.string(), startLine: z.number().int().min(1).optional(), endLine: z.number().int().min(1).optional() } }, async ({ path }) => mcpText({ path, route: '/api/mcp-minimal', note: 'Minimal MCP route source is in GitHub. Use GitHub fetch_file for exact source content.', expectedCallableMcpTools: expectedCallableMcpToolNames }));
+export async function GET() {
+  return NextResponse.json(routeInfo('/api/mcp-minimal'));
+}
 
-    server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (payload) => mcpText(runJob(payload as never)));
-    server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (payload) => mcpText(runUniversalJob(payload as never)));
-    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Dry-run-first Google Drive job planner.', inputSchema: driveJobSchema }, async (payload) => mcpText(runDriveJobTool(payload as never)));
-    server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read/planning tool for Google Drive tree listing.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveListTreeTool(payload as never)));
-    server.registerTool('drive_create_folder', { title: 'Drive Create Folder', description: 'Dry-run or explicit execute Google Drive folder creation.', inputSchema: { ...driveJobSchema, mode: dryRunExecuteModeSchema.optional() } }, async (payload) => mcpText(await driveCreateFolderTool(payload as never)));
-    server.registerTool('drive_move_folder', { title: 'Drive Move Folder', description: 'Dry-run-first Google Drive folder move planner.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveMoveFolderTool(payload as never)));
-    server.registerTool('drive_move_file', { title: 'Drive Move File', description: 'Dry-run-first Google Drive file move planner.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveMoveFileTool(payload as never)));
-    server.registerTool('drive_write_receipt', { title: 'Drive Write Receipt', description: 'Dry-run-first Google Drive receipt planner.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveWriteReceiptTool(payload as never)));
-    server.registerTool('run_platform_provisioning_job', { title: 'Run Platform Provisioning Job', description: 'Dry-run-first GitHub/Vercel/AI Gateway provisioning planner.', inputSchema: platformSchema }, async (payload) => mcpText(await runPlatformProvisioningJobTool(payload as never)));
-    server.registerTool('create_github_repo', { title: 'Create GitHub Repo', description: 'Dry-run or explicit execute GitHub repo creation.', inputSchema: platformSchema }, async (payload) => mcpText(await createGithubRepoTool(payload as never)));
-    server.registerTool('create_vercel_project', { title: 'Create Vercel Project', description: 'Dry-run or explicit execute Vercel project creation.', inputSchema: platformSchema }, async (payload) => mcpText(await createVercelProjectTool(payload as never)));
-    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow/cron planner.', inputSchema: platformSchema }, async (payload) => mcpText(createVercelWorkflowTool(payload as never)));
-    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformSchema }, async (payload) => mcpText(createVercelAgentTool(payload as never)));
-    server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformSchema }, async (payload) => mcpText(createAiGatewayTool(payload as never)));
-    server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode and provider adapter.', inputSchema: rollbackSchema }, async (payload) => mcpText(rollbackTool(payload as never)));
-  },
-  { instructions: 'Minimal Auto Builder 2 MCP surface. Use this route when ChatGPT ingestion of the full /api/mcp route exposes only read tools. This route intentionally registers only the 20 required tools with simple schemas and dry-run-first behavior.' },
-  { basePath: '/api', maxDuration: 60, verboseLogs: false }
-);
+export async function POST(request: Request) {
+  let body: JsonRpcRequest;
 
-export { handler as GET, handler as POST, handler as DELETE };
+  try {
+    body = await request.json();
+  } catch {
+    return jsonRpcError(null, -32700, 'Parse error', 400);
+  }
+
+  if (body.jsonrpc !== '2.0') return jsonRpcError(body.id, -32600, 'Invalid Request', 400);
+
+  if (body.method === 'initialize') {
+    return jsonRpc(body.id, {
+      protocolVersion: '2024-11-05',
+      capabilities: { tools: {} },
+      serverInfo: {
+        name: 'auto-builder-2-minimal',
+        version: '0.1.0'
+      }
+    });
+  }
+
+  if (body.method === 'tools/list') {
+    return jsonRpc(body.id, {
+      tools: expectedCallableMcpToolNames.map((name) => ({
+        name,
+        title: name,
+        description: toolDescriptions[name] ?? 'Auto Builder 2 minimal tool.',
+        inputSchema: inputSchemas[name] ?? { type: 'object', properties: {}, additionalProperties: true }
+      }))
+    });
+  }
+
+  return jsonRpcError(body.id, -32601, `Method not found: ${body.method}`, 404);
+}
