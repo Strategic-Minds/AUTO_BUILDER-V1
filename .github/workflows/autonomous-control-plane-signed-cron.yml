@@ -1,6 +1,11 @@
 name: Autonomous Control Plane Signed Cron
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/autonomous-control-plane-signed-cron.yml"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
@@ -58,28 +63,40 @@ jobs:
             body = { raw: text.slice(0, 1000) };
           }
 
+          const verificationStatus = body?.verification?.status ?? 'unknown';
+          const persistenceStatus = body?.persistence?.status ?? 'unknown';
           const receipt = {
             target: base,
             path,
             status: response.status,
-            ok: response.ok && body?.verification?.status === 'verified' && body?.productionActionAllowed === false,
-            verificationStatus: body?.verification?.status ?? 'unknown',
+            ok:
+              response.ok &&
+              verificationStatus === 'verified' &&
+              persistenceStatus === 'persisted' &&
+              body?.productionActionAllowed === false,
+            verificationStatus,
+            persistence: {
+              status: persistenceStatus,
+              receiptId: body?.persistence?.receiptId ?? body?.receipt?.receiptId ?? null,
+              table: body?.persistence?.table ?? 'public.autobuilder_run_receipts'
+            },
             productionActionAllowed: body?.productionActionAllowed,
             checkedAt: timestamp,
-            receiptId: body?.receipt?.receiptId ?? null
+            receiptId: body?.receipt?.receiptId ?? body?.persistence?.receiptId ?? null,
+            response: body
           };
 
-          writeFileSync('autonomous-control-plane-signed-cron-receipt.json', JSON.stringify(receipt, null, 2));
+          writeFileSync('signed-cron-verification.json', JSON.stringify(receipt, null, 2));
 
           if (!receipt.ok) {
             throw new Error(`Signed cron verification failed: ${JSON.stringify(receipt)}`);
           }
           NODE
 
-      - name: Upload signed cron evidence
+      - name: Upload signed cron verification
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: autonomous-control-plane-signed-cron-receipt
-          path: autonomous-control-plane-signed-cron-receipt.json
+          name: signed-cron-verification
+          path: signed-cron-verification.json
           if-no-files-found: error
