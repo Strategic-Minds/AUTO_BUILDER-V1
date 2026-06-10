@@ -1,7 +1,7 @@
 {
   "project": "strategic-minds-advisory-client-os",
-  "targetRepo": "XPS-IINTELLIGENCE-SYSTEMS/strategic-minds-advisory",
-  "targetBranch": "feature/auto-builder-sync",
+  "targetRepo": "Strategic-Minds/strategicminds",
+  "targetBranch": "main",
   "controlRepo": "Strategic-Minds/AUTO_BUILDER",
   "controlBranch": "feature/strategic-minds-project-sync",
   "driveRoot": "V2 MASTER AUTO BUILDER/STRATEGIC MINDS ADVISORY",
