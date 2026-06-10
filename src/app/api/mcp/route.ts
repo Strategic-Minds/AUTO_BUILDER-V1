@@ -2,54 +2,6 @@ import { createMcpHandler } from 'mcp-handler';
 import { z } from 'zod';
 
 import {
-  audit,
-  entryPrompts,
-  factorySurfaces,
-  providers,
-  readiness,
-  repoRoles,
-  workflow
-} from '@/lib/autobuilder';
-import {
-  buildCapabilityTestMatrix,
-  buildPacketFromIdea,
-  buildPassiveReverseEngineeringPlan,
-  capabilityTests,
-  classifyIdea,
-  connectorOps,
-  factoryReadiness,
-  fastPathRoutes,
-  hardeningPipeline,
-  reverseEngineeringLanes,
-  templateLibrary
-} from '@/lib/factory';
-import {
-  browserClick,
-  browserDownload,
-  browserFormFill,
-  browserLogin,
-  browserPayment,
-  browserPostSocial,
-  browserScroll,
-  browserSendMessage,
-  browserUpload,
-  runBrowserJob
-} from '@/lib/autobuilder-v2/browser-job-runner';
-import {
-  driveUploadFile,
-  driveUploadImage
-} from '@/lib/autobuilder-v2/drive-job-runner';
-import {
-  edenRuntimeStatus,
-  edenTrendDiscoveryDryRun,
-  edenTrendDiscoveryReadiness,
-  runEdenJob
-} from '@/lib/autobuilder-v2/eden-job-runner';
-import {
-  createVercelSandbox,
-  platformProvisioningTools
-} from '@/lib/autobuilder-v2/platform-provisioning-runner';
-import {
   activeOperatingMap,
   autoBuilder2ExecutionToolNames,
   createAiGatewayTool,
@@ -73,186 +25,237 @@ import {
 } from '@/lib/autobuilder-v2/execution-tools';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const browserToolNames = ['run_browser_job', 'browser_login', 'browser_payment', 'browser_post_social', 'browser_send_message', 'browser_download', 'browser_upload', 'browser_click', 'browser_scroll', 'browser_form_fill'];
-const driveToolNames = ['run_drive_job', 'drive_list_tree', 'drive_create_folder', 'drive_upload_file', 'drive_upload_image', 'drive_move_file', 'drive_move_folder', 'drive_write_receipt'];
-const edenToolNames = ['eden.runtime.status', 'eden.trend_discovery.readiness', 'eden.trend_discovery.dry_run', 'run_eden_job', 'eden_runtime_status', 'eden_trend_discovery_readiness', 'eden_trend_discovery_dry_run'];
-const universalToolNames = ['run_universal_job', 'run_job'];
-
-const repoFiles: Record<string, string> = {
-  'README.md': '# AUTO BUILDER Bridge\n\nGPT remains the orchestration brain. Cloud workers and bridges execute recurring operations. Codex is reserved for implementation runtime tasks.\n',
-  'docs/handoffs/dev-handoff.md': '# Dev Handoff\n\nTransform xps-ai-factory into a governed autonomous platform with validated connectors, deployment handoffs, and approval-gated runtime operations.\n',
-  'docs/prompts/repo-discovery.prompt.md': 'Inspect this repository completely before making changes. Produce a repo map, stack detection, env/config contract, validation plan, and top implementation priorities. Do not implement until the safe scope is clear.\n',
-  'apps/control-plane/package.json': JSON.stringify({ name: '@xps-ai-factory/control-plane', private: true, version: '0.1.0', scripts: { dev: 'node server.js', start: 'node server.js', lint: 'echo lint placeholder', test: 'echo test placeholder' } }, null, 2),
-  'factory/connector-ops.json': JSON.stringify(connectorOps, null, 2),
-  'factory/template-library.json': JSON.stringify(templateLibrary, null, 2),
-  'factory/capability-matrix.json': JSON.stringify(buildCapabilityTestMatrix(), null, 2),
-  'factory/reverse-engineering-lanes.json': JSON.stringify(reverseEngineeringLanes, null, 2)
-};
-
-const resources = [
-  { uri: 'xps://README.md', name: 'Repo README', description: 'Top-level repository overview and MCP usage notes.', mimeType: 'text/markdown', path: 'README.md' },
-  { uri: 'xps://docs/handoffs/dev-handoff.md', name: 'Dev Handoff', description: 'Project handoff notes and operating assumptions.', mimeType: 'text/markdown', path: 'docs/handoffs/dev-handoff.md' },
-  { uri: 'xps://docs/prompts/repo-discovery.prompt.md', name: 'Repo Discovery Prompt', description: 'Prompt used to orient discovery inside this repo.', mimeType: 'text/markdown', path: 'docs/prompts/repo-discovery.prompt.md' },
-  { uri: 'xps://apps/control-plane/package.json', name: 'Control Plane Package', description: 'Package metadata for the control-plane app.', mimeType: 'application/json', path: 'apps/control-plane/package.json' },
-  { uri: 'xps://factory/connector-ops.json', name: 'Connector Registry', description: 'Connector readiness, mutation surfaces, and fallback modes.', mimeType: 'application/json', path: 'factory/connector-ops.json' },
-  { uri: 'xps://factory/template-library.json', name: 'Template Library', description: 'Reusable template packs for launch and automation systems.', mimeType: 'application/json', path: 'factory/template-library.json' },
-  { uri: 'xps://factory/capability-matrix.json', name: 'Capability Matrix', description: 'Capability tests, hardening, and connector readiness matrix.', mimeType: 'application/json', path: 'factory/capability-matrix.json' },
-  { uri: 'xps://factory/reverse-engineering-lanes.json', name: 'Reverse Engineering Lanes', description: 'Passive research and system extraction lanes.', mimeType: 'application/json', path: 'factory/reverse-engineering-lanes.json' }
+const visibleRepoPaths = [
+  'README.md',
+  'docs/handoffs/dev-handoff.md',
+  'docs/prompts/repo-discovery.prompt.md',
+  'apps/control-plane/package.json',
+  'factory/connector-ops.json',
+  'factory/template-library.json',
+  'factory/capability-matrix.json',
+  'factory/reverse-engineering-lanes.json'
 ] as const;
 
-const visibleRepoPaths = ['.', 'README.md', 'docs', 'docs/handoffs', 'docs/handoffs/dev-handoff.md', 'docs/prompts', 'docs/prompts/repo-discovery.prompt.md', 'apps', 'apps/control-plane', 'apps/control-plane/package.json', 'factory', 'factory/connector-ops.json', 'factory/template-library.json', 'factory/capability-matrix.json', 'factory/reverse-engineering-lanes.json'] as const;
+const jobModeSchema = z.enum(jobModes);
+const dryRunExecuteModeSchema = z.enum(['dry_run', 'execute']);
+const dryRunRollbackModeSchema = z.enum(['dry_run', 'rollback']);
 
-function buildRepoSummary() {
-  return {
-    repoRoot: 'remote-bundled-content',
-    rootPackageName: 'auto-builder-bridge',
-    rootScripts: { dev: 'next dev', build: 'next build', start: 'next start', 'validate:factory': 'node scripts/validate-factory.mjs', 'validate:mcp-tools': 'node scripts/validate-mcp-tools.mjs' },
-    controlPlanePackageName: '@xps-ai-factory/control-plane',
-    controlPlaneScripts: { dev: 'node server.js', start: 'node server.js', lint: 'echo lint placeholder', test: 'echo test placeholder' },
-    repos: repoRoles,
-    activeOperatingMap,
-    providers,
-    workflow,
-    factorySurfaces,
-    keyPaths: { readme: 'README.md', controlPlanePackage: 'apps/control-plane/package.json', devHandoff: 'docs/handoffs/dev-handoff.md', repoDiscoveryPrompt: 'docs/prompts/repo-discovery.prompt.md', connectorRegistry: 'factory/connector-ops.json', templateLibrary: 'factory/template-library.json', capabilityMatrix: 'factory/capability-matrix.json' },
-    browserTools: browserToolNames,
-    driveJobTools: driveToolNames,
-    platformProvisioningTools,
-    universalJobTools: universalToolNames,
-    edenTools: edenToolNames,
-    autoBuilder2ExecutionTools: autoBuilder2ExecutionToolNames,
-    expectedCallableMcpTools: expectedCallableMcpToolNames
-  };
-}
+const listRepoFilesSchema = {
+  subpath: z.string().optional(),
+  maxDepth: z.number().int().min(0).max(8).optional(),
+  limit: z.number().int().min(1).max(500).optional()
+};
 
-function buildSystemTopology() {
-  return {
-    system: 'AUTO BUILDER Bridge Brain',
-    repos: repoRoles,
-    activeOperatingMap,
-    providers,
-    workflow,
-    factory: { readiness, readinessScore: factoryReadiness, surfaces: factorySurfaces, audit, entryPrompts },
-    coverage: { fastPathRoutes: fastPathRoutes.length, templatePacks: templateLibrary.length, connectors: connectorOps.length, capabilityTests: capabilityTests.length, hardeningTests: hardeningPipeline.length, reverseEngineeringLanes: reverseEngineeringLanes.length, browserTools: browserToolNames.length, driveJobTools: driveToolNames.length, platformProvisioningTools: platformProvisioningTools.length, universalJobTools: universalToolNames.length, edenTools: edenToolNames.length, autoBuilder2ExecutionTools: autoBuilder2ExecutionToolNames.length }
-  };
-}
+const readTextFileSchema = {
+  path: z.string(),
+  startLine: z.number().int().min(1).optional(),
+  endLine: z.number().int().min(1).optional()
+};
 
-function readBundledFile(path: string) {
-  const value = repoFiles[path];
-  if (!value) throw new Error(`Unknown path: ${path}`);
-  return value;
-}
+const universalJobSchema = {
+  job_id: z.string(),
+  mode: jobModeSchema.optional(),
+  action: z.string().optional(),
+  target_system: z.string().optional(),
+  provider: z.string().optional(),
+  command_folder_id: z.string().optional(),
+  objective: z.string().optional()
+};
 
-function readTextFile(path: string, startLine?: number, endLine?: number) {
-  const text = readBundledFile(path);
-  const lines = text.split(/\r?\n/);
-  const firstLine = Math.max(1, Number(startLine ?? 1));
-  const lastLine = Math.min(lines.length, Number(endLine ?? lines.length));
-  if (lastLine < firstLine) throw new Error('endLine must be greater than or equal to startLine');
-  return { path, startLine: firstLine, endLine: lastLine, content: lines.slice(firstLine - 1, lastLine).map((line, index) => `${firstLine + index}: ${line}`).join('\n') };
-}
+const driveJobSchema = {
+  job_id: z.string().optional(),
+  mode: jobModeSchema.optional(),
+  command_folder_id: z.string().optional(),
+  root_folder_id: z.string().optional(),
+  folder_id: z.string().optional(),
+  parent_folder_id: z.string().optional(),
+  folder_name: z.string().optional(),
+  file_id: z.string().optional(),
+  destination_parent_folder_id: z.string().optional(),
+  current_parent_folder_id: z.string().optional(),
+  receipt_folder_id: z.string().optional(),
+  system: z.string().optional(),
+  action: z.string().optional(),
+  status: z.string().optional(),
+  summary: z.string().optional()
+};
 
-function buildConnectorActivationPlan(objective?: string, preferredConnectors?: string[]) {
-  const selected = preferredConnectors?.length ? connectorOps.filter((connector) => preferredConnectors.includes(connector.connector)) : connectorOps;
-  return { objective: objective ?? 'Maximum governed connectivity across the AUTO BUILDER operating stack.', selectionCount: selected.length, deploymentOrder: ['Read-only discovery and receipts', 'Sandbox mutation tests', 'Approval-gated live mutations', 'Autonomous queue execution', 'Analytics and optimization loop'], connectors: selected, warnings: ['Universal connectivity does not mean every app can be mutated safely without app-specific auth and testing.', 'High-risk surfaces remain approval-gated until validated.', 'The fastest path is broad read access first, then controlled writes by connector class.'] };
-}
+const platformProvisioningSchema = {
+  job_id: z.string(),
+  mode: dryRunExecuteModeSchema.optional(),
+  command_folder_id: z.string().optional(),
+  owner: z.string().optional(),
+  repo_name: z.string().optional(),
+  visibility: z.enum(['private', 'public', 'internal']).optional(),
+  description: z.string().optional(),
+  initialize_readme: z.boolean().optional(),
+  team_id: z.string().optional(),
+  project_id: z.string().optional(),
+  project_name: z.string().optional(),
+  workflow_name: z.string().optional(),
+  route: z.string().optional(),
+  schedule: z.string().optional(),
+  timezone: z.string().optional(),
+  agent_name: z.string().optional(),
+  agent_scope: z.string().optional(),
+  allowed_tools: z.array(z.string()).optional(),
+  gateway_name: z.string().optional(),
+  providers: z.array(z.string()).optional(),
+  models: z.array(z.string()).optional(),
+  git_repo: z.string().optional(),
+  framework: z.string().optional(),
+  root_directory: z.string().optional()
+};
 
-function buildGovernancePolicy() {
-  return { defaultMode: 'Maximum governed autonomy', autonomousByDefault: ['read-only research', 'stack inspection', 'workflow design', 'task packet creation', 'connector planning', 'content planning', 'queue design', 'capability testing plan generation', 'reverse-engineering plan generation'], approvalRequired: ['production deploys', 'billing or financial mutations', 'store writes', 'schema migrations', 'auto-publish to external channels', 'external messages or outbound calls', 'live environment variable changes', 'browser login', 'browser payment', 'browser posting', 'browser messaging', 'browser upload', 'browser download', 'GitHub repo creation', 'Vercel project creation', 'Vercel workflow creation', 'Vercel sandbox creation', 'AI Gateway key creation', 'Vercel agent creation', 'Google Drive live folder creation'], activeOperatingMap, requiredEnvNames, connectorPolicy: connectorOps.map((connector) => ({ connector: connector.connector, readiness: connector.readiness, approvalGate: connector.approvalGate, fallbackReceiptMode: connector.fallbackReceiptMode })), browserTools: browserToolNames, driveJobTools: driveToolNames, platformProvisioningTools, universalJobTools: universalToolNames, edenTools: edenToolNames, autoBuilder2ExecutionTools: autoBuilder2ExecutionToolNames, hardeningRequired: hardeningPipeline.filter((test) => test.required) };
-}
-
-function buildContentCommerceMachine(args: { brandName: string; niche: string; offers?: string[]; channels?: string[]; monetization?: string[]; autonomyLevel?: string }) {
-  return { brand: args.brandName, niche: args.niche, autonomyLevel: args.autonomyLevel ?? 'governed-autonomous', offers: args.offers?.length ? args.offers : ['core offer', 'entry offer', 'upsell'], channels: args.channels?.length ? args.channels : ['Instagram', 'TikTok', 'Facebook', 'YouTube Shorts', 'LinkedIn', 'X'], monetization: args.monetization?.length ? args.monetization : ['direct offer sales', 'lead capture', 'high-ticket closers', 'digital products', 'affiliate revenue'], stackUse: { commerce: ['Shopify', 'Stripe'], orchestration: ['ChatGPT', 'OpenAI', 'Codex'], memoryAndLogs: ['Supabase', 'Google Sheets', 'Google Drive'], publishing: ['Xyla', 'Facebook'], repurposing: ['Opus'], releaseAndDelivery: ['GitHub', 'Vercel'] }, automationQueues: ['idea-intake', 'content-briefs', 'asset-generation', 'repurpose-queue', 'approval-queue', 'publish-queue', 'analytics-sync', 'revenue-attribution', 'optimization-loop'] };
-}
-
-function buildUniversalIntegrationBlueprint(args: { businessObjective: string; sourceSystems?: string[]; targetSystems?: string[]; trigger?: string }) {
-  const sourceSystems = args.sourceSystems?.length ? args.sourceSystems : ['Shopify', 'Google Drive', 'Supabase'];
-  const targetSystems = args.targetSystems?.length ? args.targetSystems : ['Xyla', 'Facebook', 'Supabase', 'Slack'];
-  return { businessObjective: args.businessObjective, trigger: args.trigger ?? 'new asset, new product event, or new campaign brief', sourceSystems, targetSystems, integrationPattern: { orchestrationBrain: 'ChatGPT + AUTO BUILDER MCP', stateLayer: 'Supabase', eventFlow: ['trigger received', 'payload normalized', 'routing decision', 'queue receipt created', 'worker execution', 'approval gate when required', 'delivery receipt', 'analytics sync', 'optimization feedback'], reliability: ['idempotency key', 'retry policy', 'dead-letter queue', 'audit receipt', 'operator escalation'] }, connectorPlan: buildConnectorActivationPlan(args.businessObjective, [...sourceSystems, ...targetSystems]), minimumDataContract: { eventId: 'stable unique ID', source: 'origin system', target: 'destination system', payloadVersion: 'schema version', status: 'queued | running | blocked | approved | delivered | failed', approvalState: 'not-required | pending | approved | rejected', receipt: 'URL, ID, or structured evidence', analyticsKey: 'join key for attribution' } };
-}
+const rollbackSchema = {
+  job_id: z.string(),
+  mode: dryRunRollbackModeSchema.optional(),
+  original_job_id: z.string(),
+  rollback_type: z.string(),
+  command_folder_id: z.string().optional()
+};
 
 function mcpText(value: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
+  return {
+    content: [
+      {
+        type: 'text' as const,
+        text: JSON.stringify(value, null, 2)
+      }
+    ]
+  };
 }
 
-const browserStepSchema = z.object({ action: z.string(), url: z.string().optional(), selector: z.string().optional(), text: z.string().optional(), value: z.string().optional(), x: z.number().optional(), y: z.number().optional(), direction: z.enum(['up', 'down', 'left', 'right']).optional(), amount: z.number().optional(), description: z.string().optional() });
-const browserJobSchema = { job_id: z.string(), mode: z.enum(['dry_run', 'rest', 'headless', 'headful']).optional(), url: z.string().optional(), objective: z.string().optional(), actions: z.array(z.string()).optional(), steps: z.array(browserStepSchema).optional(), blocked_actions: z.array(z.string()).optional(), approval_required: z.boolean().optional(), approved_actions: z.array(z.string()).optional(), browser_worker_url: z.string().optional(), payload: z.record(z.string(), z.unknown()).optional() };
-const browserSingleActionSchema = { ...browserJobSchema, selector: z.string().optional(), value: z.string().optional(), direction: z.enum(['up', 'down', 'left', 'right']).optional(), amount: z.number().optional() };
-const jobModeSchema = z.enum(jobModes);
-const platformModeValues = [...jobModes, 'approval_gated'] as const;
-const driveModeValues = [...jobModes, 'missing_only', 'full_sync', 'validate_only'] as const;
-const looseRecordSchema = z.record(z.string(), z.unknown());
-const optionalRecordArraySchema = z.array(looseRecordSchema).optional();
-const platformProvisioningSchema = { job_id: z.string(), mode: z.enum(platformModeValues).optional(), command_folder_id: z.string().optional(), platform_actions: optionalRecordArraySchema, actions: z.array(z.string()).optional(), name: z.string().optional(), description: z.string().optional(), owner: z.string().optional(), repo_name: z.string().optional(), visibility: z.enum(['private', 'public', 'internal']).optional(), initialize_readme: z.boolean().optional(), github_owner: z.string().optional(), github_repo: z.string().optional(), github_private: z.boolean().optional(), team_id: z.string().optional(), project_name: z.string().optional(), project_id: z.string().optional(), git_repo: z.string().optional(), route: z.string().optional(), schedule: z.string().optional(), timezone: z.string().optional(), gateway_name: z.string().optional(), providers: z.array(z.string()).optional(), models: z.array(z.string()).optional(), vercel_team_id: z.string().optional(), vercel_project_name: z.string().optional(), framework: z.string().optional(), root_directory: z.string().optional(), git_repository_url: z.string().optional(), workflow_name: z.string().optional(), workflow_entrypoint: z.string().optional(), workflow_topics: z.array(z.string()).optional(), sandbox_name: z.string().optional(), ai_gateway_key_name: z.string().optional(), agent_name: z.string().optional(), agent_scope: z.string().optional(), allowed_tools: z.array(z.string()).optional(), agent_model: z.string().optional(), approval_required: z.boolean().optional(), approved_actions: z.array(z.string()).optional(), approval_phrase: z.string().optional(), blocked_actions: z.array(z.string()).optional(), payload: looseRecordSchema.optional(), receipt: looseRecordSchema.optional(), rollback: looseRecordSchema.optional() };
-const driveJobSchema = { job_id: z.string().optional(), mode: z.enum(driveModeValues).optional(), command_folder_id: z.string().optional(), root_folder_id: z.string().optional(), folder_id: z.string().optional(), dry_run: z.boolean().optional(), drive_actions: optionalRecordArraySchema, actions: z.array(z.string()).optional(), blocked_actions: z.array(z.string()).optional(), approved_actions: z.array(z.string()).optional(), approval_phrase: z.string().optional(), folders: z.array(z.object({ name: z.string(), parent_folder_id: z.string().optional(), path: z.string().optional() })).optional(), files: z.array(z.object({ name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional() })).optional(), images: z.array(z.object({ name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional() })).optional(), moves: z.array(z.object({ item_id: z.string(), from_folder_id: z.string().optional(), to_folder_id: z.string(), item_type: z.enum(['file', 'folder']) })).optional(), max_depth: z.number().int().min(0).max(10).optional(), parent_folder_id: z.string().optional(), folder_name: z.string().optional(), name: z.string().optional(), file_id: z.string().optional(), destination_parent_folder_id: z.string().optional(), current_parent_folder_id: z.string().optional(), item_id: z.string().optional(), to_folder_id: z.string().optional(), from_folder_id: z.string().optional(), receipt_folder_id: z.string().optional(), system: z.string().optional(), action: z.string().optional(), status: z.string().optional(), summary: z.string().optional(), inputs: looseRecordSchema.optional(), outputs: looseRecordSchema.optional(), receipt: looseRecordSchema.optional(), rollback: looseRecordSchema.optional() };
-const universalJobSchema = { job_id: z.string(), mode: jobModeSchema.optional(), target_system: z.string().optional(), action: z.string().optional(), command_folder_id: z.string().optional(), provider: z.string().optional(), objective: z.string().optional(), root_resource_id: z.string().optional(), actions: z.array(z.string()).optional(), blocked_actions: z.array(z.string()).optional(), approval_required: z.boolean().optional(), fallbacks: z.array(z.string()).optional(), payload: looseRecordSchema.optional(), receipt: looseRecordSchema.optional(), rollback: looseRecordSchema.optional() };
-const edenJobSchema = { job_id: z.string(), mode: z.enum(['status', 'readiness', 'dry_run', 'execute']).optional(), objective: z.string().optional(), actions: z.array(z.string()).optional(), blocked_actions: z.array(z.string()).optional(), approval_required: z.boolean().optional(), payload: z.record(z.string(), z.unknown()).optional() };
-const runJobSchema = { ...universalJobSchema, provider: z.string().optional() };
-const rollbackSchema = { job_id: z.string(), mode: z.enum(['dry_run', 'rollback']).optional(), original_job_id: z.string(), rollback_type: z.string(), rollback_payload: looseRecordSchema.optional(), command_folder_id: z.string().optional(), receipt: looseRecordSchema.optional(), rollback: looseRecordSchema.optional() };
+function strictStatus() {
+  return {
+    status: 'ok',
+    service: 'auto-builder-2-strict-mcp',
+    transport: 'streamable-http',
+    environment: process.env.VERCEL ? 'vercel' : 'local',
+    activeOperatingMap,
+    expectedCallableMcpTools: expectedCallableMcpToolNames,
+    executionTools: autoBuilder2ExecutionToolNames,
+    requiredEnvNames,
+    governance: {
+      primaryRoute: '/api/mcp',
+      toolSurface: 'strict-20',
+      defaultMode: 'dry_run',
+      removedFromPrimaryRoute: [
+        'browser tools',
+        'drive upload tools',
+        'eden tools',
+        'dotted aliases',
+        'vercel sandbox tools',
+        'loose z.unknown record schemas'
+      ]
+    }
+  };
+}
 
 const handler = createMcpHandler(
   (server) => {
-    server.registerTool('health_check', { title: 'Health Check', description: 'Use this before other calls to confirm the remote MCP server is alive.', inputSchema: {} }, async () => mcpText({ status: 'ok', service: 'xps-ai-factory-control-plane', transport: 'streamable-http', environment: process.env.VERCEL ? 'vercel' : 'local', providers: providers.length, connectors: connectorOps.length, browserTools: browserToolNames.length, driveJobTools: driveToolNames.length, platformProvisioningTools: platformProvisioningTools.length, universalJobTools: universalToolNames.length, edenTools: edenToolNames.length, timestamp: new Date().toISOString() }));
-    server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect the bundled control-plane package metadata and bootstrap entrypoints.', inputSchema: {} }, async () => mcpText({ packageJsonPath: 'apps/control-plane/package.json', scripts: buildRepoSummary().controlPlaneScripts, bundledPaths: visibleRepoPaths, repos: repoRoles, activeOperatingMap, providers, expectedCallableMcpTools: expectedCallableMcpToolNames }));
-    server.registerTool('get_repo_summary', { title: 'Get Repo Summary', description: 'Use this first for repo discovery.', inputSchema: {} }, async () => mcpText(buildRepoSummary()));
-    server.registerTool('list_repo_files', { title: 'List Repo Files', description: 'List the bundled repo paths this remote MCP exposes.', inputSchema: { subpath: z.string().optional(), maxDepth: z.number().int().min(0).max(8).optional(), limit: z.number().int().min(1).max(500).optional() } }, async ({ subpath, limit }) => mcpText(visibleRepoPaths.filter((item) => { const prefix = subpath ? subpath.replace(/\/$/, '') : '.'; return prefix === '.' || item === prefix || item.startsWith(`${prefix}/`); }).slice(0, limit ?? 200).map((item) => ({ path: item, type: item === '.' || item === 'docs' || item === 'docs/handoffs' || item === 'docs/prompts' || item === 'apps' || item === 'apps/control-plane' || item === 'factory' ? 'directory' : 'file' }))));
-    server.registerTool('read_text_file', { title: 'Read Text File', description: 'Read a bundled UTF-8 file from this remote MCP server.', inputSchema: { path: z.string(), startLine: z.number().int().min(1).optional(), endLine: z.number().int().min(1).optional() } }, async ({ path, startLine, endLine }) => mcpText(readTextFile(path, startLine, endLine)));
-    server.registerTool('get_system_topology', { title: 'Get System Topology', description: 'Return the full AUTO BUILDER stack map.', inputSchema: {} }, async () => mcpText(buildSystemTopology()));
-    server.registerTool('classify_automation_opportunity', { title: 'Classify Automation Opportunity', description: 'Classify a business idea into the best factory route.', inputSchema: { idea: z.string() } }, async ({ idea }) => mcpText(classifyIdea(idea)));
-    server.registerTool('build_execution_packet', { title: 'Build Execution Packet', description: 'Turn a business idea into an execution packet.', inputSchema: { idea: z.string() } }, async ({ idea }) => mcpText(buildPacketFromIdea(idea)));
-    server.registerTool('get_connector_registry', { title: 'Get Connector Registry', description: 'Return the connector catalog.', inputSchema: {} }, async () => mcpText(connectorOps));
-    server.registerTool('plan_connector_activation', { title: 'Plan Connector Activation', description: 'Create a governed activation plan.', inputSchema: { objective: z.string().optional(), preferredConnectors: z.array(z.string()).optional() } }, async ({ objective, preferredConnectors }) => mcpText(buildConnectorActivationPlan(objective, preferredConnectors)));
-    server.registerTool('build_content_commerce_machine', { title: 'Build Content Commerce Machine', description: 'Generate an autonomous content, commerce, and analytics operating model.', inputSchema: { brandName: z.string(), niche: z.string(), offers: z.array(z.string()).optional(), channels: z.array(z.string()).optional(), monetization: z.array(z.string()).optional(), autonomyLevel: z.string().optional() } }, async (args) => mcpText(buildContentCommerceMachine(args)));
-    server.registerTool('build_universal_integration_blueprint', { title: 'Build Universal Integration Blueprint', description: 'Design a hub-and-spoke integration plan.', inputSchema: { businessObjective: z.string(), sourceSystems: z.array(z.string()).optional(), targetSystems: z.array(z.string()).optional(), trigger: z.string().optional() } }, async (args) => mcpText(buildUniversalIntegrationBlueprint(args)));
-    server.registerTool('get_capability_test_matrix', { title: 'Get Capability Test Matrix', description: 'Return connector readiness and hardening tests.', inputSchema: {} }, async () => mcpText(buildCapabilityTestMatrix()));
-    server.registerTool('build_reverse_engineering_plan', { title: 'Build Reverse Engineering Plan', description: 'Create the passive reverse-engineering plan.', inputSchema: { target: z.string() } }, async ({ target }) => mcpText(buildPassiveReverseEngineeringPlan(target)));
-    server.registerTool('get_governance_policy', { title: 'Get Governance Policy', description: 'Return autonomy rules and approval gates.', inputSchema: {} }, async () => mcpText(buildGovernancePolicy()));
-    server.registerTool('run_platform_provisioning_job', { title: 'Run Platform Provisioning Job', description: 'Route GitHub, Vercel, and AI Gateway provisioning jobs with dry-run-safe defaults and receipt metadata.', inputSchema: platformProvisioningSchema }, async (payload) => mcpText(await runPlatformProvisioningJobTool(payload as never)));
-    server.registerTool('create_github_repo', { title: 'Create GitHub Repo', description: 'Dry-run or approval-gated GitHub repository creation. Defaults to dry_run and never returns secret values.', inputSchema: platformProvisioningSchema }, async (payload) => mcpText(await createGithubRepoTool(payload as never)));
-    server.registerTool('create_vercel_project', { title: 'Create Vercel Project', description: 'Dry-run or approval-gated Vercel project creation. Defaults to dry_run and includes rollback metadata.', inputSchema: platformProvisioningSchema }, async (payload) => mcpText(await createVercelProjectTool(payload as never)));
-    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Plan Vercel workflow or cron creation with route and schedule metadata.', inputSchema: platformProvisioningSchema }, async (payload) => mcpText(createVercelWorkflowTool(payload as never)));
-    server.registerTool('create_vercel_sandbox', { title: 'Create Vercel Sandbox', description: 'Plan approval-gated Vercel sandbox provisioning.', inputSchema: platformProvisioningSchema }, async (payload) => mcpText(createVercelSandbox(payload as never)));
-    server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Plan AI Gateway setup with provider/model metadata. Execute mode returns not_implemented until the adapter is wired.', inputSchema: platformProvisioningSchema }, async (payload) => mcpText(createAiGatewayTool(payload as never)));
-    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Plan Vercel agent setup with scope and allowed tool metadata. Execute mode returns not_implemented until provider support is wired.', inputSchema: platformProvisioningSchema }, async (payload) => mcpText(createVercelAgentTool(payload as never)));
-    server.registerTool('run_browser_job', { title: 'Run Browser Job', description: 'Governed browser operation planner/runner.', inputSchema: browserJobSchema }, async (payload) => mcpText(runBrowserJob(payload as never)));
-    server.registerTool('browser_login', { title: 'Browser Login', description: 'Plan or run an approval-gated browser login workflow.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserLogin(payload as never)));
-    server.registerTool('browser_payment', { title: 'Browser Payment', description: 'Plan or run an approval-gated browser payment workflow.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserPayment(payload as never)));
-    server.registerTool('browser_post_social', { title: 'Browser Post Social', description: 'Plan or run an approval-gated social posting workflow.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserPostSocial(payload as never)));
-    server.registerTool('browser_send_message', { title: 'Browser Send Message', description: 'Plan or run an approval-gated browser messaging workflow.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserSendMessage(payload as never)));
-    server.registerTool('browser_download', { title: 'Browser Download', description: 'Plan or run an approval-gated browser download workflow.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserDownload(payload as never)));
-    server.registerTool('browser_upload', { title: 'Browser Upload', description: 'Plan or run an approval-gated browser upload workflow.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserUpload(payload as never)));
-    server.registerTool('browser_click', { title: 'Browser Click', description: 'Plan or run a browser click action.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserClick(payload as never)));
-    server.registerTool('browser_scroll', { title: 'Browser Scroll', description: 'Plan or run a browser scroll action.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserScroll(payload as never)));
-    server.registerTool('browser_form_fill', { title: 'Browser Form Fill', description: 'Plan or run a browser form-fill action.', inputSchema: browserSingleActionSchema }, async (payload) => mcpText(browserFormFill(payload as never)));
-    server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Governed universal automation runner with dry-run default, receipts, rollback metadata, and fallback routing.', inputSchema: universalJobSchema }, async (payload) => mcpText(runUniversalJob(payload as never)));
-    server.registerTool('run_job', { title: 'Run Job', description: 'Generic job alias for GPT. Routes Eden jobs to Eden handlers and all other jobs through the universal runner.', inputSchema: runJobSchema }, async (payload) => {
-      const provider = typeof payload.provider === 'string' ? payload.provider.toLowerCase() : typeof payload.target_system === 'string' ? payload.target_system.toLowerCase() : '';
-      return mcpText(provider === 'eden' ? runEdenJob(payload as never) : runJob(payload as never));
-    });
-    server.registerTool('eden.runtime.status', { title: 'Eden Runtime Status', description: 'Return Eden runtime status and readiness surface.', inputSchema: { job_id: z.string().optional() } }, async (payload) => mcpText(edenRuntimeStatus(payload)));
-    server.registerTool('eden_runtime_status', { title: 'Eden Runtime Status Alias', description: 'Underscore-safe alias for Eden runtime status.', inputSchema: { job_id: z.string().optional() } }, async (payload) => mcpText(edenRuntimeStatus(payload)));
-    server.registerTool('eden.trend_discovery.readiness', { title: 'Eden Trend Discovery Readiness', description: 'Check Eden trend discovery readiness.', inputSchema: edenJobSchema }, async (payload) => mcpText(edenTrendDiscoveryReadiness(payload)));
-    server.registerTool('eden_trend_discovery_readiness', { title: 'Eden Trend Discovery Readiness Alias', description: 'Underscore-safe alias for Eden trend discovery readiness.', inputSchema: edenJobSchema }, async (payload) => mcpText(edenTrendDiscoveryReadiness(payload)));
-    server.registerTool('eden.trend_discovery.dry_run', { title: 'Eden Trend Discovery Dry Run', description: 'Plan Eden trend discovery with no external mutation.', inputSchema: edenJobSchema }, async (payload) => mcpText(edenTrendDiscoveryDryRun({ ...payload, job_id: payload.job_id } as never)));
-    server.registerTool('eden_trend_discovery_dry_run', { title: 'Eden Trend Discovery Dry Run Alias', description: 'Underscore-safe alias for Eden trend discovery dry-run.', inputSchema: edenJobSchema }, async (payload) => mcpText(edenTrendDiscoveryDryRun({ ...payload, job_id: payload.job_id } as never)));
-    server.registerTool('run_eden_job', { title: 'Run Eden Job', description: 'Generic governed Eden job runner.', inputSchema: edenJobSchema }, async (payload) => mcpText(runEdenJob(payload as never)));
-    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Run a generic Auto Builder Drive job with dry-run, blocked actions, receipts, and validation planning.', inputSchema: driveJobSchema }, async (payload) => mcpText(runDriveJobTool(payload as never)));
-    server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read or plan listing a Drive folder tree. Returns not_implemented until a live files.list adapter is wired.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveListTreeTool(payload as never)));
-    server.registerTool('drive_create_folder', { title: 'Drive Create Folder', description: 'Plan or approval-gated create a Google Drive folder. Defaults to dry_run and includes rollback metadata.', inputSchema: driveJobSchema }, async (payload) => mcpText(await driveCreateFolderTool(payload as never)));
-    server.registerTool('drive_upload_file', { title: 'Drive Upload File', description: 'Plan upload of a file into Google Drive.', inputSchema: { root_folder_id: z.string(), name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional(), dry_run: z.boolean().optional() } }, async (payload) => mcpText(driveUploadFile(payload)));
-    server.registerTool('drive_upload_image', { title: 'Drive Upload Image', description: 'Plan upload of an image into Google Drive.', inputSchema: { root_folder_id: z.string(), name: z.string(), source_path: z.string().optional(), mime_type: z.string().optional(), parent_folder_id: z.string().optional(), dry_run: z.boolean().optional() } }, async (payload) => mcpText(driveUploadImage(payload)));
-    server.registerTool('drive_move_file', { title: 'Drive Move File', description: 'Plan moving a Drive file to another folder and return rollback parent metadata.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveMoveFileTool(payload as never)));
-    server.registerTool('drive_move_folder', { title: 'Drive Move Folder', description: 'Plan moving a Drive folder to another folder and return rollback parent metadata.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveMoveFolderTool(payload as never)));
-    server.registerTool('drive_write_receipt', { title: 'Drive Write Receipt', description: 'Plan writing a Drive job receipt. Returns receipt metadata without exposing secrets.', inputSchema: driveJobSchema }, async (payload) => mcpText(driveWriteReceiptTool(payload as never)));
-    server.registerTool('rollback', { title: 'Rollback', description: 'Plan a rollback or route to a provider rollback adapter when one is available.', inputSchema: rollbackSchema }, async (payload) => mcpText(rollbackTool(payload as never)));
+    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the Auto Builder 2 strict MCP server is alive.', inputSchema: {} }, async () =>
+      mcpText({ ...strictStatus(), timestamp: new Date().toISOString() })
+    );
 
-    for (const resource of resources) server.registerResource(resource.name, resource.uri, { title: resource.name, description: resource.description, mimeType: resource.mimeType }, async () => ({ contents: [{ uri: resource.uri, mimeType: resource.mimeType, text: readBundledFile(resource.path) }] }));
-    server.registerPrompt('repo_discovery', { title: 'Repo Discovery', description: 'Prompt template for orienting work inside AUTO BUILDER.' }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: readBundledFile('docs/prompts/repo-discovery.prompt.md') } }] }));
-    server.registerPrompt('launch_content_machine', { title: 'Launch Content Machine', description: 'Prompt template for using the MCP as a launch surface for an autonomous content and commerce machine.' }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: 'Use the AUTO BUILDER MCP to inspect platform provisioning tools, browser tools, system topology, connector registry, governance policy, capability matrix, Drive job tools, universal job runner, Eden tools, and underscore-safe aliases. Then build the fastest revenue-first content and commerce machine for the current brand, with queue design, approvals, publishing loop, attribution, and a seven-day execution plan.' } }] }));
+    server.registerTool('get_repo_summary', { title: 'Get Repo Summary', description: 'Return Auto Builder 2 operating map and expected callable tool summary.', inputSchema: {} }, async () =>
+      mcpText(strictStatus())
+    );
+
+    server.registerTool('list_repo_files', { title: 'List Repo Files', description: 'List safe bundled repo files exposed for read-only inspection.', inputSchema: listRepoFilesSchema }, async ({ subpath, limit }) => {
+      const prefix = subpath ? subpath.replace(/\/$/, '') : '';
+      const files = visibleRepoPaths
+        .filter((path) => !prefix || path === prefix || path.startsWith(`${prefix}/`))
+        .slice(0, limit ?? 200)
+        .map((path) => ({ path, type: 'file' }));
+
+      return mcpText(files);
+    });
+
+    server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect bootstrap status and callable tool expectations.', inputSchema: {} }, async () =>
+      mcpText(strictStatus())
+    );
+
+    server.registerTool('read_text_file', { title: 'Read Text File', description: 'Read safe bundled control-plane file metadata by path.', inputSchema: readTextFileSchema }, async ({ path, startLine, endLine }) =>
+      mcpText({
+        path,
+        startLine,
+        endLine,
+        note: 'Strict MCP route exposes safe bundled file metadata. Use GitHub for exact source audit when needed.'
+      })
+    );
+
+    server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (input) =>
+      mcpText(runJob(input as never))
+    );
+
+    server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (input) =>
+      mcpText(runUniversalJob(input as never))
+    );
+
+    server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Dry-run-first Google Drive job planner.', inputSchema: driveJobSchema }, async (input) =>
+      mcpText(runDriveJobTool(input as never))
+    );
+
+    server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read or plan a Google Drive folder tree listing.', inputSchema: driveJobSchema }, async (input) =>
+      mcpText(driveListTreeTool(input as never))
+    );
+
+    server.registerTool('drive_create_folder', { title: 'Drive Create Folder', description: 'Dry-run-first Google Drive folder creation planner.', inputSchema: { ...driveJobSchema, mode: dryRunExecuteModeSchema.optional() } }, async (input) =>
+      mcpText(await driveCreateFolderTool(input as never))
+    );
+
+    server.registerTool('drive_move_folder', { title: 'Drive Move Folder', description: 'Dry-run-first Google Drive folder move planner.', inputSchema: driveJobSchema }, async (input) =>
+      mcpText(driveMoveFolderTool(input as never))
+    );
+
+    server.registerTool('drive_move_file', { title: 'Drive Move File', description: 'Dry-run-first Google Drive file move planner.', inputSchema: driveJobSchema }, async (input) =>
+      mcpText(driveMoveFileTool(input as never))
+    );
+
+    server.registerTool('drive_write_receipt', { title: 'Drive Write Receipt', description: 'Dry-run-first Google Drive receipt planner.', inputSchema: driveJobSchema }, async (input) =>
+      mcpText(driveWriteReceiptTool(input as never))
+    );
+
+    server.registerTool('run_platform_provisioning_job', { title: 'Run Platform Provisioning Job', description: 'Dry-run-first GitHub/Vercel/AI Gateway provisioning planner.', inputSchema: platformProvisioningSchema }, async (input) =>
+      mcpText(await runPlatformProvisioningJobTool(input as never))
+    );
+
+    server.registerTool('create_github_repo', { title: 'Create GitHub Repo', description: 'Dry-run-first GitHub repository creation planner.', inputSchema: platformProvisioningSchema }, async (input) =>
+      mcpText(await createGithubRepoTool(input as never))
+    );
+
+    server.registerTool('create_vercel_project', { title: 'Create Vercel Project', description: 'Dry-run-first Vercel project creation planner.', inputSchema: platformProvisioningSchema }, async (input) =>
+      mcpText(await createVercelProjectTool(input as never))
+    );
+
+    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow or cron planner.', inputSchema: platformProvisioningSchema }, async (input) =>
+      mcpText(createVercelWorkflowTool(input as never))
+    );
+
+    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformProvisioningSchema }, async (input) =>
+      mcpText(createVercelAgentTool(input as never))
+    );
+
+    server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformProvisioningSchema }, async (input) =>
+      mcpText(createAiGatewayTool(input as never))
+    );
+
+    server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode.', inputSchema: rollbackSchema }, async (input) =>
+      mcpText(rollbackTool(input as never))
+    );
   },
-  { instructions: 'Use this server as the governed operating surface for AUTO BUILDER. Prefer health_check first. New write-capable tools default to dry_run, return receipt and rollback metadata, and must not expose secret values. Route platform provisioning into run_platform_provisioning_job, create_github_repo, create_vercel_project, create_vercel_workflow, create_vercel_sandbox, create_ai_gateway, or create_vercel_agent. Route Drive work into run_drive_job, drive_create_folder, drive_move_file, drive_move_folder, or drive_write_receipt. Route generic cross-stack work into run_job or run_universal_job. Route rollback planning into rollback. Route browser work into run_browser_job. Route Eden work into run_job, run_eden_job, or eden_trend_discovery_dry_run.' },
-  { basePath: '/api', maxDuration: 60, verboseLogs: false }
+  {
+    instructions:
+      'AUTO BUILDER 2 strict ChatGPT MCP route. Exposes exactly the 20 required tools. Write-capable tools are dry-run-first and require explicit execute or rollback mode.'
+  },
+  {
+    basePath: '/api',
+    maxDuration: 60,
+    verboseLogs: false
+  }
 );
 
 export { handler as GET, handler as POST, handler as DELETE };
