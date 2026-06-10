@@ -37,6 +37,61 @@ export const clientJourneySteps = [
   "Scale & Optimize"
 ] as const;
 
+function buildQueues(): ControlPlaneTask[] {
+  return [
+    {
+      id: "q-001",
+      lane: "BUILD",
+      title: "Strategic Minds client dashboard preview",
+      status: "done",
+      riskClass: 1,
+      mutation: false,
+      approvalRequired: false,
+      nextAction: "Preview route renders packages, journey, approvals, and receipts."
+    },
+    {
+      id: "q-002",
+      lane: "VALIDATE",
+      title: "Autonomous loop dry-run receipt",
+      status: "done",
+      riskClass: 1,
+      mutation: false,
+      approvalRequired: false,
+      nextAction: "Dry-run route can execute without live mutation."
+    },
+    {
+      id: "q-003",
+      lane: "DEPLOY",
+      title: "Production deploy or protected branch merge",
+      status: "blocked",
+      riskClass: 4,
+      mutation: true,
+      approvalRequired: true,
+      nextAction: "Requires preview evidence and explicit production approval."
+    },
+    {
+      id: "q-004",
+      lane: "MONETIZE",
+      title: "Live checkout, billing, or pricing mutation",
+      status: "blocked",
+      riskClass: 4,
+      mutation: true,
+      approvalRequired: true,
+      nextAction: "Requires pricing approval and live billing approval."
+    },
+    {
+      id: "q-005",
+      lane: "DISTRIBUTE",
+      title: "External publishing or outreach",
+      status: "blocked",
+      riskClass: 3,
+      mutation: true,
+      approvalRequired: true,
+      nextAction: "Requires content/channel approval before publishing."
+    }
+  ];
+}
+
 export function getAutonomousControlPlaneState() {
   return {
     system: {
@@ -54,58 +109,7 @@ export function getAutonomousControlPlaneState() {
       steps: clientJourneySteps,
       documents: ["Project Brief", "Strategy Blueprint", "MVP Roadmap"]
     },
-    queues: [
-      {
-        id: "q-001",
-        lane: "BUILD",
-        title: "Strategic Minds client dashboard preview",
-        status: "done",
-        riskClass: 1,
-        mutation: false,
-        approvalRequired: false,
-        nextAction: "Preview route renders packages, journey, approvals, and receipts."
-      },
-      {
-        id: "q-002",
-        lane: "VALIDATE",
-        title: "Autonomous loop dry-run receipt",
-        status: "done",
-        riskClass: 1,
-        mutation: false,
-        approvalRequired: false,
-        nextAction: "Dry-run route can execute without live mutation."
-      },
-      {
-        id: "q-003",
-        lane: "DEPLOY",
-        title: "Production deploy or protected branch merge",
-        status: "blocked",
-        riskClass: 4,
-        mutation: true,
-        approvalRequired: true,
-        nextAction: "Requires preview evidence and explicit production approval."
-      },
-      {
-        id: "q-004",
-        lane: "MONETIZE",
-        title: "Live checkout, billing, or pricing mutation",
-        status: "blocked",
-        riskClass: 4,
-        mutation: true,
-        approvalRequired: true,
-        nextAction: "Requires pricing approval and live billing approval."
-      },
-      {
-        id: "q-005",
-        lane: "DISTRIBUTE",
-        title: "External publishing or outreach",
-        status: "blocked",
-        riskClass: 3,
-        mutation: true,
-        approvalRequired: true,
-        nextAction: "Requires content/channel approval before publishing."
-      }
-    ] satisfies ControlPlaneTask[],
+    queues: buildQueues(),
     approvals: [
       { id: "approval-production-deploy", label: "Production deploy / merge", status: "required", riskClass: 4 },
       { id: "approval-live-billing", label: "Live billing or payment mutation", status: "required", riskClass: 4 },
