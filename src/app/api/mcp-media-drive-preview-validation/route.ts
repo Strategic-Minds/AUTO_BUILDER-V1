@@ -141,6 +141,25 @@ export async function GET(request: Request) {
     }
   });
 
+  const approvedWriteDryRunCheck = await postJson(origin, {
+    jsonrpc: '2.0',
+    id: 'approved-write-dry-run',
+    method: 'tools/call',
+    params: {
+      name: 'drive_copy_file',
+      arguments: {
+        project_slug: 'preview-validation-media-drive',
+        file_id: 'planned-approved-write-source-file',
+        to_folder_id: 'planned-approved-write-target-folder',
+        new_name: 'approved-write-dry-run-copy.png',
+        reason: 'Preview validation for approved-write dry-run path.',
+        approved_write: true,
+        approved_write_dry_run: true,
+        require_durable_receipt: true
+      }
+    }
+  });
+
   const smokeCheck = await getJson(origin, '/api/mcp-media-drive-smoke');
 
   const initializeResult = mcpResult(initializeCheck);
@@ -153,21 +172,28 @@ export async function GET(request: Request) {
   const missingTools = expectedToolNames.filter((name) => !toolNames.includes(name));
 
   const hardGateResult = parseToolCallText(hardGateCheck);
+  const approvedWriteDryRunResult = parseToolCallText(approvedWriteDryRunCheck);
+  const approvedWritePersistence = approvedWriteDryRunResult.receiptPersistence && typeof approvedWriteDryRunResult.receiptPersistence === 'object'
+    ? approvedWriteDryRunResult.receiptPersistence as { persisted?: unknown; attempted?: unknown; error?: unknown; telemetry_key?: unknown }
+    : {};
   const smoke = smokeResult(smokeCheck);
 
   const validations = {
     initialize: initializeCheck.ok && (initializeResult.serverInfo as { name?: unknown } | undefined)?.name === 'auto-builder-2-media-drive-pipeline',
     toolsList: toolsListCheck.ok && toolNames.length === expectedToolNames.length && missingTools.length === 0,
     hardGate: hardGateCheck.ok && hardGateResult.status === 'hard_gated' && hardGateResult.liveMutation === false,
+    approvedWriteDryRun: approvedWriteDryRunCheck.ok && approvedWriteDryRunResult.adapterMode === 'approved_write_dry_run' && approvedWriteDryRunResult.liveMutation === false,
+    durableReceiptPersistence: approvedWritePersistence.persisted === true,
     smoke: smokeCheck.ok && smoke.status === 'pass' && smoke.liveMutation === false && smoke.steps === 7 && smoke.hard_gated === 0
   };
 
-  const ok = Object.values(validations).every(Boolean);
+  const scaffoldOk = validations.initialize && validations.toolsList && validations.hardGate && validations.approvedWriteDryRun && validations.smoke;
+  const livePathReady = scaffoldOk && validations.durableReceiptPersistence;
 
   return Response.json(
     {
-      ok,
-      status: ok ? 'pass' : 'failed',
+      ok: scaffoldOk,
+      status: scaffoldOk ? 'pass' : 'failed',
       origin,
       validations,
       expectedToolNames,
@@ -180,14 +206,20 @@ export async function GET(request: Request) {
           ...hardGateCheck,
           parsedToolResult: hardGateResult
         },
+        approvedWriteDryRunCheck: {
+          ...approvedWriteDryRunCheck,
+          parsedToolResult: approvedWriteDryRunResult,
+          receiptPersistence: approvedWritePersistence
+        },
         smokeCheck
       },
       liveMutation: false,
+      livePathReady,
       productionApprovalReady: false,
-      nextAction: ok
-        ? 'Keep PR #38 draft until workflow evidence and review decision are complete.'
-        : 'Fix Media Drive preview validation failures before review promotion.'
+      nextAction: livePathReady
+        ? 'Open a follow-up review lane for live adapter readiness, but keep production approval gated.'
+        : 'Keep production approval blocked until durable receipt persistence is confirmed by telemetry key.'
     },
-    { status: ok ? 200 : 424 }
+    { status: scaffoldOk ? 200 : 424 }
   );
 }
