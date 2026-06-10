@@ -1,6 +1,14 @@
 import { analyzeToolExposure } from "./analyzer";
 import { makeCloudReceipt, writeCloudReceipt } from "./cloud-receipts";
-import { classifyCloudAction } from "./policy";
+import { classifyCloudAction, type RiskClass } from "./policy";
+
+type AutoHealAction = {
+  id: string;
+  riskClass: RiskClass;
+  mutation: boolean;
+  system: string;
+  action: string;
+};
 
 export async function recordToolExposure(input: { exposedTools?: unknown[]; expectedTools?: string[] } = {}) {
   const analysis = analyzeToolExposure(input);
@@ -66,7 +74,7 @@ export async function enqueueExposureFallbackJob(input: {
 
 export function buildAutoHealPlan(input: { exposedTools?: unknown[]; expectedTools?: string[] } = {}) {
   const analysis = analyzeToolExposure(input);
-  const actions = [
+  const actions: AutoHealAction[] = [
     {
       id: "record_exposure_receipt",
       riskClass: 1,
@@ -127,7 +135,7 @@ export async function dispatchUniversalJob(input: {
   const riskClass = input.riskClass ?? 1;
   const mutation = Boolean(input.mutation);
   const system = input.system ?? "cloud_control_plane";
-  const policy = classifyCloudAction({ riskClass: riskClass as 0 | 1 | 2 | 3 | 4 | 5, mutation, system, approvalState: input.approvalState });
+  const policy = classifyCloudAction({ riskClass: riskClass as RiskClass, mutation, system, approvalState: input.approvalState });
 
   if (!policy.allowed) {
     const receipt = makeCloudReceipt({
