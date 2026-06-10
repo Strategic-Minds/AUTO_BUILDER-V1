@@ -1,0 +1,21 @@
+{
+  "project": "strategic-minds-advisory-client-os",
+  "targetRepo": "XPS-IINTELLIGENCE-SYSTEMS/strategic-minds-advisory",
+  "targetBranch": "feature/auto-builder-sync",
+  "controlRepo": "Strategic-Minds/AUTO_BUILDER",
+  "controlBranch": "feature/strategic-minds-project-sync",
+  "driveRoot": "V2 MASTER AUTO BUILDER/STRATEGIC MINDS ADVISORY",
+  "mode": "preview_only",
+  "framework": "vite_react",
+  "executionRail": "vercel_workflow",
+  "validationAgent": "auto_builder_validation_agent",
+  "productionDeploy": "operator_approval_required",
+  "gates": {
+    "homepageChanges": "blocked",
+    "uiChanges": "blocked",
+    "mainBranchWrites": "blocked",
+    "livePayments": "blocked_until_operator_approval",
+    "liveSms": "blocked_until_operator_approval",
+    "secrets": "never_commit"
+  }
+}
