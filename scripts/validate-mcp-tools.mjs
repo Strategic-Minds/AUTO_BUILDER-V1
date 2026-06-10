@@ -54,6 +54,15 @@ function read(path) {
   return readFileSync(path, 'utf8');
 }
 
+function countRegisterTool(source) {
+  return [...source.matchAll(/server\.registerTool\('/g)].length;
+}
+
+function assertSourceAdvertisesRelativeEndpoint(source, path, endpoint) {
+  assert(source.includes(endpoint), `${path} does not advertise required endpoint: ${endpoint}`);
+  assert(!source.includes('/docs/auto-builder-2-gpt-actions.openapi.yaml'), `${path} advertises removed OpenAPI endpoint.`);
+}
+
 const mcpRouteSources = [
   ['src/app/api/mcp/route.ts', read('src/app/api/mcp/route.ts')],
   ['src/app/api/mcp-minimal/[transport]/route.ts', read('src/app/api/mcp-minimal/[transport]/route.ts')]
@@ -63,6 +72,7 @@ const minimalRouteSource = mcpRouteSources[1][1];
 const executionSource = read('src/lib/autobuilder-v2/execution-tools.ts');
 const toolsRouteSource = read('src/app/api/mcp/tools/route.ts');
 const manifestSource = read('src/app/api/mcp/manifest/route.ts');
+const pluginSource = read('src/app/.well-known/ai-plugin.json/route.ts');
 const runJobRouteSource = read('src/app/api/bridge/run-job/route.ts');
 const runUniversalJobRouteSource = read('src/app/api/bridge/run-universal-job/route.ts');
 const rollbackRouteSource = read('src/app/api/bridge/rollback/route.ts');
@@ -70,6 +80,7 @@ const bridgeExecutionRouteSource = read('src/app/api/bridge/[bridge]/[action]/ro
 const packageJson = JSON.parse(read('package.json'));
 
 for (const [path, source] of mcpRouteSources) {
+  assert(countRegisterTool(source) === expectedCallableTools.length, `${path} registers ${countRegisterTool(source)} tools, expected ${expectedCallableTools.length}.`);
   for (const toolName of expectedCallableTools) {
     assert(
       source.includes(`server.registerTool('${toolName}'`),
@@ -128,6 +139,30 @@ for (const metadataSource of [toolsRouteSource, manifestSource]) {
   assert(metadataSource.includes('activeOperatingMap'), 'MCP metadata route does not expose activeOperatingMap.');
 }
 
+assertSourceAdvertisesRelativeEndpoint(manifestSource, 'src/app/api/mcp/manifest/route.ts', '/api/mcp');
+assertSourceAdvertisesRelativeEndpoint(manifestSource, 'src/app/api/mcp/manifest/route.ts', '/api/mcp/tools');
+assertSourceAdvertisesRelativeEndpoint(manifestSource, 'src/app/api/mcp/manifest/route.ts', '/.well-known/ai-plugin.json');
+assert(manifestSource.includes("openapiAdvertised: false"), 'MCP manifest must explicitly mark OpenAPI as not advertised.');
+assert(manifestSource.includes("authoritative: 'mcp'"), 'MCP manifest must mark MCP as authoritative discovery.');
+
+assert(pluginSource.includes("api: {"), 'Plugin route must include an api field.');
+assert(pluginSource.includes("type: 'none'"), 'Plugin route must disable OpenAPI fallback when no OpenAPI endpoint exists.');
+assert(pluginSource.includes('requestBaseUrl'), 'Plugin route must build URLs from the incoming request host.');
+assert(pluginSource.includes('/api/mcp'), 'Plugin route must advertise the MCP endpoint.');
+assert(pluginSource.includes('/api/mcp/manifest'), 'Plugin route must advertise the MCP manifest endpoint.');
+assert(pluginSource.includes('/api/mcp/tools'), 'Plugin route must advertise the MCP tools endpoint.');
+assert(!pluginSource.includes('/docs/auto-builder-2-gpt-actions.openapi.yaml'), 'Plugin route advertises removed OpenAPI endpoint.');
+assert(!pluginSource.includes('const productionBaseUrl'), 'Plugin route must not hardcode production base URL.');
+
+const metadataToolCountMarkers = [
+  'tools: expectedCallableMcpToolNames',
+  'executionTools: autoBuilder2ExecutionToolNames'
+];
+for (const marker of metadataToolCountMarkers) {
+  assert(manifestSource.includes(marker), `Manifest route missing parity marker: ${marker}`);
+  assert(toolsRouteSource.includes(marker), `Tools route missing parity marker: ${marker}`);
+}
+
 assert(runJobRouteSource.includes('runJob'), 'Static /api/bridge/run-job route is not wired to runJob.');
 assert(runUniversalJobRouteSource.includes('runUniversalJob'), 'Static /api/bridge/run-universal-job route is not wired to runUniversalJob.');
 assert(rollbackRouteSource.includes('rollbackTool'), 'Static /api/bridge/rollback route is not wired to rollbackTool.');
@@ -165,6 +200,7 @@ for (const envName of requiredEnvNames) {
       ['src/lib/autobuilder-v2/execution-tools.ts', executionSource],
       ['src/app/api/mcp/tools/route.ts', toolsRouteSource],
       ['src/app/api/mcp/manifest/route.ts', manifestSource],
+      ['src/app/.well-known/ai-plugin.json/route.ts', pluginSource],
       ['src/app/api/bridge/run-job/route.ts', runJobRouteSource],
       ['src/app/api/bridge/run-universal-job/route.ts', runUniversalJobRouteSource],
       ['src/app/api/bridge/rollback/route.ts', rollbackRouteSource],
@@ -182,4 +218,4 @@ for (const forbidden of ['Strategic-Minds/SANDBOX"', 'Strategic-Minds/FRONTEND"'
   assert(!activeMapSource.includes(forbidden), `Active operating map includes forbidden repo: ${forbidden}`);
 }
 
-console.log(`MCP tool validation passed: ${expectedCallableTools.length} required callable tools are registered across ${mcpRouteSources.length} MCP routes with dry-run, receipt, rollback, governed Drive, and secret-safety markers.`);
+console.log(`MCP tool validation passed: ${expectedCallableTools.length} required callable tools are registered across ${mcpRouteSources.length} MCP routes with MCP-authoritative discovery, plugin/manifest/tools parity, dry-run, receipt, rollback, governed Drive, and secret-safety markers.`);
