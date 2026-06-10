@@ -54,7 +54,12 @@ function read(path) {
   return readFileSync(path, 'utf8');
 }
 
-const routeSource = read('src/app/api/mcp/route.ts');
+const mcpRouteSources = [
+  ['src/app/api/mcp/route.ts', read('src/app/api/mcp/route.ts')],
+  ['src/app/api/mcp-minimal/[transport]/route.ts', read('src/app/api/mcp-minimal/[transport]/route.ts')]
+];
+const routeSource = mcpRouteSources[0][1];
+const minimalRouteSource = mcpRouteSources[1][1];
 const executionSource = read('src/lib/autobuilder-v2/execution-tools.ts');
 const toolsRouteSource = read('src/app/api/mcp/tools/route.ts');
 const manifestSource = read('src/app/api/mcp/manifest/route.ts');
@@ -64,11 +69,17 @@ const rollbackRouteSource = read('src/app/api/bridge/rollback/route.ts');
 const bridgeExecutionRouteSource = read('src/app/api/bridge/[bridge]/[action]/route.ts');
 const packageJson = JSON.parse(read('package.json'));
 
+for (const [path, source] of mcpRouteSources) {
+  for (const toolName of expectedCallableTools) {
+    assert(
+      source.includes(`server.registerTool('${toolName}'`),
+      `${path} is missing callable tool registration: ${toolName}`
+    );
+  }
+  assert(source.includes('expectedCallableMcpToolNames'), `${path} does not expose expectedCallableMcpToolNames.`);
+}
+
 for (const toolName of expectedCallableTools) {
-  assert(
-    routeSource.includes(`server.registerTool('${toolName}'`),
-    `MCP route is missing callable tool registration: ${toolName}`
-  );
   assert(
     executionSource.includes(`"${toolName}"`) || ['health_check', 'get_repo_summary', 'list_repo_files', 'read_bootstrap_status', 'read_text_file'].includes(toolName),
     `Execution tool registry is missing: ${toolName}`
@@ -95,9 +106,21 @@ for (const marker of [
   'would_create_ai_gateway',
   'rollback_plan',
   'not_implemented',
-  'mode !== "execute"'
+  'mode !== "execute"',
+  'folderManifestRecords',
+  'executeApprovedFolderManifest'
 ]) {
   assert(executionSource.includes(marker), `Execution contract missing marker: ${marker}`);
+}
+
+for (const marker of [
+  'approved_write',
+  'folder_manifest',
+  'create_missing_folders',
+  'await runDriveJobTool'
+]) {
+  assert(routeSource.includes(marker), `Primary MCP route missing governed Drive marker: ${marker}`);
+  assert(minimalRouteSource.includes(marker), `Minimal MCP route missing governed Drive marker: ${marker}`);
 }
 
 for (const metadataSource of [toolsRouteSource, manifestSource]) {
@@ -138,7 +161,7 @@ for (const envName of requiredEnvNames) {
   const envValue = process.env[envName];
   if (envValue && envValue.length >= 8) {
     for (const [path, source] of [
-      ['src/app/api/mcp/route.ts', routeSource],
+      ...mcpRouteSources,
       ['src/lib/autobuilder-v2/execution-tools.ts', executionSource],
       ['src/app/api/mcp/tools/route.ts', toolsRouteSource],
       ['src/app/api/mcp/manifest/route.ts', manifestSource],
@@ -159,4 +182,4 @@ for (const forbidden of ['Strategic-Minds/SANDBOX"', 'Strategic-Minds/FRONTEND"'
   assert(!activeMapSource.includes(forbidden), `Active operating map includes forbidden repo: ${forbidden}`);
 }
 
-console.log(`MCP tool validation passed: ${expectedCallableTools.length} required callable tools are registered with dry-run, receipt, rollback, and secret-safety markers.`);
+console.log(`MCP tool validation passed: ${expectedCallableTools.length} required callable tools are registered across ${mcpRouteSources.length} MCP routes with dry-run, receipt, rollback, governed Drive, and secret-safety markers.`);
