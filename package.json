@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "validate:factory": "node scripts/validate-factory.mjs",
+    "validate:recursive-bridge": "node scripts/validate-recursive-bridge-clearance.mjs",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs"
   },
   "dependencies": {

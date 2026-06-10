@@ -1,0 +1,52 @@
+openapi: 3.1.0
+info:
+  title: AWOS Recursive Bridge Clearance API
+  version: 2026-06-07
+  description: Preview-first bridge smoke and hard-gate receipt API. Secret values are never exposed.
+servers:
+  - url: https://autobuilderos.com
+    description: Canonical production domain, read-only unless explicitly approved
+  - url: https://auto-builder-preview.example.com
+    description: Vercel preview placeholder
+paths:
+  /api/bridge/registry:
+    get:
+      summary: Return bridge registry and smoke order.
+      x-risk-class: 0
+      responses:
+        '200': { description: Registry receipt }
+  /api/bridge/connectors/status:
+    get:
+      summary: Return connector readiness by env name presence only.
+      x-risk-class: 0
+      responses:
+        '200': { description: Connector status receipt }
+  /api/bridge/connectors/dry-run:
+    post:
+      summary: Produce a dry-run receipt for a connector without live mutation.
+      x-risk-class: 1
+      responses:
+        '200': { description: Dry-run receipt }
+        '428': { description: Hard gate receipt }
+  /api/bridge/connectors/execute-approved:
+    post:
+      summary: Execute only when approval and connector widening are configured. Preview scaffold stays dry-run.
+      x-risk-class: 2
+      responses:
+        '202': { description: Approved dry-run queued receipt }
+        '403': { description: Approval required or live mutation disabled }
+  /api/bridge/unblock/scan:
+    get:
+      summary: Scan blockers and map each to bridge, owner, required action, and next test.
+      x-risk-class: 0
+      responses:
+        '200': { description: Blocker scan receipt }
+components:
+  schemas:
+    BridgeReceipt:
+      type: object
+      required: [status, mutation, receipt]
+      properties:
+        status: { type: string }
+        mutation: { type: boolean }
+        receipt: { type: object }

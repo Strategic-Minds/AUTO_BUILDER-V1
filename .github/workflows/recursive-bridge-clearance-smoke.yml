@@ -1,0 +1,101 @@
+name: Recursive Bridge Clearance Smoke
+
+on:
+  pull_request:
+    paths:
+      - "docs/bridges/recursive-clearance/**"
+      - "src/app/api/bridge/**"
+      - "scripts/validate-recursive-bridge-clearance.mjs"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-clearance-kit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate recursive bridge clearance contracts
+        run: node scripts/validate-recursive-bridge-clearance.mjs
+      - name: Verify unapproved mutation marker exists
+        run: |
+          grep -F "Unapproved Class 2+ action rejected" src/app/api/bridge/connectors/execute-approved/route.ts
+          grep -F "BRIDGE_LIVE_MUTATION_ENABLED" src/app/api/bridge/connectors/execute-approved/route.ts
+      - name: Print smoke handoff
+        run: |
+          echo "Preview route smoke required before merge readiness:"
+          echo "GET /api/bridge/registry"
+          echo "GET /api/bridge/connectors/status"
+          echo "POST /api/bridge/connectors/dry-run"
+          echo "POST /api/bridge/connectors/execute-approved"
+          echo "GET /api/bridge/unblock/scan"
+
+  preview-route-smoke:
+    runs-on: ubuntu-latest
+    env:
+      AUTO_BUILDER_RECURSIVE_PREVIEW_URL: https://auto-builder-git-auto-builder-r-a9b61b-strategic-minds-advisory.vercel.app
+    steps:
+      - name: Smoke recursive bridge GET routes
+        run: |
+          set -euo pipefail
+          for path in \
+            /api/bridge/registry \
+            /api/bridge/connectors/status \
+            /api/bridge/unblock/scan
+          do
+            code=$(curl -sS -o response.json -w "%{http_code}" "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL$path")
+            cat response.json
+            test "$code" = "200"
+          done
+      - name: Smoke connector dry-run hard-gate receipt
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{"bridgeId":"metricool_connector_bridge"}' \
+            "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL/api/bridge/connectors/dry-run")
+          cat response.json
+          test "$code" = "428"
+          grep -F '"status":"hard_gate"' response.json
+      - name: Smoke HeyGen dry-run env receipt
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{"bridgeId":"heygen_video_bridge"}' \
+            "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL/api/bridge/connectors/dry-run")
+          cat response.json
+          test "$code" = "200"
+          grep -F '"status":"dry_run_passed"' response.json
+      - name: Smoke Higgsfield dry-run env or hard-gate receipt
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{"bridgeId":"higgsfield_media_bridge"}' \
+            "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL/api/bridge/connectors/dry-run")
+          cat response.json
+          if [ "$code" = "200" ]; then
+            grep -F '"status":"dry_run_passed"' response.json
+          elif [ "$code" = "428" ]; then
+            grep -F '"status":"hard_gate"' response.json
+            grep -F 'HIGGINGFIELD_API_KEY|HIGGSFIELD_API_KEY' response.json
+          else
+            echo "Unexpected Higgsfield smoke status: $code"
+            exit 1
+          fi
+      - name: Smoke unapproved Class 2 block
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "content-type: application/json" \
+            -d '{"bridgeId":"metricool_connector_bridge","riskClass":2}' \
+            "$AUTO_BUILDER_RECURSIVE_PREVIEW_URL/api/bridge/connectors/execute-approved")
+          cat response.json
+          test "$code" = "403"
+          grep -F '"status":"blocked"' response.json
