@@ -1,32 +1,38 @@
-import { NextResponse } from 'next/server';
-
-const productionBaseUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app';
+import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+function requestBaseUrl(request: NextRequest) {
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const proto = request.headers.get('x-forwarded-proto') ?? 'https';
+  return host ? `${proto}://${host}` : 'https://auto-builder-strategic-minds-advisory.vercel.app';
+}
+
+export async function GET(request: NextRequest) {
+  const baseUrl = requestBaseUrl(request);
+
   return NextResponse.json({
     schema_version: 'v1',
     name_for_human: 'AUTO BUILDER 2',
     name_for_model: 'auto_builder_2',
     description_for_human: 'Governed Auto Builder 2 orchestration system for Strategic Minds Advisory.',
     description_for_model:
-      'Use AUTO BUILDER 2 to inspect stack status, list MCP tools, and operate governed dry-run-first execution tools. Live mutations require explicit execute mode and provider approval gates.',
+      'Use AUTO BUILDER 2 to inspect stack status, list MCP tools, and operate governed dry-run-first execution tools. Live mutations require explicit execute mode and provider approval gates. MCP discovery is authoritative.',
     auth: {
       type: 'none'
     },
     api: {
-      type: 'openapi',
-      url: `${productionBaseUrl}/docs/auto-builder-2-gpt-actions.openapi.yaml`
+      type: 'none',
+      reason: 'MCP streamable-http discovery is authoritative for this connector. No OpenAPI fallback is advertised because stale OpenAPI files caused tool-count drift.'
     },
-    logo_url: `${productionBaseUrl}/favicon.ico`,
+    logo_url: `${baseUrl}/favicon.ico`,
     contact_email: 'strategicmindsadvisory@gmail.com',
-    legal_info_url: `${productionBaseUrl}/api/mcp/manifest`,
+    legal_info_url: `${baseUrl}/api/mcp/manifest`,
     mcp: {
       transport: 'streamable-http',
-      url: `${productionBaseUrl}/api/mcp`,
-      manifest_url: `${productionBaseUrl}/api/mcp/manifest`,
-      tools_url: `${productionBaseUrl}/api/mcp/tools`
+      url: `${baseUrl}/api/mcp`,
+      manifest_url: `${baseUrl}/api/mcp/manifest`,
+      tools_url: `${baseUrl}/api/mcp/tools`
     }
   });
 }
