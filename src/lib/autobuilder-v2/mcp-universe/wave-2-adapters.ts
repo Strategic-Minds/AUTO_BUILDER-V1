@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { createMcpUniverseReceipt, recordMcpUniverseReceipt } from "./receipts";
 
 export const wave2DriveTools = [
@@ -124,7 +126,6 @@ export const EDEN_SKYE_FULL_SCAFFOLD_MANIFEST = [
 ] as const;
 
 type Wave2Mode = "dry_run" | "approved_write" | "approved_generation";
-
 type DriveUploadMode = "raw" | "native_google_docs" | "native_google_sheets" | "native_google_slides";
 
 type DriveJobInput = {
@@ -132,6 +133,7 @@ type DriveJobInput = {
   tool?: string;
   approved?: boolean;
   approvalId?: string;
+  receiptRequired?: boolean;
   sourceFileRef?: string;
   targetFolderIdOrUrl?: string;
   targetName?: string;
@@ -214,6 +216,137 @@ function validateVideoDryRun(input: VideoJobInput) {
   return missing;
 }
 
+function extractDriveFolderId(input: string) {
+  const match = input.match(/\/folders\/([a-zA-Z0-9_-]+)/) || input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return match?.[1] ?? input;
+}
+
+function getMimeType(filePath: string) {
+  const ext = path.extname(filePath).toLowerCase();
+  const map: Record<string, string> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".pdf": "application/pdf",
+    ".json": "application/json",
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+    ".csv": "text/csv",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  };
+  return map[ext] ?? "application/octet-stream";
+}
+
+function assertSafeLocalPath(sourceFileRef: string) {
+  if (sourceFileRef.includes("..")) throw new Error("sourceFileRef cannot contain parent directory traversal.");
+  if (/^https?:\/\//i.test(sourceFileRef)) throw new Error("sourceFileRef must be a local or mounted file path, not a URL.");
+  return sourceFileRef;
+}
+
+function getGooglePrivateKey() {
+  const key = process.env.GOOGLE_PRIVATE_KEY;
+  if (!key) throw new Error("GOOGLE_PRIVATE_KEY is not configured.");
+  return key.replace(/\\n/g, "\n");
+}
+
+function base64Url(input: Buffer | string) {
+  return Buffer.from(input).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+async function getGoogleAccessToken() {
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  if (!clientEmail) throw new Error("GOOGLE_CLIENT_EMAIL is not configured.");
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const claim = {
+    iss: clientEmail,
+    scope: "https://www.googleapis.com/auth/drive.file",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600
+  };
+
+  const data = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(claim))}`;
+  const signature = crypto.sign("RSA-SHA256", Buffer.from(data), getGooglePrivateKey());
+  const assertion = `${data}.${base64Url(signature)}`;
+  const body = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    assertion
+  });
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google token exchange failed: ${response.status} ${text.slice(0, 200)}`);
+  }
+
+  const json = await response.json() as { access_token?: string };
+  if (!json.access_token) throw new Error("Google token exchange did not return access_token.");
+  return json.access_token;
+}
+
+async function uploadToGoogleDrive(input: DriveJobInput, receiptId: string) {
+  if (input.mode !== "approved_write") throw new Error("Drive upload only runs in approved_write mode.");
+  if (!process.env.WAVE2_DRIVE_APPROVED_WRITE_ENABLED) throw new Error("Approved Drive writes remain disabled until WAVE2_DRIVE_APPROVED_WRITE_ENABLED is configured.");
+  if (approvalMissing(input)) throw new Error("Approved Drive write requested without approved=true and approvalId.");
+  if (input.receiptRequired !== true) throw new Error("receiptRequired=true is required for approved Drive uploads.");
+  if (!input.sourceFileRef) throw new Error("sourceFileRef is required.");
+  if (!input.targetFolderIdOrUrl) throw new Error("targetFolderIdOrUrl is required.");
+  if (!input.targetName) throw new Error("targetName is required.");
+  if (input.tool === "drive_upload_file" && !input.uploadMode) throw new Error("uploadMode is required for drive_upload_file.");
+
+  const sourceFileRef = assertSafeLocalPath(input.sourceFileRef);
+  if (!fs.existsSync(sourceFileRef)) throw new Error("sourceFileRef does not exist in the execution environment.");
+
+  const parentFolderId = extractDriveFolderId(input.targetFolderIdOrUrl);
+  const mimeType = getMimeType(sourceFileRef);
+  const fileBytes = fs.readFileSync(sourceFileRef);
+  const boundary = `autobuilder_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  const metadata = { name: input.targetName, parents: [parentFolderId] };
+  const multipart = Buffer.concat([
+    Buffer.from(`--${boundary}\r\ncontent-type: application/json; charset=utf-8\r\n\r\n${JSON.stringify(metadata)}\r\n`),
+    Buffer.from(`--${boundary}\r\ncontent-type: ${mimeType}\r\n\r\n`),
+    fileBytes,
+    Buffer.from(`\r\n--${boundary}--\r\n`)
+  ]);
+
+  const token = await getGoogleAccessToken();
+  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,parents", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": `multipart/related; boundary=${boundary}`,
+      "content-length": String(multipart.length)
+    },
+    body: multipart
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Drive upload failed: ${response.status} ${text.slice(0, 200)}`);
+  }
+
+  const uploaded = await response.json() as { id: string; name: string; mimeType: string; webViewLink?: string; parents?: string[] };
+  return {
+    status: "uploaded",
+    fileId: uploaded.id,
+    fileUrl: uploaded.webViewLink ?? `https://drive.google.com/file/d/${uploaded.id}/view`,
+    mimeType: uploaded.mimeType ?? mimeType,
+    parentFolderId,
+    receiptId
+  };
+}
+
 export function buildEdenSkyeFullScaffoldDriveJob(): DriveJobInput {
   return {
     job_id: "master-auto-builder-drive-scaffold-001",
@@ -241,10 +374,11 @@ export function getWave2Health() {
     googleDrive: {
       tools: wave2DriveTools,
       readEnvReady: boolEnv("GOOGLE_CLIENT_EMAIL") && boolEnv("GOOGLE_PRIVATE_KEY"),
+      approvedWriteEnabled: boolEnv("WAVE2_DRIVE_APPROVED_WRITE_ENABLED"),
       fullScaffoldDryRun: "ready",
       createFolder: "dry_run_ready",
-      uploadFile: "dry_run_ready",
-      uploadImage: "dry_run_ready",
+      uploadFile: "approved_write_ready_when_enabled",
+      uploadImage: "approved_write_ready_when_enabled",
       nativeDocsImport: "dry_run_ready",
       nativeSheetsImport: "dry_run_ready",
       nativeSlidesImport: "dry_run_ready",
@@ -272,14 +406,17 @@ export async function runWave2DriveDryRun(input: DriveJobInput) {
   const missing = validateDriveDryRun({ ...input, tool });
   const blocked = mode !== "dry_run" && approvalMissing(input);
   const liveWriteUnavailable = mode !== "dry_run" && !process.env.WAVE2_DRIVE_APPROVED_WRITE_ENABLED;
-  const status = missing.length > 0 || blocked || liveWriteUnavailable ? "blocked" : "dry_run_pass";
+  const receiptRequiredMissing = mode === "approved_write" && input.receiptRequired !== true;
+  const status = missing.length > 0 || blocked || liveWriteUnavailable || receiptRequiredMissing ? "blocked" : "dry_run_pass";
   const blocker = missing.length > 0
     ? `Missing required fields: ${missing.join(", ")}`
     : blocked
       ? "Approved Drive write requested without approved=true and approvalId."
       : liveWriteUnavailable
         ? "Approved Drive writes remain disabled until WAVE2_DRIVE_APPROVED_WRITE_ENABLED is configured and operator approval is recorded."
-        : null;
+        : receiptRequiredMissing
+          ? "receiptRequired=true is required for approved Drive uploads."
+          : null;
 
   const receipt = createMcpUniverseReceipt({
     mcpId: "wave-2-drive-adapter",
@@ -287,17 +424,46 @@ export async function runWave2DriveDryRun(input: DriveJobInput) {
     action: `${tool}_${mode}`,
     autonomyLevel: mode === "dry_run" ? 2 : 4,
     riskClass: mode === "dry_run" ? "low" : "high",
-    approvalState: status === "blocked" ? "blocked" : "not_required",
+    approvalState: status === "blocked" ? "blocked" : mode === "approved_write" ? "approved" : "not_required",
     target: "/api/mcp-universe/wave-2/drive",
-    resultSummary: status === "dry_run_pass" ? "Drive Wave 2 payload validated in dry-run mode; no Drive mutation performed." : "Drive Wave 2 request blocked before mutation.",
+    resultSummary: status === "dry_run_pass" ? "Drive Wave 2 payload validated; approved uploads execute only for approved_write upload tools." : "Drive Wave 2 request blocked before mutation.",
     validationStatus: status === "dry_run_pass" ? "passed" : "blocked",
     rollbackRef: null,
     nextAction: status === "dry_run_pass" ? "Run approved Drive write only after explicit operator approval." : "Fix blocker, then rerun dry-run.",
     inputs: { ...input, secretValues: "redacted" }
   });
   const recorded = await recordMcpUniverseReceipt(receipt);
-  const folderManifestCount = Array.isArray(input.folder_manifest) ? input.folder_manifest.length : 0;
 
+  if (status === "dry_run_pass" && mode === "approved_write" && ["drive_upload_file", "drive_upload_image"].includes(tool)) {
+    try {
+      const upload = await uploadToGoogleDrive({ ...input, tool, mode }, receipt.receiptId);
+      return {
+        ok: true,
+        productionActionAllowed: false,
+        status: upload.status,
+        tool,
+        mode,
+        blocker: null,
+        receiptId: receipt.receiptId,
+        result: upload,
+        recorded
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        productionActionAllowed: false,
+        status: "failed",
+        tool,
+        mode,
+        blocker: error instanceof Error ? error.message : String(error),
+        receiptId: receipt.receiptId,
+        result: null,
+        recorded
+      };
+    }
+  }
+
+  const folderManifestCount = Array.isArray(input.folder_manifest) ? input.folder_manifest.length : 0;
   return {
     ok: status === "dry_run_pass",
     productionActionAllowed: false,
