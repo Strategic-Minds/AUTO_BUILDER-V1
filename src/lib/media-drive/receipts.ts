@@ -1,4 +1,4 @@
-import type { MediaDriveActionClass, MediaDriveReceipt, MediaDriveToolName } from './types';
+import type { MediaDriveActionClass, MediaDriveReceipt, MediaDriveReceiptPersistence, MediaDriveToolName } from './types';
 
 const SECRET_KEY_PARTS = ['token', 'secret', 'private_key', 'api_key', 'service_role_key', 'password'];
 
@@ -57,6 +57,77 @@ export function createMediaDriveReceipt(input: {
     rollback_or_inspection_path: input.rollbackOrInspectionPath ?? '/api/mcp-media-drive-smoke',
     next_action: input.nextAction ?? 'Continue pipeline validation.'
   };
+}
+
+export async function persistMediaDriveReceipt(
+  receipt: MediaDriveReceipt,
+  context: Record<string, unknown> = {}
+): Promise<MediaDriveReceiptPersistence> {
+  const enabled = process.env.MEDIA_DRIVE_RECEIPT_PERSISTENCE_ENABLED === '1' || context.require_durable_receipt === true;
+  if (!enabled) return { enabled: false, attempted: false, persisted: false };
+
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    return {
+      enabled: true,
+      attempted: false,
+      persisted: false,
+      store: 'supabase_runtime_telemetry_events',
+      telemetry_key: receipt.receipt_id,
+      error: 'missing_supabase_receipt_env'
+    };
+  }
+
+  try {
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/runtime_telemetry_events`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        authorization: `Bearer ${supabaseKey}`,
+        'content-type': 'application/json',
+        prefer: 'return=representation'
+      },
+      body: JSON.stringify({
+        telemetry_key: receipt.receipt_id,
+        event_status: receipt.status,
+        event_payload: {
+          kind: 'media_drive_receipt',
+          receipt,
+          context: sanitizeReceiptPayload(context)
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return {
+        enabled: true,
+        attempted: true,
+        persisted: false,
+        store: 'supabase_runtime_telemetry_events',
+        telemetry_key: receipt.receipt_id,
+        error: text || `supabase_http_${response.status}`
+      };
+    }
+
+    return {
+      enabled: true,
+      attempted: true,
+      persisted: true,
+      store: 'supabase_runtime_telemetry_events',
+      telemetry_key: receipt.receipt_id
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      attempted: true,
+      persisted: false,
+      store: 'supabase_runtime_telemetry_events',
+      telemetry_key: receipt.receipt_id,
+      error: error instanceof Error ? error.message : 'unknown_receipt_persistence_error'
+    };
+  }
 }
 
 export function serializeReceipt(receipt: MediaDriveReceipt, format: 'json' | 'markdown' = 'json'): string {
