@@ -1,5 +1,8 @@
 import { withWorkflow } from "workflow/next";
+import path from "node:path";
 
-const nextConfig = {};
+const nextConfig = {
+  outputFileTracingRoot: path.resolve(process.cwd())
+};
 
 export default withWorkflow(nextConfig);

@@ -1,0 +1,491 @@
+openapi: 3.1.0
+info:
+  title: Auto Builder 2 GPT Actions
+  version: 0.4.0
+  description: Governed GPT action surface for Auto Builder 2 execution tools. Write-capable actions default to dry_run and return receipt plus rollback metadata.
+servers:
+  - url: https://auto-builder-strategic-minds-advisory.vercel.app
+components:
+  securitySchemes:
+    AutoBuilderBearer:
+      type: http
+      scheme: bearer
+      description: Required for requests with mode execute or rollback. Dry-run planning can be called without this token depending on deployment policy.
+  schemas:
+    JobMode:
+      type: string
+      enum: [read, dry_run, draft, execute, rollback]
+    ToolResult:
+      type: object
+      required: [job_id, status, mode, timestamp]
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+        mode:
+          $ref: '#/components/schemas/JobMode'
+        action:
+          type: string
+        target_system:
+          type: string
+        timestamp:
+          type: string
+        receipt:
+          type: object
+          additionalProperties: true
+        rollback:
+          type: object
+          additionalProperties: true
+        data:
+          type: object
+          additionalProperties: true
+        errors:
+          type: array
+          items:
+            type: string
+    UniversalJobInput:
+      type: object
+      required: [job_id, action]
+      properties:
+        job_id:
+          type: string
+        mode:
+          $ref: '#/components/schemas/JobMode'
+        action:
+          type: string
+        target_system:
+          type: string
+        command_folder_id:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+        receipt:
+          type: object
+          additionalProperties: true
+        rollback:
+          type: object
+          additionalProperties: true
+    DriveRunJobInput:
+      type: object
+      required: [job_id, drive_actions]
+      properties:
+        job_id:
+          type: string
+        mode:
+          $ref: '#/components/schemas/JobMode'
+        command_folder_id:
+          type: string
+        drive_actions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    DriveListTreeInput:
+      type: object
+      required: [job_id, folder_id]
+      properties:
+        job_id:
+          type: string
+        folder_id:
+          type: string
+        max_depth:
+          type: integer
+        command_folder_id:
+          type: string
+    DriveCreateFolderInput:
+      type: object
+      required: [job_id, parent_folder_id, folder_name]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute]
+        parent_folder_id:
+          type: string
+        folder_name:
+          type: string
+        command_folder_id:
+          type: string
+    DriveMoveInput:
+      type: object
+      required: [job_id, destination_parent_folder_id]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute, rollback]
+        folder_id:
+          type: string
+        file_id:
+          type: string
+        destination_parent_folder_id:
+          type: string
+        current_parent_folder_id:
+          type: string
+        command_folder_id:
+          type: string
+    DriveReceiptInput:
+      type: object
+      required: [job_id, system, action, status, summary]
+      properties:
+        job_id:
+          type: string
+        command_folder_id:
+          type: string
+        receipt_folder_id:
+          type: string
+        system:
+          type: string
+        action:
+          type: string
+        status:
+          type: string
+        summary:
+          type: string
+        inputs:
+          type: object
+          additionalProperties: true
+        outputs:
+          type: object
+          additionalProperties: true
+        rollback:
+          type: object
+          additionalProperties: true
+    PlatformProvisioningInput:
+      type: object
+      required: [job_id, platform_actions]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute, rollback]
+        command_folder_id:
+          type: string
+        platform_actions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    CreateGithubRepoInput:
+      type: object
+      required: [job_id, owner, repo_name]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute]
+        owner:
+          type: string
+        repo_name:
+          type: string
+        visibility:
+          type: string
+          enum: [private, public, internal]
+        description:
+          type: string
+        initialize_readme:
+          type: boolean
+        command_folder_id:
+          type: string
+    CreateVercelProjectInput:
+      type: object
+      required: [job_id, team_id, project_name]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute]
+        team_id:
+          type: string
+        project_name:
+          type: string
+        git_repo:
+          type: string
+        framework:
+          type: string
+        root_directory:
+          type: string
+        command_folder_id:
+          type: string
+    CreateVercelWorkflowInput:
+      type: object
+      required: [job_id, team_id, project_id, workflow_name, route, schedule]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute]
+        team_id:
+          type: string
+        project_id:
+          type: string
+        workflow_name:
+          type: string
+        route:
+          type: string
+        schedule:
+          type: string
+        timezone:
+          type: string
+        command_folder_id:
+          type: string
+    CreateVercelAgentInput:
+      type: object
+      required: [job_id, team_id, project_id, agent_name]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute]
+        team_id:
+          type: string
+        project_id:
+          type: string
+        agent_name:
+          type: string
+        agent_scope:
+          type: string
+        allowed_tools:
+          type: array
+          items:
+            type: string
+        command_folder_id:
+          type: string
+    CreateAiGatewayInput:
+      type: object
+      required: [job_id, gateway_name]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, execute]
+        gateway_name:
+          type: string
+        project_id:
+          type: string
+        providers:
+          type: array
+          items:
+            type: string
+        models:
+          type: array
+          items:
+            type: string
+        command_folder_id:
+          type: string
+    RollbackInput:
+      type: object
+      required: [job_id, original_job_id, rollback_type]
+      properties:
+        job_id:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run, rollback]
+        original_job_id:
+          type: string
+        rollback_type:
+          type: string
+        rollback_payload:
+          type: object
+          additionalProperties: true
+        command_folder_id:
+          type: string
+  responses:
+    ToolResult:
+      description: Structured Auto Builder 2 tool result.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ToolResult'
+paths:
+  /api/bridge/run-job:
+    post:
+      operationId: runJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UniversalJobInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/run-universal-job:
+    post:
+      operationId: runUniversalJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UniversalJobInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/drive/run-drive-job:
+    post:
+      operationId: runDriveJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveRunJobInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/drive/list-tree:
+    post:
+      operationId: driveListTree
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveListTreeInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/drive/create-folder:
+    post:
+      operationId: driveCreateFolder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveCreateFolderInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/drive/move-folder:
+    post:
+      operationId: driveMoveFolder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveMoveInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/drive/move-file:
+    post:
+      operationId: driveMoveFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveMoveInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/drive/write-receipt:
+    post:
+      operationId: driveWriteReceipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveReceiptInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/platform/run-platform-provisioning-job:
+    post:
+      operationId: runPlatformProvisioningJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformProvisioningInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/github/create-repo:
+    post:
+      operationId: createGithubRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGithubRepoInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/vercel/create-project:
+    post:
+      operationId: createVercelProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVercelProjectInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/vercel/create-workflow:
+    post:
+      operationId: createVercelWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVercelWorkflowInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/vercel/create-agent:
+    post:
+      operationId: createVercelAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVercelAgentInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/ai-gateway/create:
+    post:
+      operationId: createAiGateway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAiGatewayInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
+  /api/bridge/rollback:
+    post:
+      operationId: rollback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/ToolResult'
