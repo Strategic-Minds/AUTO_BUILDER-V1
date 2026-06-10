@@ -1,0 +1,114 @@
+name: Media Drive Pipeline Preview Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/app/api/mcp-media-drive*/**'
+      - 'src/lib/media-drive/**'
+      - 'docs/build-packets/media-drive-pipeline.md'
+      - 'docs/smoke-tests/media-drive-pipeline-smoke.md'
+      - '.github/workflows/media-drive-pipeline-preview.yml'
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Optional Vercel preview URL to validate with POST-capable server-side route'
+        required: false
+        type: string
+
+jobs:
+  source-build-validation:
+    name: Source and build validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate media-drive source markers
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const requiredFiles = [
+            'src/app/api/mcp-media-drive/route.ts',
+            'src/app/api/mcp-media-drive-smoke/route.ts',
+            'src/app/api/mcp-media-drive-preview-validation/route.ts',
+            'src/lib/media-drive/pipeline.ts',
+            'src/lib/media-drive/governance.ts',
+            'src/lib/media-drive/receipts.ts',
+            'src/lib/media-drive/types.ts',
+            'docs/build-packets/media-drive-pipeline.md',
+            'docs/smoke-tests/media-drive-pipeline-smoke.md'
+          ];
+          for (const file of requiredFiles) {
+            if (!fs.existsSync(file)) throw new Error(`Missing required file: ${file}`);
+          }
+          const route = fs.readFileSync('src/app/api/mcp-media-drive/route.ts', 'utf8');
+          const smoke = fs.readFileSync('src/app/api/mcp-media-drive-smoke/route.ts', 'utf8');
+          const preview = fs.readFileSync('src/app/api/mcp-media-drive-preview-validation/route.ts', 'utf8');
+          const governance = fs.readFileSync('src/lib/media-drive/governance.ts', 'utf8');
+          const receipts = fs.readFileSync('src/lib/media-drive/receipts.ts', 'utf8');
+          const types = fs.readFileSync('src/lib/media-drive/types.ts', 'utf8');
+          const markers = [
+            [route, 'tools/list'],
+            [route, 'tools/call'],
+            [route, 'MEDIA_DRIVE_HARD_GATES'],
+            [smoke, 'liveMutation: false'],
+            [smoke, 'drive_write_receipt'],
+            [preview, 'blocked_in_production'],
+            [preview, 'method: \'POST\''],
+            [preview, 'hard_gated'],
+            [governance, 'source_truth_move'],
+            [governance, 'client_delivery_overwrite'],
+            [receipts, '[REDACTED]'],
+            [types, 'drive_write_receipt']
+          ];
+          for (const [content, marker] of markers) {
+            if (!content.includes(marker)) throw new Error(`Missing marker: ${marker}`);
+          }
+          console.log('Media Drive source markers passed.');
+          NODE
+
+      - name: Build
+        run: npm run build
+
+  preview-post-validation:
+    name: Optional preview POST validation
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.preview_url != '' }}
+    steps:
+      - name: Validate preview POST path
+        env:
+          PREVIEW_URL: ${{ inputs.preview_url }}
+        run: |
+          set -euo pipefail
+          url="${PREVIEW_URL%/}/api/mcp-media-drive-preview-validation"
+          echo "Validating $url"
+          response="$(curl --fail-with-body --silent --show-error "$url")"
+          echo "$response" > media-drive-preview-validation.json
+          node <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('media-drive-preview-validation.json', 'utf8'));
+          if (payload.ok !== true) {
+            console.error(JSON.stringify(payload, null, 2));
+            throw new Error('Media Drive preview validation did not pass');
+          }
+          if (payload.liveMutation !== false) throw new Error('Preview validation must not allow live mutation');
+          if (payload.productionApprovalReady !== false) throw new Error('Draft PR must not report production approval ready');
+          console.log('Media Drive preview POST validation passed.');
+          NODE
+
+      - name: Upload validation receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-drive-preview-validation
+          path: media-drive-preview-validation.json
