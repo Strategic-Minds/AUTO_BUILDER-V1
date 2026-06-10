@@ -1,0 +1,72 @@
+{
+  "id": "master-auto-builder-v2-drive-migration",
+  "version": "1.0.0",
+  "createdAt": "2026-06-10",
+  "status": "ready_for_bridge_execution",
+  "destination": {
+    "name": "MASTER_AUTO_BUILDER V2",
+    "outerFolderId": "13uLhv0NRhmdCdJCCLrroLzyRRttoXtpr",
+    "innerFolderId": "1B3vAvldt9qXO5kLhFTgJbpkWH3Gu5E8O",
+    "innerFolderCurrentTitle": " MASTER_AUTO_BUILDER",
+    "recommendedTitle": "MASTER_AUTO_BUILDER",
+    "role": "canonical_drive_root_for_all_new_auto_builder_operations"
+  },
+  "sources": [
+    {
+      "name": "Previous Auto Builder Folder",
+      "folderId": "1JAmLjo4UiD567C0Z_ogBxo3NELJK8L80",
+      "role": "legacy_auto_builder_source",
+      "topLevelObserved": [
+        { "title": "AUTO BUILDER", "id": "1QkEBJdIbF0H7FzkZ-whalL--aAVOsVz_", "target": "00_START_HERE/legacy/AUTO_BUILDER or 20_RELEASES_RECEIPTS/legacy" },
+        { "title": "AUTO SOCIAL", "id": "1rQ7uONPfpud7YEZ4AEf2M8QfuzK-T5kI", "target": "17_SOCIAL_METRICOOL_HEYGEN/legacy/AUTO_SOCIAL" },
+        { "title": "AUTO WORKFLOW", "id": "13VaSbBlwHGAV_8E48a-dpZD25iwQbWTM", "target": "09_WORKFLOWS/legacy/AUTO_WORKFLOW" },
+        { "title": "PROJECTS", "id": "1s2Oj43JN8CFi-XjarP0gQWa_O7FaVBNO", "target": "08_PROJECTS/legacy" },
+        { "title": "SANDBOX", "id": "1J03bh1mUgIuuh15XcH__1ZhEu6Hl1BT5", "target": "05_SANDBOX/legacy" },
+        { "title": "QUARENTINE", "id": "1ltfV180o94gBfaXohtnicFzIrOe6DZi5", "target": "06_QUARANTINE/legacy_QUARENTINE" },
+        { "title": "INDEX", "id": "1U01JTUrSlx88__xpJjjnLfalVT8Lkj39", "target": "02_INDEX_REGISTRY/legacy_INDEX" },
+        { "title": "ARCHIEVE", "id": "1cW7BZBGsmmhFpcwQSgrJmnWzx7Ut4wU5", "target": "07_ARCHIVE/legacy_ARCHIEVE" }
+      ]
+    },
+    {
+      "name": "Eden Skye Studios Folder",
+      "folderId": "1Agdaq28Lha01ASVdpm1g_CS_x_aObRcT",
+      "role": "eden_skye_business_and_asset_source",
+      "topLevelObserved": [
+        { "title": "WEBSITE", "id": "1SDipyJhrlCnPUWMgnXS0LErv32IyQ34i", "target": "08_PROJECTS/EDEN_SKYE_STUDIOS/03_WEBSITE_APP" },
+        { "title": "WORKSPACE", "id": "1C2RjnIgFAf1ZE_OSoZQvfU4Yx6TNLsLa", "target": "08_PROJECTS/EDEN_SKYE_STUDIOS/00_INTAKE or 04_CRM or 05_AUTOMATION after review" },
+        { "title": "MODELS", "id": "1C01mdko53khVxs2Q38ursl4Xdl19d_LU", "target": "08_PROJECTS/EDEN_SKYE_STUDIOS/06_CONTENT/creator_models" },
+        { "title": "AUTO SOCIAL V1", "id": "1nlSf9G7w8uHXZvpNX2AfXA2L2AEe3fLH", "target": "17_SOCIAL_METRICOOL_HEYGEN/legacy/AUTO_SOCIAL_V1" },
+        { "title": "INDEX", "id": "1GIdgPucDCN9Y296qhavKyIcc_tmV3bg-", "target": "02_INDEX_REGISTRY/legacy_EDEN_SKYE_INDEX" }
+      ]
+    }
+  ],
+  "requiredBridgeTools": [
+    "drive_list_tree",
+    "drive_create_folder",
+    "drive_move_file",
+    "drive_move_folder",
+    "drive_upload_file",
+    "drive_write_receipt"
+  ],
+  "executionRules": [
+    "Do not delete source files during first migration pass.",
+    "Prefer copy-or-shortcut behavior when the bridge supports it; if only move is available, require explicit human approval before moving originals.",
+    "Rename destination inner folder from ' MASTER_AUTO_BUILDER' to 'MASTER_AUTO_BUILDER' before indexing.",
+    "Write a receipt for every migrated folder or file into 20_RELEASES_RECEIPTS.",
+    "Update 02_INDEX_REGISTRY/drive_folder_manifest.csv or the master registry workbook after every confirmed move/copy.",
+    "Anything uncertain, duplicate, unsafe, or low-confidence goes into 06_QUARANTINE with a reason.",
+    "Legacy folders should stay under a legacy subfolder unless their content is verified as current production canon."
+  ],
+  "approvalGates": [
+    "Human approval required before moving originals out of old source folders.",
+    "Human approval required before overwriting any V2 file.",
+    "Human approval required before exposing or sharing files externally.",
+    "Human approval required before moving adult/R-rated or model identity assets into public content folders."
+  ],
+  "firstPassRecommendedMode": "index_and_copy_or_shortcut_only",
+  "secondPassRecommendedMode": "deduplicate_and_move_after_human_approval",
+  "receiptTarget": {
+    "folderId": "1tvOGjdpge7q2G3_QzWByhRc3Zs5v0PIr",
+    "path": "20_RELEASES_RECEIPTS"
+  }
+}
