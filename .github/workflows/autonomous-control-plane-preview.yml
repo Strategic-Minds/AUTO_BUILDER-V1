@@ -54,8 +54,8 @@ jobs:
           TARGET_URL: ${{ inputs.preview_url != '' && inputs.preview_url || 'http://127.0.0.1:3000' }}
         run: |
           node <<'NODE'
-          const { chromium } = require('playwright');
-          const fs = require('node:fs');
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
           const base = process.env.TARGET_URL.replace(/\/$/, '');
           const errors = [];
           const browser = await chromium.launch();
