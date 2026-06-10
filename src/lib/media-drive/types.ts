@@ -17,6 +17,21 @@ export type MediaDriveToolName =
   | 'drive_copy_file'
   | 'drive_write_receipt';
 
+export type MediaDriveAdapterMode =
+  | 'scaffold_planned'
+  | 'approved_write_dry_run'
+  | 'live_adapter_ready'
+  | 'live_adapter_mutation';
+
+export type MediaDriveReceiptPersistence = {
+  enabled: boolean;
+  attempted: boolean;
+  persisted: boolean;
+  telemetry_key?: string;
+  store?: 'supabase_runtime_telemetry_events';
+  error?: string;
+};
+
 export type MediaDriveReceipt = {
   receipt_id: string;
   timestamp: string;
@@ -48,9 +63,19 @@ export type MediaDriveToolResult = {
   route: string;
   tool: string;
   mode: 'autonomous_logged';
+  adapterMode: MediaDriveAdapterMode;
   liveMutation: boolean;
   implementationStatus?: string;
+  approval?: {
+    approvedWrite: boolean;
+    approvedWriteDryRun: boolean;
+    approvedWriteTokenRequired: boolean;
+    approvedWriteTokenValid: boolean;
+    liveEnabled: boolean;
+    liveWritesEnabled: boolean;
+  };
   receipt: MediaDriveReceipt;
+  receiptPersistence?: MediaDriveReceiptPersistence;
   data?: Record<string, unknown>;
   reasons?: string[];
 };
