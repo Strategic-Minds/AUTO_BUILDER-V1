@@ -36,9 +36,15 @@ type DriveCreateFolderInput = {
   approval_phrase?: string;
 };
 
+type GoogleServiceAccountCredentials = {
+  clientEmail: string;
+  privateKey: string;
+};
+
 const defaultBlockedActions = ["delete", "rename_existing", "move_existing", "publish", "deploy", "payment", "live_social"];
 const driveFolderMimeType = "application/vnd.google-apps.folder";
 const driveFolderCreateApprovalPhrase = "APPROVE DRIVE FOLDER CREATE";
+const serviceAccountJsonEnvNames = ["GOOGLE_SERVICE_ACCOUNT_JSON", "GOOGLE_APPLICATION_CREDENTIALS_JSON", "GOOGLE_CREDENTIALS_JSON"];
 
 function isBlocked(action: string, blockedActions: string[]) {
   return blockedActions.some((blocked) => action === blocked || action.includes(blocked));
@@ -61,24 +67,66 @@ function signJwt(payload: Record<string, unknown>, privateKey: string) {
   return `${header}.${body}.${signer.sign(normalizePrivateKey(privateKey)).toString("base64url")}`;
 }
 
-async function getGoogleAccessToken() {
+function parseServiceAccountJson(value: string) {
+  try {
+    const parsed = JSON.parse(value) as { client_email?: unknown; private_key?: unknown };
+    if (typeof parsed.client_email === "string" && typeof parsed.private_key === "string") {
+      return { clientEmail: parsed.client_email, privateKey: parsed.private_key };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function decodeServiceAccountJson(value: string) {
+  const trimmed = value.trim();
+  const direct = parseServiceAccountJson(trimmed);
+  if (direct) return direct;
+
+  try {
+    const decoded = Buffer.from(trimmed, "base64").toString("utf8");
+    return parseServiceAccountJson(decoded);
+  } catch {
+    return null;
+  }
+}
+
+function googleCredentialsFromEnv(): GoogleServiceAccountCredentials | null {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-  if (!clientEmail || !privateKey) {
-    return { ok: false as const, error: "GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY must be configured." };
+  if (clientEmail && privateKey) return { clientEmail, privateKey };
+
+  for (const envName of serviceAccountJsonEnvNames) {
+    const value = process.env[envName];
+    if (!value) continue;
+    const parsed = decodeServiceAccountJson(value);
+    if (parsed) return parsed;
+  }
+
+  return null;
+}
+
+async function getGoogleAccessToken() {
+  const credentials = googleCredentialsFromEnv();
+  if (!credentials) {
+    return {
+      ok: false as const,
+      error: `Google Drive credentials must be configured as GOOGLE_CLIENT_EMAIL plus GOOGLE_PRIVATE_KEY, or one of ${serviceAccountJsonEnvNames.join(", ")}.`
+    };
   }
 
   const now = Math.floor(Date.now() / 1000);
   const scope = process.env.GOOGLE_DRIVE_SCOPE ?? "https://www.googleapis.com/auth/drive.file";
   const assertion = signJwt(
     {
-      iss: clientEmail,
+      iss: credentials.clientEmail,
       scope,
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp: now + 3600
     },
-    privateKey
+    credentials.privateKey
   );
 
   const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -95,7 +143,33 @@ async function getGoogleAccessToken() {
   return { ok: true as const, accessToken: data.access_token as string, scope };
 }
 
+function escapeDriveQuery(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function findGoogleDriveFolder(input: { accessToken: string; name: string; parentFolderId: string }) {
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set(
+    "q",
+    [`'${escapeDriveQuery(input.parentFolderId)}' in parents`, `name = '${escapeDriveQuery(input.name)}'`, `mimeType = '${driveFolderMimeType}'`, "trashed = false"].join(" and ")
+  );
+  url.searchParams.set("fields", "files(id,name,mimeType,webViewLink,parents)");
+  url.searchParams.set("supportsAllDrives", "true");
+  url.searchParams.set("includeItemsFromAllDrives", "true");
+  url.searchParams.set("pageSize", "10");
+
+  const response = await fetch(url.toString(), { headers: { Authorization: `Bearer ${input.accessToken}` } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { ok: false as const, status: response.status, error: JSON.stringify(data) };
+  const folder = Array.isArray(data.files) ? data.files[0] : undefined;
+  return { ok: true as const, folder: folder as { id?: string; name?: string; mimeType?: string; webViewLink?: string; parents?: string[] } | undefined };
+}
+
 async function createGoogleDriveFolder(input: { accessToken: string; name: string; parentFolderId: string }) {
+  const existing = await findGoogleDriveFolder(input);
+  if (!existing.ok) return existing;
+  if (existing.folder?.id) return { ok: true as const, folder: existing.folder, existing: true as const };
+
   const url = new URL("https://www.googleapis.com/drive/v3/files");
   url.searchParams.set("fields", "id,name,mimeType,webViewLink,parents");
   url.searchParams.set("supportsAllDrives", "true");
@@ -115,7 +189,7 @@ async function createGoogleDriveFolder(input: { accessToken: string; name: strin
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) return { ok: false as const, status: response.status, error: JSON.stringify(data) };
-  return { ok: true as const, folder: data as { id?: string; name?: string; mimeType?: string; webViewLink?: string; parents?: string[] } };
+  return { ok: true as const, folder: data as { id?: string; name?: string; mimeType?: string; webViewLink?: string; parents?: string[] }, existing: false as const };
 }
 
 export function runDriveJob(request: DriveJobRequest) {
@@ -128,7 +202,7 @@ export function runDriveJob(request: DriveJobRequest) {
 
   for (const action of acceptedActions) {
     if (action === "create_missing_folders") {
-      for (const folder of request.folders ?? []) planned_operations.push({ action, provider: "google_workspace", target: "drive", mode: request.mode ?? "missing_only", dry_run: dryRun, folder, execution_hint: "Use Google Drive files.create with folder MIME type." });
+      for (const folder of request.folders ?? []) planned_operations.push({ action, provider: "google_workspace", target: "drive", mode: request.mode ?? "missing_only", dry_run: dryRun, folder, execution_hint: "Use Google Drive files.create with folder MIME type and skip existing folders." });
     }
     if (action === "upload_file") {
       for (const file of request.files ?? []) planned_operations.push({ action, provider: "google_workspace", target: "drive", dry_run: dryRun, file, execution_hint: "Use Google Drive files.create multipart upload." });
@@ -239,18 +313,20 @@ export async function driveCreateFolder(input: DriveCreateFolderInput) {
   }
 
   const folder = created.folder;
+  const existing = created.existing === true;
   return {
     ...basePlan,
     ok: true,
     dry_run: false,
     approval_required: false,
-    validation_status: "created",
+    validation_status: existing ? "existing" : "created",
     created_folder: {
       id: folder.id,
       name: folder.name,
       mimeType: folder.mimeType,
       webViewLink: folder.webViewLink,
-      parents: folder.parents
+      parents: folder.parents,
+      action: existing ? "existing_preserved" : "created"
     },
     receipts: [
       createReceipt({
@@ -262,13 +338,13 @@ export async function driveCreateFolder(input: DriveCreateFolderInput) {
         requestedCapability: "Create Google Drive folder through AUTO BUILDER MCP.",
         authStatus: "verified",
         executionMode: "api",
-        status: "completed",
+        status: existing ? "existing_preserved" : "completed",
         projectId: input.root_folder_id,
         resourceId: folder.id,
         resourceUrl: folder.webViewLink,
-        logs: ["Google Drive folder created.", "No secret values returned."],
+        logs: [existing ? "Google Drive folder already existed; preserved without overwrite." : "Google Drive folder created.", "No secret values returned."],
         artifacts: ["drive-folder-create", folder.id ?? "unknown"],
-        fallbackMode: "No fallback needed after successful API creation.",
+        fallbackMode: "No fallback needed after successful API call.",
         nextActions: ["Call drive_list_tree to verify folder visibility.", "Write or persist the Drive receipt.", "Use the folder id for follow-up uploads only after approval."]
       })
     ],
