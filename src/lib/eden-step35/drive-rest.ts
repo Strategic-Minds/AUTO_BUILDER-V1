@@ -5,6 +5,12 @@ import type { Step35PlacementRow } from "./placement";
 type CredentialStatus = {
   ready: boolean;
   missing: string[];
+  source: "service_account_json" | "split_fields" | "missing";
+};
+
+type GoogleCredentials = {
+  clientEmail: string;
+  privateKey: string;
 };
 
 type DriveFolder = {
@@ -26,10 +32,19 @@ const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 export function getHostedCredentialStatus(): CredentialStatus {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    try {
+      parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      return { ready: true, missing: [], source: "service_account_json" };
+    } catch {
+      return { ready: false, missing: ["valid_GOOGLE_SERVICE_ACCOUNT_JSON"], source: "missing" };
+    }
+  }
+
   const missing: string[] = [];
   if (!process.env.GOOGLE_CLIENT_EMAIL) missing.push("GOOGLE_CLIENT_EMAIL");
   if (!process.env.GOOGLE_PRIVATE_KEY) missing.push("GOOGLE_PRIVATE_KEY");
-  return { ready: missing.length === 0, missing };
+  return { ready: missing.length === 0, missing, source: missing.length === 0 ? "split_fields" : "missing" };
 }
 
 export async function runHostedDrivePlacement(input: {
@@ -41,10 +56,8 @@ export async function runHostedDrivePlacement(input: {
     throw new Error(`Missing Google credential fields: ${credentialStatus.missing.join(", ")}`);
   }
 
-  const token = await getAccessToken({
-    clientEmail: process.env.GOOGLE_CLIENT_EMAIL ?? "",
-    privateKey: normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY ?? ""),
-  });
+  const credentials = getGoogleCredentials();
+  const token = await getAccessToken(credentials);
 
   const receipts: PlacementReceipt[] = [];
   for (const row of input.rows) {
@@ -83,7 +96,30 @@ export async function runHostedDrivePlacement(input: {
   };
 }
 
-async function getAccessToken(input: { clientEmail: string; privateKey: string }): Promise<string> {
+function getGoogleCredentials(): GoogleCredentials {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    return parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  }
+
+  return {
+    clientEmail: process.env.GOOGLE_CLIENT_EMAIL ?? "",
+    privateKey: normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY ?? ""),
+  };
+}
+
+function parseServiceAccountJson(rawValue: string): GoogleCredentials {
+  const parsed = JSON.parse(rawValue) as { client_email?: unknown; private_key?: unknown };
+  if (typeof parsed.client_email !== "string" || typeof parsed.private_key !== "string") {
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON must include client_email and private_key strings.");
+  }
+
+  return {
+    clientEmail: parsed.client_email,
+    privateKey: normalizePrivateKey(parsed.private_key),
+  };
+}
+
+async function getAccessToken(input: GoogleCredentials): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const assertionHeader = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const assertionPayload = base64Url(
