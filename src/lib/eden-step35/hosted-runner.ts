@@ -70,14 +70,20 @@ export function validateRows(rows: Step35Row[]) {
 }
 
 export function hostedRunnerStatus() {
+  const hasServiceAccountJson = Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const hasSplitCredential = Boolean(process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
+
   return {
     status: "ok",
     service: "eden-step35-hosted-recovery-runner",
     mode: "preview_only",
     row_count: expandedStep35Rows().length,
     env: {
+      has_google_service_account_json: hasServiceAccountJson,
       has_google_client_email: Boolean(process.env.GOOGLE_CLIENT_EMAIL),
       has_google_private_key: Boolean(process.env.GOOGLE_PRIVATE_KEY),
+      has_google_credential: hasServiceAccountJson || hasSplitCredential,
+      google_credential_source: hasServiceAccountJson ? "GOOGLE_SERVICE_ACCOUNT_JSON" : hasSplitCredential ? "split_fields" : "missing",
       has_step35_package_base_url: Boolean(process.env.STEP35_PACKAGE_BASE_URL),
     },
     forbidden: [
