@@ -31,6 +31,10 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 
+export function getCanonicalAssetPackageBaseUrl(): string | undefined {
+  return process.env.EDEN_CANONICAL_ASSET_PACKAGE_BASE_URL ?? process.env.STEP35_PACKAGE_BASE_URL;
+}
+
 export function getHostedCredentialStatus(): CredentialStatus {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     try {
@@ -192,7 +196,7 @@ async function uploadFile(
   mimeType: string
 ): Promise<DriveFolder> {
   const metadata = { name, parents: [parentId] };
-  const boundary = `eden_step35_${Date.now().toString(36)}`;
+  const boundary = `eden_canonical_asset_${Date.now().toString(36)}`;
   const body = Buffer.concat([
     Buffer.from(`--${boundary}\r\ncontent-type: application/json; charset=utf-8\r\n\r\n${JSON.stringify(metadata)}\r\n`),
     Buffer.from(`--${boundary}\r\ncontent-type: ${mimeType}\r\n\r\n`),
