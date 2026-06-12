@@ -1,4 +1,12 @@
-export type Step35Status = "generated_pending_review" | "ready_for_upload" | "missing_asset";
+export type Step35Status =
+  | "reference_board"
+  | "temporary_preview"
+  | "generated_pending_review"
+  | "approved_public"
+  | "rejected"
+  | "quarantined"
+  | "missing_asset"
+  | "ready_for_upload";
 
 export type Step35PlacementRow = {
   localPath: string;
