@@ -14,6 +14,9 @@ const expectedCallableTools = [
   'drive_move_folder',
   'drive_move_file',
   'drive_write_receipt',
+  'drive_upload_zip',
+  'drive_unpack_zip_to_folder',
+  'drive_install_zip_package',
   'run_platform_provisioning_job',
   'create_github_repo',
   'create_vercel_project',
@@ -95,7 +98,11 @@ for (const marker of [
   'would_create_ai_gateway',
   'rollback_plan',
   'not_implemented',
-  'mode !== "execute"'
+  'mode !== "execute"',
+  'drive_upload_zip',
+  'drive_unpack_zip_to_folder',
+  'drive_install_zip_package',
+  'strict-23-drive-zip-2026-06-12'
 ]) {
   assert(executionSource.includes(marker), `Execution contract missing marker: ${marker}`);
 }
@@ -103,6 +110,9 @@ for (const marker of [
 for (const metadataSource of [toolsRouteSource, manifestSource]) {
   assert(metadataSource.includes('expectedCallableMcpToolNames'), 'MCP metadata route does not use expectedCallableMcpToolNames.');
   assert(metadataSource.includes('activeOperatingMap'), 'MCP metadata route does not expose activeOperatingMap.');
+  assert(metadataSource.includes('connector_schema_version'), 'MCP metadata route missing connector_schema_version.');
+  assert(metadataSource.includes('expected_tool_count'), 'MCP metadata route missing expected_tool_count.');
+  assert(metadataSource.includes('strict-23-drive-zip-2026-06-12'), 'MCP metadata route missing strict-23 connector schema version.');
 }
 
 assert(runJobRouteSource.includes('runJob'), 'Static /api/bridge/run-job route is not wired to runJob.');

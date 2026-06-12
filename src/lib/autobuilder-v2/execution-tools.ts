@@ -1,4 +1,5 @@
 import { driveCreateFolder as createDriveFolderWithAdapter, runDriveJob } from "./drive-job-runner";
+import { driveInstallZipPackage, driveUnpackZipToFolder, driveUploadZip } from "./drive-zip-runner.js";
 import {
   createGithubRepo as createGithubRepoWithAdapter,
   createVercelProject as createVercelProjectWithAdapter,
@@ -36,6 +37,7 @@ export type ToolResult = {
 type JsonRecord = Record<string, unknown>;
 
 export const defaultCommandFolderId = "13uLhv0NRhmdCdJCCLrroLzyRRttoXtpr";
+export const connectorSchemaVersion = "strict-23-drive-zip-2026-06-12";
 
 export const readInspectionToolNames = [
   "health_check",
@@ -54,6 +56,9 @@ export const autoBuilder2ExecutionToolNames = [
   "drive_move_folder",
   "drive_move_file",
   "drive_write_receipt",
+  "drive_upload_zip",
+  "drive_unpack_zip_to_folder",
+  "drive_install_zip_package",
   "run_platform_provisioning_job",
   "create_github_repo",
   "create_vercel_project",
@@ -432,6 +437,116 @@ export async function driveCreateFolderTool(input: JsonRecord): Promise<ToolResu
       status: "delete_created_folder_if_created",
       created_folder_id: createdFolder?.id
     }
+  });
+}
+
+export async function driveUploadZipTool(input: JsonRecord): Promise<ToolResult> {
+  const mode = normalizeMode(input.mode);
+  const sourceFilePath = stringValue(input.source_file_path) ?? stringValue(input.sourceFilePath) ?? "";
+  const targetFolderId = stringValue(input.target_folder_id) ?? stringValue(input.targetFolderId) ?? commandFolderId(input);
+  const title = stringValue(input.title) ?? stringValue(input.name) ?? "zip-package.zip";
+
+  const providerResult = await driveUploadZip({
+    source_file_path: sourceFilePath,
+    target_folder_id: targetFolderId,
+    title,
+    mode: mode === "execute" ? "approved_write" : "dry_run",
+    operator_email: stringValue(input.operator_email) ?? "",
+    receipt_path: stringValue(input.receipt_path)
+  });
+  const providerErrors = Array.isArray((providerResult as JsonRecord).gateErrors) ? ((providerResult as JsonRecord).gateErrors as string[]) : [];
+  const providerMessage = typeof (providerResult as JsonRecord).error === "string" ? (providerResult as JsonRecord).error as string : undefined;
+
+  return result({
+    job_id: jobId(input, "drive-upload-zip"),
+    mode,
+    action: "drive_upload_zip",
+    target_system: "google_drive",
+    command_folder_id: commandFolderId(input),
+    status: providerResult.ok ? "accepted" : "blocked",
+    data: {
+      provider_result: providerResult,
+      target_folder_id: targetFolderId,
+      title
+    },
+    receipt: receiptFor(input, "receipt_required_after_execute"),
+    rollback: {
+      available: false,
+      status: "raw_zip_upload_can_be_reversed_by_drive_delete_after_approval"
+    },
+    errors: providerResult.ok ? [] : [providerMessage ?? providerErrors.join(", ")].filter((message): message is string => Boolean(message))
+  });
+}
+
+export async function driveUnpackZipToFolderTool(input: JsonRecord): Promise<ToolResult> {
+  const mode = normalizeMode(input.mode);
+  const providerResult = await driveUnpackZipToFolder({
+    source_file_path: stringValue(input.source_file_path) ?? stringValue(input.sourceFilePath) ?? "",
+    target_folder_id: stringValue(input.target_folder_id) ?? stringValue(input.targetFolderId) ?? commandFolderId(input),
+    install_folder_name: stringValue(input.install_folder_name) ?? stringValue(input.installFolderName) ?? "installed-package",
+    mode: mode === "execute" ? "approved_write" : "dry_run",
+    operator_email: stringValue(input.operator_email) ?? "",
+    allow_binary_files: boolValue(input.allow_binary_files) ?? false,
+    blocked_extensions: stringArray(input.blocked_extensions),
+    receipt_path: stringValue(input.receipt_path)
+  });
+  const providerErrors = Array.isArray((providerResult as JsonRecord).gateErrors) ? ((providerResult as JsonRecord).gateErrors as string[]) : [];
+  const blockedEntries = Array.isArray((providerResult as JsonRecord).blocked_entries) ? ((providerResult as JsonRecord).blocked_entries as unknown[]) : [];
+
+  return result({
+    job_id: jobId(input, "drive-unpack-zip"),
+    mode,
+    action: "drive_unpack_zip_to_folder",
+    target_system: "google_drive",
+    command_folder_id: commandFolderId(input),
+    status: providerResult.ok ? "accepted" : "blocked",
+    data: {
+      provider_result: providerResult,
+      install_folder_name: stringValue(input.install_folder_name) ?? stringValue(input.installFolderName) ?? "installed-package"
+    },
+    receipt: receiptFor(input, "receipt_required_after_execute"),
+    rollback: {
+      available: false,
+      status: "zip_unpack_can_be_reversed_by_drive_delete_after_approval"
+    },
+    errors: providerResult.ok ? [] : [...providerErrors, blockedEntries.length ? "blocked entries detected" : ""].filter((message): message is string => Boolean(message))
+  });
+}
+
+export async function driveInstallZipPackageTool(input: JsonRecord): Promise<ToolResult> {
+  const mode = normalizeMode(input.mode);
+  const providerResult = await driveInstallZipPackage({
+    source_file_path: stringValue(input.source_file_path) ?? stringValue(input.sourceFilePath) ?? "",
+    target_folder_id: stringValue(input.target_folder_id) ?? stringValue(input.targetFolderId) ?? commandFolderId(input),
+    install_folder_name: stringValue(input.install_folder_name) ?? stringValue(input.installFolderName) ?? "installed-package",
+    package_type: (stringValue(input.package_type) as "eden_shopify_generator_docs" | "eden_visual_source_truth" | "auto_builder_packet" | "general" | undefined) ?? "general",
+    mode: mode === "execute" ? "approved_write" : "dry_run",
+    operator_email: stringValue(input.operator_email) ?? "",
+    unpack: boolValue(input.unpack) ?? false,
+    validate_manifest: boolValue(input.validate_manifest) ?? false,
+    blocked_extensions: stringArray(input.blocked_extensions),
+    receipt_path: stringValue(input.receipt_path)
+  });
+  const providerErrors = Array.isArray((providerResult as JsonRecord).gateErrors) ? ((providerResult as JsonRecord).gateErrors as string[]) : [];
+  const manifestMissing = Array.isArray((providerResult as JsonRecord).manifest_missing) ? ((providerResult as JsonRecord).manifest_missing as string[]) : [];
+
+  return result({
+    job_id: jobId(input, "drive-install-zip"),
+    mode,
+    action: "drive_install_zip_package",
+    target_system: "google_drive",
+    command_folder_id: commandFolderId(input),
+    status: providerResult.ok ? "accepted" : "blocked",
+    data: {
+      provider_result: providerResult,
+      package_type: stringValue(input.package_type) ?? "general"
+    },
+    receipt: receiptFor(input, "receipt_required_after_execute"),
+    rollback: {
+      available: false,
+      status: "zip_install_can_be_reversed_by_drive_delete_after_approval"
+    },
+    errors: providerResult.ok ? [] : [...providerErrors, manifestMissing.length ? "manifest validation failed" : ""].filter((message): message is string => Boolean(message))
   });
 }
 

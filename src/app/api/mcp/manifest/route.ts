@@ -14,6 +14,8 @@ export async function GET() {
     name: 'AUTO BUILDER 2',
     description: 'Governed universal orchestration MCP bridge for Strategic Minds Advisory.',
     version: '0.4.0',
+    connector_schema_version: 'strict-23-drive-zip-2026-06-12',
+    expected_tool_count: expectedCallableMcpToolNames.length,
     auth: {
       type: 'bearer',
       header: 'Authorization'
