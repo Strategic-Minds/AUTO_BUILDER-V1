@@ -16,11 +16,12 @@ This runner is allowed to create the listed clean Step 35 subfolders and upload 
 
 Set these on the preview deployment only:
 
-- `GOOGLE_CLIENT_EMAIL`
-- `GOOGLE_PRIVATE_KEY`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
 - `STEP35_PACKAGE_BASE_URL`
 
-`STEP35_PACKAGE_BASE_URL` must point at an approved hosted copy of the Step 35 package contents, preserving relative paths such as `openapi/eden-step35-image-install-executor.openapi.yaml` and `generated-assets/eden-skye-mvp-seed-01.png`.
+The runner also supports split Google credentials, but the preferred Eden Step 35 configuration is the single `GOOGLE_SERVICE_ACCOUNT_JSON` value. Do not separately require `GOOGLE_PRIVATE_KEY` when the service-account JSON is already configured.
+
+`STEP35_PACKAGE_BASE_URL` must point at an approved hosted copy of the Step 35 package contents, preserving relative paths such as `openapi/eden-image-install-executor.openapi.yaml` and `images/eden-canonical-01-flagship-hero.png`.
 
 Do not commit service-account JSON or private keys to the repo.
 
@@ -28,7 +29,7 @@ Do not commit service-account JSON or private keys to the repo.
 
 The execute route blocks when:
 
-- Google credentials are missing.
+- Google credentials are missing or malformed.
 - The Step 35 artifact base URL is missing.
 - Any placement row attempts `approved_public`.
 - Required Drive parent or subfolder fields are missing.
@@ -43,8 +44,8 @@ The local container had the service-account JSON installed and validated, but ou
 
 1. Confirm deployment is preview-only.
 2. Confirm production aliases are not assigned.
-3. Confirm the three preview environment variables are present.
+3. Confirm preview environment includes `GOOGLE_SERVICE_ACCOUNT_JSON` and `STEP35_PACKAGE_BASE_URL`.
 4. Run `GET /api/eden-step35/hosted-runner/health`.
 5. Run `GET /api/eden-step35/hosted-runner/dry-run`.
-6. Run `POST /api/eden-step35/hosted-runner/execute` only after dry-run shows no validation errors.
+6. Run `POST /api/eden-step35/hosted-runner/execute` only after health reports `has_google_credential=true`, `has_step35_package_base_url=true`, and dry-run shows no validation errors.
 7. Review receipts and verify no files were deleted, overwritten, or moved.
