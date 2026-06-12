@@ -72,10 +72,14 @@ export function validateRows(rows: Step35Row[]) {
 export function hostedRunnerStatus() {
   const hasServiceAccountJson = Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
   const hasSplitCredential = Boolean(process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
+  const hasCanonicalPackageBaseUrl = Boolean(process.env.EDEN_CANONICAL_ASSET_PACKAGE_BASE_URL);
+  const hasLegacyStep35PackageBaseUrl = Boolean(process.env.STEP35_PACKAGE_BASE_URL);
 
   return {
     status: "ok",
-    service: "eden-step35-hosted-recovery-runner",
+    system_name: "Eden Skye Canonical Asset Installer",
+    service: "eden-canonical-asset-installer",
+    legacy_service: "eden-step35-hosted-recovery-runner",
     mode: "preview_only",
     row_count: expandedStep35Rows().length,
     env: {
@@ -84,7 +88,9 @@ export function hostedRunnerStatus() {
       has_google_private_key: Boolean(process.env.GOOGLE_PRIVATE_KEY),
       has_google_credential: hasServiceAccountJson || hasSplitCredential,
       google_credential_source: hasServiceAccountJson ? "GOOGLE_SERVICE_ACCOUNT_JSON" : hasSplitCredential ? "split_fields" : "missing",
-      has_step35_package_base_url: Boolean(process.env.STEP35_PACKAGE_BASE_URL),
+      has_eden_canonical_asset_package_base_url: hasCanonicalPackageBaseUrl,
+      has_step35_package_base_url_legacy: hasLegacyStep35PackageBaseUrl,
+      has_asset_package_base_url: hasCanonicalPackageBaseUrl || hasLegacyStep35PackageBaseUrl,
     },
     forbidden: [
       "production_deploy",
