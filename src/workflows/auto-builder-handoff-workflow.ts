@@ -480,7 +480,7 @@ async function readDeploymentStatus(idOrUrl: string): Promise<DeploymentStatus> 
     state: stringValue(record.state) ?? stringValue(record.readyState) ?? null,
     readyState: stringValue(record.readyState) ?? null,
     deploymentUrl: host ? `https://${host}` : null,
-    id: stringValue(record.id),
+    id: stringValue(record.id) ?? null,
     error: response.ok ? undefined : text,
   };
 }
