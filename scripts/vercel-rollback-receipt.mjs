@@ -41,10 +41,6 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function absoluteUrl(pathOrUrl) {
-  return new URL(pathOrUrl, base).toString();
-}
-
 async function fetchJson(label, url, init = {}) {
   const startedAt = new Date().toISOString();
   const response = await fetch(url, init);
@@ -79,7 +75,8 @@ async function waitForRollbackContract() {
         latest.ok &&
         readiness?.rollback?.provider === 'vercel' &&
         readiness?.rollback?.previewRollbackSupported === true &&
-        readiness?.rollback?.productionRollbackRequiresApproval === true
+        readiness?.rollback?.productionRollbackRequiresApproval === true &&
+        latest.json?.statusShape?.readyState === 'READY is required before rollback evidence can pass'
       ) {
         return latest;
       }
@@ -123,39 +120,45 @@ async function postRollback(label, body, token = '') {
   });
 }
 
-async function probeDeploymentUrl(label, deploymentUrl) {
-  const probes = [];
-  for (let attempt = 1; attempt <= 72; attempt += 1) {
-    const attemptStartedAt = new Date().toISOString();
-    const urls = [
-      absoluteUrl(`${deploymentUrl.replace(/\/$/, '')}/api/runtime/readiness`),
-      absoluteUrl(`${deploymentUrl.replace(/\/$/, '')}/api/mcp/manifest`),
-    ];
-    const results = [];
+async function pollDeploymentStatus(label, deploymentId, token) {
+  const polls = [];
+  const statusUrl = `${routeUrl}?deploymentId=${encodeURIComponent(deploymentId)}`;
 
-    for (const url of urls) {
-      try {
-        const response = await fetch(url, { headers: { accept: 'application/json' } });
-        const text = await response.text();
-        let json = null;
-        try {
-          json = JSON.parse(text);
-        } catch {}
-        results.push({ url, status: response.status, ok: response.ok, json, bodyPreview: text.slice(0, 1000) });
-      } catch (error) {
-        results.push({ url, status: 0, ok: false, error: error instanceof Error ? error.message : String(error) });
-      }
+  for (let attempt = 1; attempt <= 72; attempt += 1) {
+    const poll = await fetchJson(`${label}-deployment-status-${String(attempt).padStart(2, '0')}`, statusUrl, {
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${token}`,
+      },
+    });
+    const readyState = String(poll.json?.deployment?.readyState || '').toUpperCase();
+    const state = String(poll.json?.deployment?.state || '').toUpperCase();
+    const target = poll.json?.deployment?.target ?? null;
+    const compactPoll = {
+      attempt,
+      status: poll.status,
+      ok: poll.ok,
+      readyState,
+      state,
+      target,
+      deployment: poll.json?.deployment ?? null,
+      completedAt: poll.completedAt,
+    };
+    polls.push(compactPoll);
+    await writeJson(`${label}-deployment-status-polls`, polls);
+
+    if (poll.ok && readyState === 'READY' && target !== 'production') {
+      return { ok: true, polls, finalStatus: poll };
     }
 
-    const probe = { attempt, startedAt: attemptStartedAt, completedAt: new Date().toISOString(), results };
-    probes.push(probe);
-    await writeJson(`${label}-deployment-probes`, probes);
+    if (['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(readyState) || ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(state)) {
+      return { ok: false, polls, finalStatus: poll, error: `Deployment reached terminal failure state ${readyState || state}.` };
+    }
 
-    if (results.every((result) => result.ok)) return { ok: true, probes, finalProbe: probe };
     await sleep(5000);
   }
 
-  return { ok: false, probes, finalProbe: probes.at(-1) ?? null };
+  return { ok: false, polls, finalStatus: polls.at(-1) ?? null, error: 'Deployment did not reach Vercel READY state before timeout.' };
 }
 
 summary.readiness = await waitForRollbackContract();
@@ -194,7 +197,7 @@ summary.previewRollback = {
   ...previewRollback,
   deploymentId,
   deploymentUrl,
-  deploymentProbe: null,
+  deploymentStatus: null,
 };
 
 if (!previewRollback.ok || !deploymentUrl || !deploymentId) {
@@ -204,7 +207,7 @@ if (!previewRollback.ok || !deploymentUrl || !deploymentId) {
   process.exit(1);
 }
 
-summary.previewRollback.deploymentProbe = await probeDeploymentUrl('rollback-preview-execute', deploymentUrl);
+summary.previewRollback.deploymentStatus = await pollDeploymentStatus('rollback-preview-execute', deploymentId, operatorToken);
 
 summary.productionBlock = await postRollback('rollback-production-block-check', rollbackRequest('dry_run', 'production'), operatorToken);
 const productionBlocked = summary.productionBlock.status === 423 && summary.productionBlock.json?.blocked === true;
@@ -214,8 +217,8 @@ summary.production = {
   requiredApprovalPhrase: 'APPROVE PRODUCTION DEPLOY',
 };
 
-summary.ok = Boolean(summary.previewRollback.deploymentProbe?.ok && productionBlocked);
-if (!summary.ok) summary.error = 'Rollback deployment probe or production block check failed.';
+summary.ok = Boolean(summary.previewRollback.deploymentStatus?.ok && productionBlocked);
+if (!summary.ok) summary.error = 'Rollback deployment status or production block check failed.';
 await writeJson('vercel-rollback-receipt-summary', summary);
 console.log(JSON.stringify(summary, null, 2));
 process.exit(summary.ok ? 0 : 1);
