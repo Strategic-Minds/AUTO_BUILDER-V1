@@ -55,7 +55,7 @@ async function getGoogleAccessToken(scopes: string[]) {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
   if (!clientEmail || !privateKey) {
-    return { ok: false as const, error: "GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY must be configured." };
+    return { ok: false as const, error: "GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY must be configured.", details: undefined as unknown };
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -267,7 +267,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
           category: "create",
           operation: "google_forms_create_plan",
           requestedCapability: "Create a Google Form through AUTO BUILDER MCP.",
-          authStatus: "unknown",
+          authStatus: "not_checked_dry_run",
           executionMode: "manual_receipt",
           status: "planned",
           projectId: input.parent_folder_id,
@@ -292,12 +292,22 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
   }
 
   const created = await createForm(token.accessToken, input);
-  if (!created.ok || !created.form.formId) {
+  if (!created.ok) {
     return {
       ...base,
       ok: false,
       validation_status: "failed",
       failed_operations: [{ action: "forms.create", status: created.status, reason: created.error }],
+      receipts: []
+    };
+  }
+
+  if (!created.form.formId) {
+    return {
+      ...base,
+      ok: false,
+      validation_status: "failed",
+      failed_operations: [{ action: "forms.create", status: "missing_form_id", reason: created.form }],
       receipts: []
     };
   }
