@@ -1,4 +1,5 @@
 import { triggerVercelRedeploy, type RedeployTarget } from "../bridges/vercelRedeployBridge";
+import { createGoogleForm } from "./google-forms-runner";
 import { runDriveJob } from "./drive-job-runner";
 
 export type UniversalJobPayload = {
@@ -73,12 +74,52 @@ function isVercelRedeploy(provider: string, objective: string, actions: string[]
   return provider === "vercel" && hasRedeployIntent(objective, actions);
 }
 
+function isGoogleFormsCreate(provider: string, objective: string, actions: string[]) {
+  const terms = [provider, objective, ...actions].map((item) => item.toLowerCase().replace(/[\s-]+/g, "_"));
+  return terms.some((term) => term === "google_forms" || term === "create_google_form" || term.includes("google_form"));
+}
+
 function productionApproved(payload: Record<string, unknown>) {
   return boolValue(payload.approvedProductionDeploy) === true && payload.approvalPhrase === "APPROVE PRODUCTION DEPLOY";
 }
 
 function receiptId(prefix: string) {
   return `${prefix}_${Date.now()}`;
+}
+
+async function runGoogleFormsJob(input: UniversalJobPayload, blockedActions: string[], fallbacks: string[]) {
+  const payload = isRecord(input.payload) ? input.payload : {};
+  const mode = input.mode === "execute" ? "execute" : "dry_run";
+  const providerResult = await createGoogleForm({
+    job_id: input.job_id,
+    mode,
+    title: stringValue(payload.title) ?? stringValue(payload.form_title) ?? stringValue(payload.documentTitle) ?? "Untitled Google Form",
+    description: stringValue(payload.description) ?? stringValue(payload.form_description),
+    documentTitle: stringValue(payload.documentTitle) ?? stringValue(payload.document_title) ?? stringValue(payload.title) ?? stringValue(payload.form_title),
+    parent_folder_id: stringValue(payload.parent_folder_id) ?? stringValue(payload.parentFolderId) ?? input.root_resource_id,
+    sections: Array.isArray(payload.sections) ? payload.sections as never : undefined,
+    questions: Array.isArray(payload.questions) ? payload.questions as never : undefined,
+    blocked_actions: blockedActions
+  });
+  const providerRecord = providerResult as Record<string, unknown>;
+
+  return {
+    job_id: input.job_id,
+    provider: "google_forms",
+    objective: input.objective,
+    mode: input.mode ?? "dry_run",
+    dry_run: mode !== "execute",
+    approval_required: input.approval_required ?? false,
+    blocked_actions: blockedActions,
+    fallbacks,
+    validation_status: stringValue(providerRecord.validation_status) ?? (providerRecord.ok === true ? "created" : "failed"),
+    rollback_plan: "Delete the created Google Form file from Drive if rollback is explicitly approved.",
+    blocked_operations: Array.isArray(providerRecord.blocked_operations) ? providerRecord.blocked_operations : [],
+    routed_to: "google_forms_api",
+    planned_operations: Array.isArray(providerRecord.planned_operations) ? providerRecord.planned_operations : [],
+    receipts: Array.isArray(providerRecord.receipts) ? providerRecord.receipts : [],
+    provider_result: providerResult
+  };
 }
 
 async function runVercelRedeployJob(input: UniversalJobPayload, provider: string, actions: string[], blockedActions: string[], fallbacks: string[]) {
@@ -210,6 +251,10 @@ export async function runUniversalJob(input: UniversalJobPayload) {
 
   if (isVercelRedeploy(provider, input.objective, actions)) {
     return runVercelRedeployJob(input, provider, actions, blockedActions, fallbacks);
+  }
+
+  if (isGoogleFormsCreate(provider, input.objective, actions)) {
+    return runGoogleFormsJob(input, blockedActions, fallbacks);
   }
 
   const blockedOperations = actions

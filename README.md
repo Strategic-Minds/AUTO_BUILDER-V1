@@ -5,19 +5,41 @@ AUTO BUILDER is the locked governed orchestration system for Strategic Minds Adv
 Primary GPT Project:
 https://chatgpt.com/g/g-p-6a1211571b3c81918e046c574ad1f3b5-auto-builder/project
 
-Primary Drive Canon:
+Primary Enterprise Drive Command Folder:
+https://drive.google.com/drive/folders/13uLhv0NRhmdCdJCCLrroLzyRRttoXtpr
+
+Managed Eden OS Drive Canon:
+https://drive.google.com/drive/folders/1oCEjD6kUm9FiYDh1w-dNE9PPiggj65MQ
+
+Legacy Auto Builder Drive Canon:
 https://drive.google.com/drive/folders/1UbkNznxlUcdeJi8NGgMIIGXbuA6BcDu-?usp=drive_link
 
 Primary Ops Sheet:
 https://docs.google.com/spreadsheets/d/1jlfP3ZGtrR9gZQ2MokljJjtQZMKNcNVC-xGifOryfao/edit?usp=drive_link
 
+## Canon Alignment Note
+
+As of 2026-06-16, the active Auto Builder MCP operating map identifies `V2 MASTER AUTO BUILDER` as the enterprise command folder and `EDEN_SKYE_STUDIOS_OS` as the managed Eden OS Drive canon folder. The older `AUTO BUILDER` Drive folder is preserved as a legacy Auto Builder canon reference, but it is not the primary Eden OS managed canon folder.
+
+Cross-system canon mirrors live in:
+
+- `docs/canon/MASTER_CANON_INDEX.md`
+- `docs/canon/BUSINESS_OPERATING_PLAN.md`
+- `docs/canon/BUSINESS_GROWTH_STRATEGY.md`
+- `docs/canon/FINANCIAL_SYSTEM_PLAN.md`
+- `docs/canon/AUTOMATION_AUTONOMY_ROADMAP.md`
+- `docs/canon/DISCOVERY_VALIDATION_PLAN.md`
+- `docs/canon/OPERATIONS_24_7_RUNBOOK.md`
+- `docs/canon/CROSS_SYSTEM_DOCUMENTATION_SYNC_POLICY.md`
+
 ## First Read Order
 1. `docs/gpt/PROJECT_FOLDER_SYSTEM_INSTRUCTIONS.md`
 2. `SYSTEM_SOURCE_OF_TRUTH.md`
 3. `AUTONOMY_AND_APPROVAL_MATRIX.md`
-4. Runtime evidence
-5. Drive canon
-6. Ops Sheet continuity ledger
+4. `docs/canon/MASTER_CANON_INDEX.md`
+5. Runtime evidence
+6. Managed Drive canon and Ops Sheet continuity ledger
+7. Legacy Drive canon when historical Auto Builder context is needed
 
 ## Locked Stack
 1. Google Workspace, Drive, and Sheets are first-class operating, canon, file, artifact, and continuity layers.
@@ -89,8 +111,9 @@ GPT MCP is connected and can be used as an active bridge layer. MCP/OpenAPI/SSE 
 
 ## Canonical Repo Roles
 - `AUTO_BUILDER`: orchestration brain and source-truth control layer.
-- `SANDBOX`: build lane and test lane.
-- `FRONTEND`: deployable interface and browser validation surface.
+- `EDENSKYESTUDIOS`: Eden Skye Studios app/source repo for Vercel, private app/control surfaces, and Eden repo docs.
+- `SANDBOX`: build lane and test lane when explicitly in scope.
+- `FRONTEND`: deployable interface and browser validation surface when explicitly in scope.
 
 ## Governance Architecture
 The core governance layer for this repo is:
@@ -98,6 +121,8 @@ The core governance layer for this repo is:
 - `AUTONOMY_AND_APPROVAL_MATRIX.md`
 - `FINANCIAL_OPERATING_RULES.md`
 - `PROFIT_OPTIMIZATION_PLAYBOOK.md`
+- `docs/canon/MASTER_CANON_INDEX.md`
+- `docs/canon/CROSS_SYSTEM_DOCUMENTATION_SYNC_POLICY.md`
 
 ## Installed Runtime Layers
 - Universal bridge brain

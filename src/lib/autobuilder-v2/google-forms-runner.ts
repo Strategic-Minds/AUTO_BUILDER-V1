@@ -33,6 +33,7 @@ export type CreateGoogleFormInput = {
 const defaultBlockedActions = ["delete", "rename_existing", "move_existing", "publish", "payment", "billing_change"];
 const googleFormsScope = "https://www.googleapis.com/auth/forms.body";
 const googleDriveFileScope = "https://www.googleapis.com/auth/drive.file";
+const googleFormMimeType = "application/vnd.google-apps.form";
 
 function normalizePrivateKey(value: string) {
   return value.replace(/\\n/g, "\n");
@@ -51,6 +52,10 @@ function signJwt(payload: Record<string, unknown>, privateKey: string) {
   return `${header}.${body}.${signer.sign(normalizePrivateKey(privateKey)).toString("base64url")}`;
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+}
+
 async function getGoogleAccessToken(scopes: string[]) {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
@@ -60,13 +65,15 @@ async function getGoogleAccessToken(scopes: string[]) {
 
   const now = Math.floor(Date.now() / 1000);
   const scope = Array.from(new Set(scopes)).join(" ");
+  const subject = process.env.GOOGLE_WORKSPACE_IMPERSONATION_EMAIL || process.env.GOOGLE_IMPERSONATE_EMAIL;
   const assertion = signJwt(
     {
       iss: clientEmail,
       scope,
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
-      exp: now + 3600
+      exp: now + 3600,
+      ...(subject ? { sub: subject } : {})
     },
     privateKey
   );
@@ -82,7 +89,7 @@ async function getGoogleAccessToken(scopes: string[]) {
     return { ok: false as const, error: "Google OAuth token exchange failed.", status: response.status, details: data };
   }
 
-  return { ok: true as const, accessToken: data.access_token as string, scope };
+  return { ok: true as const, accessToken: data.access_token as string, scope, delegated_subject: subject ? "configured" : "not_configured" };
 }
 
 function normalizeQuestionType(type: GoogleFormQuestionType | undefined): GoogleFormQuestionType {
@@ -184,7 +191,33 @@ async function createForm(accessToken: string, input: CreateGoogleFormInput) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) return { ok: false as const, status: response.status, error: data };
-  return { ok: true as const, form: data as { formId?: string; responderUri?: string } };
+  return { ok: true as const, source: "forms.create", form: data as { formId?: string; responderUri?: string } };
+}
+
+async function createFormWithDrive(accessToken: string, input: CreateGoogleFormInput) {
+  const response = await fetch("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name,webViewLink", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: input.documentTitle ?? input.title,
+      mimeType: googleFormMimeType,
+      ...(input.parent_folder_id ? { parents: [input.parent_folder_id] } : {})
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { ok: false as const, status: response.status, error: data };
+  const file = data as { id?: string; name?: string; webViewLink?: string };
+  if (!file.id) return { ok: false as const, status: "missing_file_id", error: data };
+  return {
+    ok: true as const,
+    source: "drive.files.create",
+    form: { formId: file.id, responderUri: undefined as string | undefined },
+    file
+  };
 }
 
 async function batchUpdateForm(accessToken: string, formId: string, requests: Array<Record<string, unknown>>) {
@@ -202,6 +235,15 @@ async function batchUpdateForm(accessToken: string, formId: string, requests: Ar
   const data = await response.json().catch(() => ({}));
   if (!response.ok) return { ok: false as const, status: response.status, error: data };
   return { ok: true as const, response: data };
+}
+
+async function getForm(accessToken: string, formId: string) {
+  const response = await fetch(`https://forms.googleapis.com/v1/forms/${encodeURIComponent(formId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { ok: false as const, status: response.status, error: data };
+  return { ok: true as const, form: data as { responderUri?: string } };
 }
 
 async function moveFormToFolder(accessToken: string, formId: string, parentFolderId: string) {
@@ -238,6 +280,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
     rollback_plan: "Delete the created Google Form file from Drive if rollback is explicitly approved.",
     planned_operations: [
       { provider: "google_forms", action: "forms.create", title: input.title, dry_run: mode !== "execute" },
+      { provider: "google_drive", action: "files.create", mimeType: googleFormMimeType, fallback_for: "forms.create", dry_run: mode !== "execute" },
       { provider: "google_forms", action: "forms.batchUpdate", item_count: itemCount, dry_run: mode !== "execute" },
       ...(input.parent_folder_id ? [{ provider: "google_drive", action: "files.update.addParents", parent_folder_id: input.parent_folder_id, dry_run: mode !== "execute" }] : [])
     ]
@@ -273,7 +316,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
           projectId: input.parent_folder_id,
           logs: [`Google Form creation planned with ${itemCount} items.`],
           artifacts: ["google-form-plan", input.title],
-          fallbackMode: "If Google Forms API is unavailable, use the Google Doc source or browser worker fallback.",
+          fallbackMode: "If forms.create is unavailable, the runner will try Drive files.create for a native Google Form before batchUpdate.",
           nextActions: ["Run with mode=execute after reviewing the planned items.", "Verify service account access and Forms API enablement."]
         })
       ]
@@ -291,13 +334,19 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
     };
   }
 
-  const created = await createForm(token.accessToken, input);
+  const directCreate = await createForm(token.accessToken, input);
+  const created = directCreate.ok ? directCreate : await createFormWithDrive(token.accessToken, input);
   if (!created.ok) {
+    const directCreateRecord = asRecord(directCreate);
+    const fallbackCreateRecord = asRecord(created);
     return {
       ...base,
       ok: false,
       validation_status: "failed",
-      failed_operations: [{ action: "forms.create", status: created.status, reason: created.error }],
+      failed_operations: [
+        { action: "forms.create", status: directCreateRecord.status, reason: directCreateRecord.error },
+        { action: "drive.files.create", status: fallbackCreateRecord.status, reason: fallbackCreateRecord.error }
+      ],
       receipts: []
     };
   }
@@ -307,14 +356,15 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
       ...base,
       ok: false,
       validation_status: "failed",
-      failed_operations: [{ action: "forms.create", status: "missing_form_id", reason: created.form }],
+      failed_operations: [{ action: created.source, status: "missing_form_id", reason: created }],
       receipts: []
     };
   }
 
   const formId = created.form.formId;
   const batchUpdated = await batchUpdateForm(token.accessToken, formId, requests);
-  const moved = input.parent_folder_id ? await moveFormToFolder(token.accessToken, formId, input.parent_folder_id) : { ok: true as const, skipped: true };
+  const fetched = await getForm(token.accessToken, formId);
+  const moved = input.parent_folder_id && created.source !== "drive.files.create" ? await moveFormToFolder(token.accessToken, formId, input.parent_folder_id) : { ok: true as const, skipped: true };
   const editUrl = `https://docs.google.com/forms/d/${formId}/edit`;
 
   const ok = batchUpdated.ok && moved.ok;
@@ -325,13 +375,16 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
     form: {
       formId,
       editUrl,
-      responderUri: created.form.responderUri,
+      responderUri: fetched.ok ? fetched.form.responderUri : created.form.responderUri,
       parent_folder_id: input.parent_folder_id
     },
     provider_result: {
-      create: created,
+      create: directCreate,
+      create_fallback: directCreate.ok ? { skipped: true } : created,
       batch_update: batchUpdated,
-      move: moved
+      get: fetched,
+      move: moved,
+      delegated_subject: token.delegated_subject
     },
     receipts: [
       createReceipt({
@@ -347,7 +400,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
         projectId: input.parent_folder_id,
         resourceId: formId,
         resourceUrl: editUrl,
-        logs: [ok ? "Google Form created." : "Google Form created but one or more follow-up operations failed.", "No secret values returned."],
+        logs: [ok ? `Google Form created through ${created.source}.` : "Google Form created but one or more follow-up operations failed.", "No secret values returned."],
         artifacts: ["google-form", formId],
         fallbackMode: ok ? "No fallback needed after successful API creation." : "Inspect provider_result and repair the failed operation manually or through a follow-up batchUpdate.",
         nextActions: ["Open editUrl to verify form structure.", "Share or move the form only after approval.", "Use responderUri for form recipients after review."]
