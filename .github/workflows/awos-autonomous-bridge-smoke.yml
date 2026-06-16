@@ -6,7 +6,7 @@ on:
       auto_builder_url:
         description: AUTO_BUILDER preview or production URL
         required: false
-        default: https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app
+        default: https://auto-builder-git-auto-builder-v-4c969e-strategic-minds-advisory.vercel.app
       v0_url:
         description: v0 frontend preview URL for browser screenshot only
         required: false
@@ -24,6 +24,7 @@ on:
       - "src/lib/social/**"
       - "scripts/bridge-smoke.mjs"
       - "scripts/bridge-browser-screenshot.mjs"
+      - "scripts/workflow-handoff-receipt.mjs"
       - ".github/workflows/awos-autonomous-bridge-smoke.yml"
 
 jobs:
@@ -32,10 +33,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app' }}
+      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-v-4c969e-strategic-minds-advisory.vercel.app' }}
       V0_URL: ${{ github.event.inputs.v0_url || '' }}
       BRIDGE_ADMIN_BEARER_TOKEN: ${{ secrets.BRIDGE_ADMIN_BEARER_TOKEN }}
       BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
+      AUTO_BUILDER_OPERATOR_TOKEN: ${{ secrets.AUTO_BUILDER_OPERATOR_TOKEN }}
+      AUTO_BUILDER_BRIDGE_TOKEN: ${{ secrets.AUTO_BUILDER_BRIDGE_TOKEN }}
+      REQUIRE_PREVIEW_EXECUTE: "true"
       BRIDGE_SMOKE_ARTIFACT_DIR: bridge-smoke-artifacts
     steps:
       - name: Checkout
@@ -55,6 +59,9 @@ jobs:
       - name: Run bridge POST smoke
         run: node scripts/bridge-smoke.mjs
 
+      - name: Run Vercel Workflow handoff receipt
+        run: node scripts/workflow-handoff-receipt.mjs
+
       - name: Run browser screenshot smoke
         shell: bash
         run: |
@@ -65,6 +72,7 @@ jobs:
           node scripts/bridge-browser-screenshot.mjs "${urls[@]}"
 
       - name: Capture git status
+        if: always()
         run: git status --short > bridge-smoke-artifacts/git-status.txt
 
       - name: Upload smoke artifacts
