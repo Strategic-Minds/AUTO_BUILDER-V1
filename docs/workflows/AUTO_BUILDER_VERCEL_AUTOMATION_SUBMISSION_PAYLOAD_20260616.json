@@ -1,0 +1,58 @@
+{
+  "generated_at": "2026-06-16T04:36:00Z",
+  "mode": "preview_first_governed_automation",
+  "auto_builder_pr": 49,
+  "auto_builder_branch": "auto-builder/vercel-workflow-handoff-20260616",
+  "auto_builder_preview_url": "https://auto-builder-asnow99vv-strategic-minds-advisory.vercel.app",
+  "auto_builder_preview_deployment_id": "dpl_A3WHjKdEPzvZ4aDBZNZMqoEcsFkb",
+  "eden_preview_url": "https://edenskyestudios-dj7qlxx66-strategic-minds-advisory.vercel.app",
+  "eden_preview_deployment_id": "dpl_7Xx8e4NF3fqKLRT5tSZVX7XykRwb",
+  "dry_run_request": {
+    "method": "POST",
+    "url": "https://auto-builder-asnow99vv-strategic-minds-advisory.vercel.app/api/workflows/auto-builder-handoff",
+    "body": {
+      "mode": "dry_run",
+      "deploymentMode": "preview",
+      "targetSystem": "auto_builder",
+      "ref": "main",
+      "requestedBy": "AUTO BUILDER validation dry-run"
+    }
+  },
+  "preview_execute_request": {
+    "method": "POST",
+    "url": "https://auto-builder-asnow99vv-strategic-minds-advisory.vercel.app/api/workflows/auto-builder-handoff",
+    "requires_authorization": true,
+    "body": {
+      "mode": "execute",
+      "deploymentMode": "preview",
+      "targetSystem": "auto_builder",
+      "ref": "main",
+      "verifyRoutes": [
+        "/api/runtime/readiness",
+        "/api/runtime/jobs",
+        "/api/browser/process",
+        "/api/bridge/vercel/redeploy",
+        "/api/mcp/manifest"
+      ]
+    }
+  },
+  "production_approval": {
+    "status": "blocked_not_requested",
+    "required_phrase": "APPROVE PRODUCTION DEPLOY"
+  },
+  "blocked_actions": [
+    "production deploy",
+    "environment mutation",
+    "Supabase production migration",
+    "Drive write",
+    "social publish",
+    "outbound message",
+    "billing or spend",
+    "destructive action"
+  ],
+  "known_blockers": [
+    "Direct shell POST blocked by CONNECT tunnel 403",
+    "AUTO BUILDER 2 create_vercel_workflow planner returned connector 404 Link not found",
+    "AUTO BUILDER 2 platform planner returned connector 404 Link not found"
+  ]
+}
