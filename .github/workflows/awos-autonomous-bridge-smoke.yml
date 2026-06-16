@@ -37,8 +37,18 @@ jobs:
       V0_URL: ${{ github.event.inputs.v0_url || '' }}
       BRIDGE_ADMIN_BEARER_TOKEN: ${{ secrets.BRIDGE_ADMIN_BEARER_TOKEN }}
       BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
-      AUTO_BUILDER_OPERATOR_TOKEN: ${{ secrets.AUTO_BUILDER_OPERATOR_TOKEN }}
-      AUTO_BUILDER_BRIDGE_TOKEN: ${{ secrets.AUTO_BUILDER_BRIDGE_TOKEN }}
+      AUTO_BUILDER_OPERATOR_TOKEN: ${{ secrets.AUTO_BUILDER_OPERATOR_TOKEN || secrets.AUTOBUILDER_OPERATOR_TOKEN || secrets.AWOS_OPERATOR_TOKEN || secrets.OPERATOR_TOKEN || secrets.VERCEL_WORKFLOW_OPERATOR_TOKEN }}
+      AUTO_BUILDER_BRIDGE_TOKEN: ${{ secrets.AUTO_BUILDER_BRIDGE_TOKEN || secrets.AUTOBUILDER_BRIDGE_TOKEN || secrets.AWOS_BRIDGE_TOKEN || secrets.BRIDGE_TOKEN || secrets.VERCEL_WORKFLOW_BRIDGE_TOKEN }}
+      AUTH_CANDIDATE_AUTO_BUILDER_OPERATOR_TOKEN: ${{ secrets.AUTO_BUILDER_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AUTOBUILDER_OPERATOR_TOKEN: ${{ secrets.AUTOBUILDER_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AWOS_OPERATOR_TOKEN: ${{ secrets.AWOS_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_OPERATOR_TOKEN: ${{ secrets.OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_VERCEL_WORKFLOW_OPERATOR_TOKEN: ${{ secrets.VERCEL_WORKFLOW_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AUTO_BUILDER_BRIDGE_TOKEN: ${{ secrets.AUTO_BUILDER_BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AUTOBUILDER_BRIDGE_TOKEN: ${{ secrets.AUTOBUILDER_BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AWOS_BRIDGE_TOKEN: ${{ secrets.AWOS_BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_BRIDGE_TOKEN: ${{ secrets.BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_VERCEL_WORKFLOW_BRIDGE_TOKEN: ${{ secrets.VERCEL_WORKFLOW_BRIDGE_TOKEN && 'present' || '' }}
       REQUIRE_PREVIEW_EXECUTE: "true"
       BRIDGE_SMOKE_ARTIFACT_DIR: bridge-smoke-artifacts
     steps:
@@ -55,6 +65,35 @@ jobs:
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Capture operator auth exposure
+        shell: bash
+        run: |
+          mkdir -p "$BRIDGE_SMOKE_ARTIFACT_DIR"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const outDir = process.env.BRIDGE_SMOKE_ARTIFACT_DIR || 'bridge-smoke-artifacts';
+          const receipt = {
+            checkedAt: new Date().toISOString(),
+            operatorTokenConfigured: Boolean(process.env.AUTO_BUILDER_OPERATOR_TOKEN),
+            bridgeTokenConfigured: Boolean(process.env.AUTO_BUILDER_BRIDGE_TOKEN),
+            plainActionVariablesUsedForTokens: false,
+            candidateSecrets: {
+              AUTO_BUILDER_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_AUTO_BUILDER_OPERATOR_TOKEN === 'present',
+              AUTOBUILDER_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_AUTOBUILDER_OPERATOR_TOKEN === 'present',
+              AWOS_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_AWOS_OPERATOR_TOKEN === 'present',
+              OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_OPERATOR_TOKEN === 'present',
+              VERCEL_WORKFLOW_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_VERCEL_WORKFLOW_OPERATOR_TOKEN === 'present',
+              AUTO_BUILDER_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_AUTO_BUILDER_BRIDGE_TOKEN === 'present',
+              AUTOBUILDER_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_AUTOBUILDER_BRIDGE_TOKEN === 'present',
+              AWOS_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_AWOS_BRIDGE_TOKEN === 'present',
+              BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_BRIDGE_TOKEN === 'present',
+              VERCEL_WORKFLOW_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_VERCEL_WORKFLOW_BRIDGE_TOKEN === 'present',
+            },
+          };
+          fs.writeFileSync(`${outDir}/operator-auth-exposure.json`, JSON.stringify(receipt, null, 2));
+          console.log(JSON.stringify(receipt, null, 2));
+          NODE
 
       - name: Run bridge POST smoke
         run: node scripts/bridge-smoke.mjs
