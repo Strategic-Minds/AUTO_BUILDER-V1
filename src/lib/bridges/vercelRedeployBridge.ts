@@ -92,6 +92,25 @@ function parseJson(text: string) {
   }
 }
 
+function recordFrom(data: unknown) {
+  return data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+}
+
+function stringField(data: unknown, field: string) {
+  const value = recordFrom(data)?.[field];
+  return typeof value === 'string' ? value : null;
+}
+
+function numberField(data: unknown, field: string) {
+  const value = recordFrom(data)?.[field];
+  return typeof value === 'number' ? value : null;
+}
+
+function recordField(data: unknown, field: string) {
+  const value = recordFrom(data)?.[field];
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
 function deploymentUrlFrom(data: unknown) {
   return data && typeof data === 'object' && 'url' in data && typeof (data as { url?: unknown }).url === 'string'
     ? `https://${(data as { url: string }).url}`
@@ -147,6 +166,54 @@ export function getVercelRollbackReadiness() {
       productionRollbackRequiresApproval: true,
       strategy: 'Create a new Vercel deployment from a prior known-good ref or sha. Preview rollback never promotes production aliases.'
     }
+  };
+}
+
+export async function getVercelDeploymentStatus(idOrUrl: string) {
+  if (!idOrUrl) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'deploymentId or deploymentUrl is required.'
+    };
+  }
+
+  if (!process.env.VERCEL_TOKEN) {
+    return {
+      ok: false,
+      status: 503,
+      error: 'VERCEL_TOKEN is missing.',
+      readiness: getVercelRollbackReadiness()
+    };
+  }
+
+  const response = await fetch(`https://api.vercel.com/v13/deployments/${encodeURIComponent(idOrUrl)}${getTeamQuery()}`, {
+    headers: {
+      authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+      accept: 'application/json'
+    }
+  });
+  const text = await response.text();
+  const data = parseJson(text);
+  const readyState = stringField(data, 'readyState') ?? stringField(data, 'state') ?? stringField(data, 'status');
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    deployment: {
+      id: deploymentIdFrom(data) ?? idOrUrl,
+      url: deploymentUrlFrom(data),
+      readyState,
+      state: stringField(data, 'state') ?? readyState,
+      target: stringField(data, 'target'),
+      name: stringField(data, 'name'),
+      type: stringField(data, 'type'),
+      createdAt: numberField(data, 'createdAt'),
+      buildingAt: numberField(data, 'buildingAt'),
+      ready: numberField(data, 'ready'),
+      meta: recordField(data, 'meta')
+    },
+    ...(response.ok ? {} : { error: stringField(data, 'error') ?? text.slice(0, 1000) })
   };
 }
 
