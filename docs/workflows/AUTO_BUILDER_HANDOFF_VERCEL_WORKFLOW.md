@@ -35,6 +35,9 @@ Production deployment remains approval-gated inside the workflow.
   - Streams workflow events from `run.getReadable()` as server-sent events.
 - `src/app/api/workflows/auto-builder-handoff/approval/route.ts`
   - Resumes the production approval hook using `resumeHook()`.
+- `src/app/api/bridge/vercel/rollback/route.ts`
+  - Provides dry-run and operator-authenticated preview rollback validation for Vercel redeploys.
+  - Production rollback remains blocked unless the same explicit production approval phrase is supplied.
 
 ## Required Environment Variables And Secrets
 
@@ -59,7 +62,8 @@ The workflow does not expose secret values. It only uses server-side environment
 3. Verify the workflow start route with a dry-run request first.
 4. Start preview automation with `mode=execute`, `deploymentMode=preview` from an operator-authenticated request.
 5. Stream workflow events and confirm the receipt reports success.
-6. Keep production blocked unless a separate production approval is granted.
+6. Validate the Vercel rollback bridge against a non-production target.
+7. Keep production blocked unless a separate production approval is granted.
 
 ## Start Request Shape
 
@@ -87,8 +91,35 @@ Preview execute:
     "/api/runtime/jobs",
     "/api/browser/process",
     "/api/bridge/vercel/redeploy",
+    "/api/bridge/vercel/rollback",
     "/api/mcp/manifest"
   ]
+}
+```
+
+Preview rollback dry-run:
+
+```json
+{
+  "targetSystem": "auto_builder",
+  "mode": "preview",
+  "operationMode": "dry_run",
+  "rollbackRef": "main",
+  "rollbackSha": "<known-good-sha>",
+  "sourceDeploymentId": "<preview-deployment-being-validated>"
+}
+```
+
+Preview rollback execute, for non-production validation only:
+
+```json
+{
+  "targetSystem": "auto_builder",
+  "mode": "preview",
+  "operationMode": "rollback",
+  "rollbackRef": "main",
+  "rollbackSha": "<known-good-sha>",
+  "sourceDeploymentId": "<preview-deployment-being-validated>"
 }
 ```
 
@@ -124,6 +155,7 @@ The workflow verifies these routes by default:
 - `/api/runtime/jobs`
 - `/api/browser/process`
 - `/api/bridge/vercel/redeploy`
+- `/api/bridge/vercel/rollback`
 - `/api/mcp/manifest`
 
 A successful run means the Vercel preview reached `READY` and all configured route checks returned healthy responses.
@@ -132,12 +164,13 @@ A successful run means the Vercel preview reached `READY` and all configured rou
 
 Preview rollback:
 
-- Discard the preview deployment.
-- Rerun the workflow against a prior known-good commit or branch.
+- Use `/api/bridge/vercel/rollback` with `operationMode=dry_run` to plan the rollback deployment from a prior known-good ref or SHA.
+- Use `/api/bridge/vercel/rollback` with `operationMode=rollback` and operator auth to create a new preview deployment from that known-good ref or SHA.
+- Validate the resulting preview deployment routes before making any production-ready claim.
 
 Production rollback, if separately approved and ever used:
 
-- Promote or redeploy the prior known-good Vercel production deployment.
+- Production rollback uses the same provider adapter but remains blocked unless the request includes explicit production approval.
 - Keep rollback metadata attached to the production approval receipt.
 
 ## Blockers Or Missing Pieces
@@ -145,7 +178,8 @@ Production rollback, if separately approved and ever used:
 - Workflow run execution still needs Vercel preview validation after PR creation.
 - Operator-authenticated execute requests require configured `AUTO_BUILDER_OPERATOR_TOKEN` or `AUTO_BUILDER_BRIDGE_TOKEN`.
 - Receipt persistence falls back to dry-run payload return if Supabase telemetry env is not configured.
+- Production cannot be requested until preview execute, non-production rollback evidence, production build evidence, approval, and security triage all pass.
 
 ## Next Best Prompt
 
-AUTO BUILDER, open the draft PR for `auto-builder/vercel-workflow-handoff-20260616`, wait for the Vercel preview, then start the handoff workflow in dry-run mode and verify the run status, event stream, and route contract before any execute-mode preview run.
+AUTO BUILDER, open the draft PR for `auto-builder/vercel-workflow-handoff-20260616`, wait for the Vercel preview, then start the handoff workflow in dry-run mode and verify the run status, event stream, rollback route, and route contract before any execute-mode preview run.
