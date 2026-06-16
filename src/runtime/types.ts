@@ -48,7 +48,7 @@ export interface RuntimeJob<TPayload = Record<string, unknown>> {
   maxAttempts: number;
 }
 
-export interface RuntimeResult<TOutput = Record<string, unknown>, TPayload = Record<string, unknown>> {
+export interface RuntimeResult<TOutput = Record<string, unknown>, TPayload = unknown> {
   ok: boolean;
   output?: TOutput;
   receipt: RuntimeReceipt;
