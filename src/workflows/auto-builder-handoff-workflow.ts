@@ -23,6 +23,7 @@ export type AutoBuilderHandoffWorkflowInput = {
   verifyRoutes?: string[];
   maxPolls?: number;
   pollInterval?: string;
+  pollIntervalMs?: number;
   approvedProductionDeploy?: boolean;
   approvalPhrase?: string;
   metadata?: Record<string, string>;
@@ -55,8 +56,9 @@ export type HandoffWorkflowEvent = {
   nextActions?: string[];
 };
 
-type NormalizedInput = Required<Pick<AutoBuilderHandoffWorkflowInput, "targetSystem" | "mode" | "deploymentMode" | "ref" | "requestedBy" | "verifyRoutes" | "maxPolls" | "pollInterval">> & {
+type NormalizedInput = Required<Pick<AutoBuilderHandoffWorkflowInput, "targetSystem" | "mode" | "deploymentMode" | "ref" | "requestedBy" | "verifyRoutes" | "maxPolls">> & {
   workflowId: string;
+  pollIntervalMs: number;
   sha?: string;
   approvedProductionDeploy?: boolean;
   approvalPhrase?: string;
@@ -210,9 +212,9 @@ export async function autoBuilderHandoffWorkflow(input: AutoBuilderHandoffWorkfl
       type: "deployment_poll",
       step: "poll_deployment",
       status: deployment.state ?? "unknown",
-      data: { poll, maxPolls: normalized.maxPolls, deployment },
+      data: { poll, maxPolls: normalized.maxPolls, pollIntervalMs: normalized.pollIntervalMs, deployment },
     });
-    await sleep(normalized.pollInterval);
+    await sleep(normalized.pollIntervalMs);
     deployment = await readDeploymentStatus(deploymentTarget.idOrUrl);
   }
 
@@ -304,11 +306,22 @@ function normalizeInput(input: AutoBuilderHandoffWorkflowInput): NormalizedInput
     requestedBy: input.requestedBy ?? "AUTO BUILDER Vercel Workflow",
     verifyRoutes: input.verifyRoutes?.length ? input.verifyRoutes : DEFAULT_VERIFY_ROUTES,
     maxPolls: clamp(input.maxPolls ?? 30, 1, 120),
-    pollInterval: input.pollInterval ?? "10s",
+    pollIntervalMs: clamp(input.pollIntervalMs ?? parsePollIntervalMs(input.pollInterval) ?? 10000, 1000, 60000),
     approvedProductionDeploy: input.approvedProductionDeploy,
     approvalPhrase: input.approvalPhrase,
     metadata: input.metadata,
   };
+}
+
+function parsePollIntervalMs(value: string | undefined) {
+  if (!value) return null;
+  const match = value.match(/^(\d+)(ms|s|m)$/);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  const unit = match[2];
+  if (unit === "ms") return amount;
+  if (unit === "s") return amount * 1000;
+  return amount * 60_000;
 }
 
 function clamp(value: number, min: number, max: number) {
