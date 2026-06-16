@@ -267,7 +267,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
           category: "create",
           operation: "google_forms_create_plan",
           requestedCapability: "Create a Google Form through AUTO BUILDER MCP.",
-          authStatus: "not_checked_dry_run",
+          authStatus: "unknown",
           executionMode: "manual_receipt",
           status: "planned",
           projectId: input.parent_folder_id,
@@ -321,7 +321,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
   return {
     ...base,
     ok,
-    validation_status: ok ? "created" : "partial_failure",
+    validation_status: ok ? "created" : "failed",
     form: {
       formId,
       editUrl,
@@ -343,7 +343,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
         requestedCapability: "Create a Google Form through AUTO BUILDER MCP.",
         authStatus: "verified",
         executionMode: "api",
-        status: ok ? "completed" : "partial_failure",
+        status: ok ? "completed" : "failed",
         projectId: input.parent_folder_id,
         resourceId: formId,
         resourceUrl: editUrl,
