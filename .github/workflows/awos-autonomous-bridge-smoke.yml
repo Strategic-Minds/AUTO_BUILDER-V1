@@ -13,6 +13,8 @@ on:
         default: ""
   pull_request:
     paths:
+      - "package.json"
+      - "package-lock.json"
       - "src/app/api/bridge/**"
       - "src/app/api/google-chat/**"
       - "src/app/api/workflows/**"
@@ -69,6 +71,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$BRIDGE_SMOKE_ARTIFACT_DIR"
+          cp package-lock.json "$BRIDGE_SMOKE_ARTIFACT_DIR/package-lock.generated.json"
           npm audit --json > "$BRIDGE_SMOKE_ARTIFACT_DIR/npm-audit.json" || true
           node <<'NODE'
           const fs = require('node:fs');
@@ -161,7 +164,10 @@ jobs:
 
       - name: Capture git status
         if: always()
-        run: git status --short > bridge-smoke-artifacts/git-status.txt
+        shell: bash
+        run: |
+          git status --short > bridge-smoke-artifacts/git-status.txt
+          git diff -- package-lock.json > bridge-smoke-artifacts/package-lock.diff || true
 
       - name: Upload smoke artifacts
         uses: actions/upload-artifact@v4
