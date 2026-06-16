@@ -101,6 +101,7 @@ async function runGoogleFormsJob(input: UniversalJobPayload, blockedActions: str
     questions: Array.isArray(payload.questions) ? payload.questions as never : undefined,
     blocked_actions: blockedActions
   });
+  const providerRecord = providerResult as Record<string, unknown>;
 
   return {
     job_id: input.job_id,
@@ -111,12 +112,12 @@ async function runGoogleFormsJob(input: UniversalJobPayload, blockedActions: str
     approval_required: input.approval_required ?? false,
     blocked_actions: blockedActions,
     fallbacks,
-    validation_status: stringValue(providerResult.validation_status) ?? (providerResult.ok ? "created" : "failed"),
+    validation_status: stringValue(providerRecord.validation_status) ?? (providerRecord.ok === true ? "created" : "failed"),
     rollback_plan: "Delete the created Google Form file from Drive if rollback is explicitly approved.",
-    blocked_operations: Array.isArray(providerResult.blocked_operations) ? providerResult.blocked_operations : [],
+    blocked_operations: Array.isArray(providerRecord.blocked_operations) ? providerRecord.blocked_operations : [],
     routed_to: "google_forms_api",
-    planned_operations: providerResult.planned_operations,
-    receipts: providerResult.receipts,
+    planned_operations: Array.isArray(providerRecord.planned_operations) ? providerRecord.planned_operations : [],
+    receipts: Array.isArray(providerRecord.receipts) ? providerRecord.receipts : [],
     provider_result: providerResult
   };
 }
