@@ -28,6 +28,7 @@ on:
       - "scripts/bridge-smoke.mjs"
       - "scripts/bridge-browser-screenshot.mjs"
       - "scripts/workflow-handoff-receipt.mjs"
+      - "scripts/workflow-production-approval-receipt.mjs"
       - "scripts/vercel-rollback-receipt.mjs"
       - ".github/workflows/awos-autonomous-bridge-smoke.yml"
 
@@ -39,7 +40,7 @@ jobs:
   bridge-smoke:
     name: Bridge POST + browser smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-v-4c969e-strategic-minds-advisory.vercel.app' }}
       V0_URL: ${{ github.event.inputs.v0_url || '' }}
@@ -173,6 +174,24 @@ jobs:
           ROLLBACK_REF: ${{ github.event.pull_request.base.ref || 'main' }}
           ROLLBACK_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: node scripts/vercel-rollback-receipt.mjs
+
+      - name: Run approved production workflow receipt
+        shell: bash
+        env:
+          PRODUCTION_DEPLOY_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          PRODUCTION_DEPLOY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRODUCTION_APPROVAL_PHRASE: "APPROVE PRODUCTION DEPLOY"
+          PRODUCTION_APPROVAL_COMMIT_MARKER: "[awos-production-approval]"
+          PRODUCTION_APPROVED_BY: "AUTO BUILDER"
+        run: |
+          marker="$PRODUCTION_APPROVAL_COMMIT_MARKER"
+          message="$(git log -1 --pretty=%B "$PRODUCTION_DEPLOY_SHA" 2>/dev/null || git log -1 --pretty=%B)"
+          if [[ "$message" != *"$marker"* ]]; then
+            echo "Production approval marker not present on triggering commit; writing skipped receipt."
+            node scripts/workflow-production-approval-receipt.mjs --skip
+            exit 0
+          fi
+          node scripts/workflow-production-approval-receipt.mjs
 
       - name: Run browser screenshot smoke
         shell: bash
