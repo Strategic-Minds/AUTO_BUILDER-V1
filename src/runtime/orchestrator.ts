@@ -23,7 +23,7 @@ export interface RunRuntimeJobInput<TPayload = Record<string, unknown>> {
 
 export async function runRuntimeJob<TPayload = Record<string, unknown>, TOutput = Record<string, unknown>>(
   input: RunRuntimeJobInput<TPayload>,
-): Promise<RuntimeResult<TOutput>> {
+): Promise<RuntimeResult<TOutput, TPayload>> {
   const mode = input.mode ?? 'dry_run';
   const governance = evaluateRuntimeGovernance({
     provider: input.provider,
