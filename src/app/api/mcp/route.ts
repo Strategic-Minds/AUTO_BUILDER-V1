@@ -28,7 +28,7 @@ import { createGoogleForm } from '@/lib/autobuilder-v2/google-forms-runner';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const connectorSchemaVersion = 'strict-21-2026-06-16-google-forms';
+const connectorSchemaVersion = 'strict-21-2026-06-16-platform-approval';
 const productionMcpUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp';
 const productionManifestUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/manifest';
 const productionToolsUrl = 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/tools';
@@ -76,6 +76,7 @@ const universalJobSchema = {
   root_resource_id: z.string().optional(),
   objective: z.string().optional(),
   approval_required: z.boolean().optional(),
+  approved_actions: z.array(z.string()).optional(),
   blocked_actions: z.array(z.string()).optional(),
   fallbacks: z.array(z.string()).optional(),
   payload: passthroughPayloadSchema.optional(),
@@ -95,12 +96,13 @@ const driveJobSchema = {
   approved: z.boolean().optional(),
   approvalId: z.string().optional(),
   approvalPhrase: z.string().optional(),
+  approved_actions: z.array(z.string()).optional(),
+  blocked_actions: z.array(z.string()).optional(),
   command_folder_id: z.string().optional(),
   root_folder_id: z.string().optional(),
   create_missing_folders: z.boolean().optional(),
   folder_manifest: z.array(z.string()).optional(),
   write_receipts: z.boolean().optional(),
-  blocked_actions: z.array(z.string()).optional(),
   folder_id: z.string().optional(),
   parent_folder_id: z.string().optional(),
   folder_name: z.string().optional(),
@@ -143,15 +145,26 @@ const createGoogleFormSchema = {
 const platformProvisioningSchema = {
   job_id: z.string(),
   mode: dryRunExecuteModeSchema.optional(),
+  actions: z.array(z.string()).optional(),
+  platform_actions: z.array(z.string()).optional(),
+  approved_actions: z.array(z.string()).optional(),
+  blocked_actions: z.array(z.string()).optional(),
+  approval_required: z.boolean().optional(),
+  approvalPhrase: z.string().optional(),
   command_folder_id: z.string().optional(),
+  name: z.string().optional(),
   owner: z.string().optional(),
+  github_owner: z.string().optional(),
   repo_name: z.string().optional(),
+  github_repo: z.string().optional(),
   visibility: z.enum(['private', 'public', 'internal']).optional(),
   description: z.string().optional(),
   initialize_readme: z.boolean().optional(),
   team_id: z.string().optional(),
+  vercel_team_id: z.string().optional(),
   project_id: z.string().optional(),
   project_name: z.string().optional(),
+  vercel_project_name: z.string().optional(),
   workflow_name: z.string().optional(),
   route: z.string().optional(),
   schedule: z.string().optional(),
@@ -160,9 +173,11 @@ const platformProvisioningSchema = {
   agent_scope: z.string().optional(),
   allowed_tools: z.array(z.string()).optional(),
   gateway_name: z.string().optional(),
+  ai_gateway_key_name: z.string().optional(),
   providers: z.array(z.string()).optional(),
   models: z.array(z.string()).optional(),
   git_repo: z.string().optional(),
+  git_repository_url: z.string().optional(),
   framework: z.string().optional(),
   root_directory: z.string().optional()
 };
@@ -186,7 +201,7 @@ function connectorIntegrity() {
     production_mcp_url: productionMcpUrl,
     production_manifest_url: productionManifestUrl,
     production_tools_url: productionToolsUrl,
-    stale_schema_instructions: 'If ChatGPT exposes fewer than 21 AUTO_BUILDER_2 tools, refresh or re-register the connector against production_mcp_url until api_tool.list_resources reports 21 tools including create_google_form.',
+    stale_schema_instructions: 'If ChatGPT exposes fewer than 21 AUTO_BUILDER_2 tools, refresh or re-register the connector against production_mcp_url until api_tool.list_resources reports 21 tools including create_google_form and platform approved_actions fields.',
     server_truth: 'Production MCP manifest and tools endpoints are the authoritative strict-21 surfaces.',
     no_write_fix_rule: 'Do not run Drive writes, folder creation, uploads, or approved_write jobs to fix connector registration.'
   };
@@ -209,6 +224,7 @@ function strictStatus() {
       primaryRoute: '/api/mcp',
       toolSurface: 'strict-21',
       defaultMode: 'dry_run',
+      platformProvisioningRule: 'Live platform creation requires mode=execute and approved_actions for each protected action.',
       googleFormsRule: 'create_google_form uses the Google Forms API and service-account Google Workspace env vars; live creation requires mode=execute.',
       removedFromPrimaryRoute: [
         'browser tools',
@@ -224,9 +240,7 @@ function strictStatus() {
 
 const handler = createMcpHandler(
   (server) => {
-    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the Auto Builder 2 strict MCP server is alive and diagnose stale ChatGPT connector registration.', inputSchema: {} }, async () =>
-      mcpText({ ...strictStatus(), timestamp: new Date().toISOString() })
-    );
+    server.registerTool('health_check', { title: 'Health Check', description: 'Confirm the Auto Builder 2 strict MCP server is alive and diagnose stale ChatGPT connector registration.', inputSchema: {} }, async () => mcpText({ ...strictStatus(), timestamp: new Date().toISOString() }));
     server.registerTool('get_repo_summary', { title: 'Get Repo Summary', description: 'Return Auto Builder 2 operating map and expected callable tool summary.', inputSchema: {} }, async () => mcpText(strictStatus()));
     server.registerTool('list_repo_files', { title: 'List Repo Files', description: 'List safe bundled repo files exposed for read-only inspection.', inputSchema: listRepoFilesSchema }, async ({ subpath, limit }) => {
       const prefix = subpath ? subpath.replace(/\/$/, '') : '';
@@ -252,7 +266,7 @@ const handler = createMcpHandler(
     server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createAiGatewayTool(input as never)));
     server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode.', inputSchema: rollbackSchema }, async (input) => mcpText(rollbackTool(input as never)));
   },
-  { instructions: 'AUTO BUILDER 2 strict ChatGPT MCP route. Exposes the strict-21 required tools including create_google_form. Write-capable tools are dry-run-first and require explicit execute or rollback mode. Health and bootstrap tools include connector_schema_version strict-21-2026-06-16-google-forms and stale connector diagnostics.' },
+  { instructions: 'AUTO BUILDER 2 strict ChatGPT MCP route. Exposes the strict-21 required tools including create_google_form. Write-capable tools are dry-run-first and require explicit execute or rollback mode. Platform provisioning tools accept approved_actions so guarded adapters can execute only approved operations.' },
   { basePath: '/api', maxDuration: 60, verboseLogs: false }
 );
 
