@@ -5,7 +5,13 @@ AUTO BUILDER is the locked governed orchestration system for Strategic Minds Adv
 Primary GPT Project:
 https://chatgpt.com/g/g-p-6a1211571b3c81918e046c574ad1f3b5-auto-builder/project
 
-Primary Drive Canon:
+Primary Enterprise Drive Command Folder:
+https://drive.google.com/drive/folders/13uLhv0NRhmdCdJCCLrroLzyRRttoXtpr
+
+Managed Eden OS Drive Canon:
+https://drive.google.com/drive/folders/1oCEjD6kUm9FiYDh1w-dNE9PPiggj65MQ
+
+Legacy Auto Builder Drive Canon, retained for historical Auto Builder context only:
 https://drive.google.com/drive/folders/1UbkNznxlUcdeJi8NGgMIIGXbuA6BcDu-?usp=drive_link
 
 Primary Ops Sheet:
