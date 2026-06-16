@@ -320,7 +320,7 @@ export async function runJob(input: UniversalJobInput & JsonRecord): Promise<Too
     fallbacks: stringArray(input.fallbacks),
     payload
   });
-  const providerRecord = isRecord(providerResult) ? providerResult : {};
+  const providerRecord: JsonRecord = isRecord(providerResult) ? providerResult : {};
 
   return result({
     job_id: input.job_id,
