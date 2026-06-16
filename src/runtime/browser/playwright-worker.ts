@@ -9,7 +9,7 @@ async function loadPlaywright() {
   }
 }
 
-export async function runBrowserWorkerTask(input: BrowserTaskInput): Promise<RuntimeResult<BrowserTaskOutput>> {
+export async function runBrowserWorkerTask(input: BrowserTaskInput): Promise<RuntimeResult<BrowserTaskOutput, BrowserTaskInput>> {
   const planned = await runRuntimeJob<BrowserTaskInput, BrowserTaskOutput>({
     type: 'browser_worker_task',
     provider: 'browser',
@@ -29,7 +29,7 @@ export async function runBrowserWorkerTask(input: BrowserTaskInput): Promise<Run
   return planned;
 }
 
-export async function captureBrowserEvidence(input: BrowserTaskInput): Promise<RuntimeResult<BrowserTaskOutput>> {
+export async function captureBrowserEvidence(input: BrowserTaskInput): Promise<RuntimeResult<BrowserTaskOutput, BrowserTaskInput>> {
   if (!input.url) {
     return runRuntimeJob<BrowserTaskInput, BrowserTaskOutput>({
       type: 'browser_worker_validation',
