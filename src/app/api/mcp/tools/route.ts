@@ -10,6 +10,10 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+const googleFormsToolName = 'create_google_form' as const;
+const mcpToolNames = [...expectedCallableMcpToolNames, googleFormsToolName] as const;
+const mcpExecutionToolNames = [...autoBuilder2ExecutionToolNames, googleFormsToolName] as const;
+
 const toolDescriptions: Record<string, string> = {
   health_check: 'Confirm the Auto Builder 2 MCP server is alive before using other tools.',
   get_repo_summary: 'Inspect repo, provider, active operating map, and advertised execution surfaces.',
@@ -18,6 +22,7 @@ const toolDescriptions: Record<string, string> = {
   read_text_file: 'Read a bundled UTF-8 control-plane file by path.',
   run_job: 'Generic GPT-safe job entrypoint with dry-run default, receipts, rollback metadata, and universal routing.',
   run_universal_job: 'Cross-stack universal automation runner for governed end-to-end operations.',
+  create_google_form: 'Create a Google Form through the Google Forms API using Google Workspace service-account credentials.',
   run_drive_job: 'Plan or route Google Drive jobs with dry-run default and receipt metadata.',
   drive_list_tree: 'Read or plan a Google Drive folder tree listing.',
   drive_create_folder: 'Dry-run or approval-gated Google Drive folder creation.',
@@ -36,20 +41,21 @@ const toolDescriptions: Record<string, string> = {
 export async function GET() {
   return NextResponse.json({
     app: 'AUTO BUILDER 2',
-    version: '0.4.0',
+    version: '0.5.0-google-forms',
     transport: 'streamable-http',
     activeOperatingMap,
-    tools: expectedCallableMcpToolNames.map((name) => ({
+    tools: mcpToolNames.map((name) => ({
       name,
       title: name,
       description: toolDescriptions[name] ?? 'Auto Builder MCP tool.',
       group: readInspectionToolNames.some((toolName) => toolName === name) ? 'inspection' : 'execution'
     })),
-    executionTools: autoBuilder2ExecutionToolNames,
+    executionTools: mcpExecutionToolNames,
     requiredEnvNames,
     governance: {
       defaultWriteMode: 'dry_run',
       executeRule: 'Write-capable tools must not mutate external systems unless mode is execute and the provider-specific adapter/approval gate allows it.',
+      googleFormsRule: 'create_google_form performs live Forms API creation only when mode=execute and GOOGLE_CLIENT_EMAIL/GOOGLE_PRIVATE_KEY are configured.',
       secretRule: 'Responses return required environment variable names only; secret values are never returned.',
       rollbackRule: 'Every write-like result includes rollback metadata or an adapter-required rollback note.'
     }
