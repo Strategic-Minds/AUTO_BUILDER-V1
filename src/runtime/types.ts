@@ -27,7 +27,7 @@ export interface RuntimeReceipt {
 export interface RuntimeEvidence {
   type: 'text' | 'url' | 'screenshot' | 'json' | 'log';
   label: string;
-  value: string | Record<string, unknown>;
+  value: string | object;
   collectedAt: string;
 }
 
