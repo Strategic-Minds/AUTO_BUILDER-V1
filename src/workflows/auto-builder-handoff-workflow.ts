@@ -80,6 +80,7 @@ const DEFAULT_VERIFY_ROUTES = [
   "/api/runtime/jobs",
   "/api/browser/process",
   "/api/bridge/vercel/redeploy",
+  "/api/bridge/vercel/rollback",
   "/api/mcp/manifest",
 ];
 
