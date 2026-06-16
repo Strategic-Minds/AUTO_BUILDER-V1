@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as AutoBuilderHandoffWorkflowInput;
   const input: AutoBuilderHandoffWorkflowInput = {
     ...body,
+    workflowId: body.workflowId ?? `auto-builder-handoff-${Date.now()}`,
     mode: body.mode ?? "execute",
     deploymentMode: body.deploymentMode ?? "preview",
     targetSystem: body.targetSystem ?? "auto_builder",
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     runId,
+    workflowId: input.workflowId,
     workflow: "autoBuilderHandoffWorkflow",
     statusUrl: `/api/workflows/auto-builder-handoff/run/${runId}`,
     eventsUrl: `/api/workflows/auto-builder-handoff/readable/${runId}`,
