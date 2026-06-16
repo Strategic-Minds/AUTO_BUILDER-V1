@@ -267,7 +267,7 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
           category: "create",
           operation: "google_forms_create_plan",
           requestedCapability: "Create a Google Form through AUTO BUILDER MCP.",
-          authStatus: "not_checked_dry_run",
+          authStatus: "unknown",
           executionMode: "manual_receipt",
           status: "planned",
           projectId: input.parent_folder_id,
