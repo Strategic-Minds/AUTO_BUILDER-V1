@@ -1,6 +1,7 @@
 import { triggerVercelRedeploy, type RedeployTarget } from "../bridges/vercelRedeployBridge";
 import { createGoogleForm } from "./google-forms-runner";
 import { runDriveJob } from "./drive-job-runner";
+import { runPlatformProvisioningJob } from "./platform-provisioning-runner";
 
 export type UniversalJobPayload = {
   job_id: string;
@@ -50,6 +51,11 @@ function boolValue(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
 function targetSystem(value: unknown): RedeployTarget {
   return value === "eden_skye_studios" ? "eden_skye_studios" : "auto_builder";
 }
@@ -79,12 +85,72 @@ function isGoogleFormsCreate(provider: string, objective: string, actions: strin
   return terms.some((term) => term === "google_forms" || term === "create_google_form" || term.includes("google_form"));
 }
 
+function isPlatformProvisioning(provider: string, objective: string, actions: string[]) {
+  const terms = [provider, objective, ...actions].map((item) => item.toLowerCase().replace(/[\s-]+/g, "_"));
+  return terms.some((term) =>
+    term === "platform_provisioning" ||
+    term === "github" ||
+    term === "vercel" ||
+    term === "ai_gateway" ||
+    term === "create_github_repo" ||
+    term === "create_vercel_project" ||
+    term === "create_ai_gateway"
+  );
+}
+
 function productionApproved(payload: Record<string, unknown>) {
   return boolValue(payload.approvedProductionDeploy) === true && payload.approvalPhrase === "APPROVE PRODUCTION DEPLOY";
 }
 
 function receiptId(prefix: string) {
   return `${prefix}_${Date.now()}`;
+}
+
+async function runPlatformJob(input: UniversalJobPayload, actions: string[]) {
+  const payload = isRecord(input.payload) ? input.payload : {};
+  const providerResult = await runPlatformProvisioningJob({
+    job_id: input.job_id,
+    mode: input.mode === "execute" ? "execute" : "dry_run",
+    actions: actions.length ? actions : stringArray(payload.actions),
+    name: stringValue(payload.name),
+    description: stringValue(payload.description),
+    github_owner: stringValue(payload.owner) ?? stringValue(payload.github_owner),
+    github_repo: stringValue(payload.repo_name) ?? stringValue(payload.github_repo),
+    github_private: stringValue(payload.visibility) !== "public",
+    vercel_team_id: stringValue(payload.team_id) ?? stringValue(payload.vercel_team_id),
+    vercel_project_name: stringValue(payload.project_name) ?? stringValue(payload.vercel_project_name),
+    framework: stringValue(payload.framework),
+    git_repository_url: stringValue(payload.git_repo) ?? stringValue(payload.git_repository_url),
+    root_directory: stringValue(payload.root_directory),
+    workflow_name: stringValue(payload.workflow_name),
+    workflow_entrypoint: stringValue(payload.route) ?? stringValue(payload.workflow_entrypoint),
+    workflow_topics: stringArray(payload.workflow_topics),
+    sandbox_name: stringValue(payload.sandbox_name),
+    ai_gateway_key_name: stringValue(payload.gateway_name) ?? stringValue(payload.ai_gateway_key_name),
+    agent_name: stringValue(payload.agent_name),
+    agent_model: stringValue(payload.agent_model),
+    approval_required: input.approval_required,
+    approved_actions: stringArray(payload.approved_actions),
+    blocked_actions: stringArray(payload.blocked_actions)
+  });
+
+  return {
+    job_id: input.job_id,
+    provider: "platform_provisioning",
+    objective: input.objective,
+    mode: input.mode ?? "dry_run",
+    dry_run: input.mode !== "execute",
+    approval_required: providerResult.approval_required,
+    blocked_actions: stringArray(payload.blocked_actions),
+    fallbacks: defaultFallbacks,
+    validation_status: providerResult.validation_status,
+    rollback_plan: providerResult.rollback_plan,
+    blocked_operations: providerResult.blocked_operations,
+    routed_to: "platform_provisioning_runner",
+    planned_operations: providerResult.planned_operations,
+    receipts: providerResult.receipts,
+    provider_result: providerResult
+  };
 }
 
 async function runGoogleFormsJob(input: UniversalJobPayload, blockedActions: string[], fallbacks: string[]) {
@@ -251,6 +317,10 @@ export async function runUniversalJob(input: UniversalJobPayload) {
 
   if (isVercelRedeploy(provider, input.objective, actions)) {
     return runVercelRedeployJob(input, provider, actions, blockedActions, fallbacks);
+  }
+
+  if (isPlatformProvisioning(provider, input.objective, actions)) {
+    return runPlatformJob(input, actions);
   }
 
   if (isGoogleFormsCreate(provider, input.objective, actions)) {
