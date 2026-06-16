@@ -52,7 +52,7 @@ function plannedTarget(input: PlatformProvisioningPayload, action: string) {
   if (action === "create_vercel_project") return { provider: "vercel", teamId: input.vercel_team_id ?? process.env.VERCEL_TEAM_ID, project: input.vercel_project_name ?? input.name, framework: input.framework ?? "nextjs", gitRepository: input.git_repository_url, rootDirectory: input.root_directory };
   if (action === "create_vercel_workflow") return { provider: "vercel", workflow: input.workflow_name ?? input.name, entrypoint: input.workflow_entrypoint ?? "app/workflows/auto_builder_workflow.ts", topics: input.workflow_topics ?? ["__wkf_*"] };
   if (action === "create_vercel_sandbox") return { provider: "vercel", sandbox: input.sandbox_name ?? input.name, project: input.vercel_project_name };
-  if (action === "create_ai_gateway") return { provider: "vercel_ai_gateway", keyName: input.ai_gateway_key_name ?? input.name };
+  if (action === "create_ai_gateway") return { provider: "vercel_ai_gateway", keyName: input.ai_gateway_key_name ?? "AI_GATEWAY_API_KEY", project: input.vercel_project_name ?? input.name };
   if (action === "create_vercel_agent") return { provider: "vercel_ai_gateway", agent: input.agent_name ?? input.name, model: input.agent_model ?? "ai-gateway/default" };
   return { provider: "unknown", name: input.name };
 }
@@ -152,8 +152,52 @@ async function createVercelProjectAdapter(input: PlatformProvisioningPayload): P
   return {
     ...base,
     status: "created",
-    created_resource_url: data.link?.repo ? `https://vercel.com/${teamId ?? "dashboard"}/${projectName}` : `https://vercel.com/${teamId ?? "dashboard"}/${projectName}`,
+    created_resource_url: `https://vercel.com/${teamId ?? "dashboard"}/${projectName}`,
     created_resource_id: data.id,
+    requires_approval: false
+  };
+}
+
+async function createAiGatewayAdapter(input: PlatformProvisioningPayload): Promise<OperationResult> {
+  const action = "create_ai_gateway";
+  const base = planOperation(input, action);
+  if (!isApproved(input, action)) return base;
+
+  const token = process.env.VERCEL_TOKEN;
+  const teamId = input.vercel_team_id ?? process.env.VERCEL_TEAM_ID;
+  const gatewayKey = process.env.AI_GATEWAY_API_KEY;
+  const projectName = input.vercel_project_name ?? input.name;
+
+  if (!token) return { ...base, status: "blocked_missing_secret", error: "VERCEL_TOKEN is not configured." };
+  if (!gatewayKey) return { ...base, status: "blocked_missing_secret", error: "AI_GATEWAY_API_KEY is not configured." };
+  if (!projectName) return { ...base, status: "blocked_invalid_payload", error: "vercel_project_name or name is required." };
+
+  const url = new URL(`https://api.vercel.com/v10/projects/${encodeURIComponent(projectName)}/env`);
+  if (teamId) url.searchParams.set("teamId", teamId);
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      key: "AI_GATEWAY_API_KEY",
+      value: gatewayKey,
+      type: "encrypted",
+      target: ["production", "preview", "development"]
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  const conflict = response.status === 409 || data?.error?.code === "env_already_exists";
+  if (!response.ok && !conflict) return { ...base, status: "failed", error: JSON.stringify(data) };
+
+  return {
+    ...base,
+    status: conflict ? "already_configured" : "created",
+    created_resource_url: `https://vercel.com/${teamId ?? "dashboard"}/${projectName}/settings/environment-variables`,
+    created_resource_id: data.id ? String(data.id) : "AI_GATEWAY_API_KEY",
     requires_approval: false
   };
 }
@@ -161,6 +205,7 @@ async function createVercelProjectAdapter(input: PlatformProvisioningPayload): P
 async function runOperation(input: PlatformProvisioningPayload, action: string): Promise<OperationResult> {
   if (action === "create_github_repo") return createGithubRepoAdapter(input);
   if (action === "create_vercel_project") return createVercelProjectAdapter(input);
+  if (action === "create_ai_gateway") return createAiGatewayAdapter(input);
   return planOperation(input, action);
 }
 
@@ -187,9 +232,9 @@ export async function runPlatformProvisioningJob(input: PlatformProvisioningPayl
       created_resource_id: item.created_resource_id,
       timestamp: new Date().toISOString()
     })),
-    validation_status: failed_operations.length ? "failed" : blocked_operations.length ? "blocked" : planned_operations.some((item) => item.status === "created") ? "created" : "planned",
+    validation_status: failed_operations.length ? "failed" : blocked_operations.length ? "blocked" : planned_operations.some((item) => item.status === "created" || item.status === "already_configured") ? "created" : "planned",
     execution_note: "Dry-run is default. Live repo/project creation requires mode=execute plus approved_actions and provider tokens in the deployment environment.",
-    rollback_plan: "If created, delete the GitHub repository or Vercel project from the provider dashboard/API. Store created_resource_url and created_resource_id from receipts for rollback."
+    rollback_plan: "If created, delete the GitHub repository, Vercel project, or project environment variable from the provider dashboard/API. Store created_resource_url and created_resource_id from receipts for rollback."
   };
 }
 
