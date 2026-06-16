@@ -25,13 +25,14 @@ on:
       - "scripts/bridge-smoke.mjs"
       - "scripts/bridge-browser-screenshot.mjs"
       - "scripts/workflow-handoff-receipt.mjs"
+      - "scripts/vercel-rollback-receipt.mjs"
       - ".github/workflows/awos-autonomous-bridge-smoke.yml"
 
 jobs:
   bridge-smoke:
     name: Bridge POST + browser smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-v-4c969e-strategic-minds-advisory.vercel.app' }}
       V0_URL: ${{ github.event.inputs.v0_url || '' }}
@@ -100,6 +101,12 @@ jobs:
 
       - name: Run Vercel Workflow handoff receipt
         run: node scripts/workflow-handoff-receipt.mjs
+
+      - name: Run Vercel rollback receipt
+        env:
+          ROLLBACK_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          ROLLBACK_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: node scripts/vercel-rollback-receipt.mjs
 
       - name: Run browser screenshot smoke
         shell: bash
