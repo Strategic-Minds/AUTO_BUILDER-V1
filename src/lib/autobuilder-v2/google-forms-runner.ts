@@ -52,6 +52,10 @@ function signJwt(payload: Record<string, unknown>, privateKey: string) {
   return `${header}.${body}.${signer.sign(normalizePrivateKey(privateKey)).toString("base64url")}`;
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+}
+
 async function getGoogleAccessToken(scopes: string[]) {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
@@ -333,13 +337,15 @@ export async function createGoogleForm(input: CreateGoogleFormInput) {
   const directCreate = await createForm(token.accessToken, input);
   const created = directCreate.ok ? directCreate : await createFormWithDrive(token.accessToken, input);
   if (!created.ok) {
+    const directCreateRecord = asRecord(directCreate);
+    const fallbackCreateRecord = asRecord(created);
     return {
       ...base,
       ok: false,
       validation_status: "failed",
       failed_operations: [
-        { action: "forms.create", status: directCreate.status, reason: directCreate.error },
-        { action: "drive.files.create", status: created.status, reason: created.error }
+        { action: "forms.create", status: directCreateRecord.status, reason: directCreateRecord.error },
+        { action: "drive.files.create", status: fallbackCreateRecord.status, reason: fallbackCreateRecord.error }
       ],
       receipts: []
     };
