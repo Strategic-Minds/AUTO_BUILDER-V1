@@ -178,6 +178,7 @@ jobs:
       - name: Run approved production workflow receipt
         shell: bash
         env:
+          AUTO_BUILDER_URL: "https://auto-builder-opxr2k2e1-strategic-minds-advisory.vercel.app"
           PRODUCTION_DEPLOY_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
           PRODUCTION_DEPLOY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PRODUCTION_APPROVAL_PHRASE: "APPROVE PRODUCTION DEPLOY"
