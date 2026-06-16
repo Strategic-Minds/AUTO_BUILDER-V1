@@ -291,7 +291,7 @@ async function executeApprovedFolderManifest(input: JsonRecord) {
   return { created, failed, requestedCount: folders.length };
 }
 
-export function runJob(input: UniversalJobInput & JsonRecord): ToolResult {
+export async function runJob(input: UniversalJobInput & JsonRecord): Promise<ToolResult> {
   const mode = normalizeMode(input.mode);
   const targetSystem = input.target_system ?? stringValue(input.provider) ?? "universal";
   const action = input.action ?? stringValue(input.objective) ?? "run_job";
@@ -308,7 +308,7 @@ export function runJob(input: UniversalJobInput & JsonRecord): ToolResult {
     });
   }
 
-  const providerResult = runUniversalJobWithFallbacks({
+  const providerResult = await runUniversalJobWithFallbacks({
     job_id: input.job_id,
     mode: existingRunnerMode(mode),
     provider: targetSystem,
@@ -320,6 +320,7 @@ export function runJob(input: UniversalJobInput & JsonRecord): ToolResult {
     fallbacks: stringArray(input.fallbacks),
     payload
   });
+  const providerRecord = isRecord(providerResult) ? providerResult : {};
 
   return result({
     job_id: input.job_id,
@@ -328,15 +329,15 @@ export function runJob(input: UniversalJobInput & JsonRecord): ToolResult {
     target_system: targetSystem,
     command_folder_id: input.command_folder_id,
     data: {
-      routed_to: "run_universal_job",
-      provider_result: providerResult
+      routed_to: stringValue(providerRecord.routed_to) ?? "run_universal_job",
+      provider_result: providerRecord
     },
     receipt: receiptFor(input),
     rollback: rollbackFor(input)
   });
 }
 
-export function runUniversalJob(input: UniversalJobInput & JsonRecord): ToolResult {
+export async function runUniversalJob(input: UniversalJobInput & JsonRecord): Promise<ToolResult> {
   return runJob({
     ...input,
     action: input.action,
