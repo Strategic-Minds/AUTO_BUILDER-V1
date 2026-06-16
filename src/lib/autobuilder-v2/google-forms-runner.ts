@@ -207,12 +207,13 @@ async function createFormWithDrive(accessToken: string, input: CreateGoogleFormI
   const data = await response.json().catch(() => ({}));
   if (!response.ok) return { ok: false as const, status: response.status, error: data };
   const file = data as { id?: string; name?: string; webViewLink?: string };
+  if (!file.id) return { ok: false as const, status: "missing_file_id", error: data };
   return {
-    ok: Boolean(file.id) as boolean,
+    ok: true as const,
     source: "drive.files.create",
     form: { formId: file.id, responderUri: undefined as string | undefined },
     file
-  } as const;
+  };
 }
 
 async function batchUpdateForm(accessToken: string, formId: string, requests: Array<Record<string, unknown>>) {
