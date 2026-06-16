@@ -10,6 +10,8 @@ import { insertTelemetry } from "@/lib/telemetry-store";
 
 export type HandoffRunMode = "dry_run" | "execute";
 
+type RedeployResult = Awaited<ReturnType<typeof triggerVercelRedeploy>>;
+
 export type AutoBuilderHandoffWorkflowInput = {
   workflowId?: string;
   targetSystem?: RedeployTarget;
@@ -157,24 +159,27 @@ export async function autoBuilderHandoffWorkflow(input: AutoBuilderHandoffWorkfl
   }
 
   const redeploy = await submitRedeploy(normalized, productionApproval.approvalPhrase);
+  const redeployStatus = compactRedeployResult(redeploy);
+  const redeployOk = redeployStatus.ok === true;
+  const redeployBlocked = redeployStatus.blocked === true;
   await emitEvent({
     type: "step_done",
     step: "submit_redeploy",
-    status: redeploy.ok ? "submitted" : redeploy.blocked ? "blocked" : "failed",
-    data: compactRedeployResult(redeploy),
+    status: redeployOk ? "submitted" : redeployBlocked ? "blocked" : "failed",
+    data: redeployStatus,
   });
 
-  if (!redeploy.ok || redeploy.blocked) {
+  if (!redeployOk || redeployBlocked) {
     const receipt = await writeWorkflowReceipt({
       workflowId: normalized.workflowId,
-      status: redeploy.blocked ? "blocked" : "failed",
+      status: redeployBlocked ? "blocked" : "failed",
       summary: "Vercel redeploy bridge did not return an accepted deployment.",
       evidence: { readiness, redeploy },
-      blocker: redeploy.error ?? "Redeploy bridge returned non-ok status.",
+      blocker: redeployError(redeploy) ?? "Redeploy bridge returned non-ok status.",
     });
     return {
       ok: false,
-      status: redeploy.blocked ? "blocked" : "failed",
+      status: redeployBlocked ? "blocked" : "failed",
       redeploy,
       receipt,
       nextActions: ["Inspect redeploy bridge response and retry after blockers are cleared."],
@@ -290,7 +295,7 @@ export async function autoBuilderHandoffWorkflow(input: AutoBuilderHandoffWorkfl
 
 function normalizeInput(input: AutoBuilderHandoffWorkflowInput): NormalizedInput {
   return {
-    workflowId: input.workflowId ?? `auto-builder-handoff-${Date.now()}`,
+    workflowId: input.workflowId ?? "auto-builder-handoff",
     targetSystem: input.targetSystem === "eden_skye_studios" ? "eden_skye_studios" : "auto_builder",
     mode: input.mode ?? "execute",
     deploymentMode: input.deploymentMode ?? "preview",
@@ -315,8 +320,6 @@ function productionPhraseApproved(input: NormalizedInput) {
 }
 
 async function resolveProductionApproval(input: NormalizedInput) {
-  "use workflow";
-
   if (productionPhraseApproved(input)) {
     return { approved: true, approvalPhrase: input.approvalPhrase, source: "input" };
   }
@@ -400,23 +403,29 @@ async function submitRedeploy(input: NormalizedInput, approvedApprovalPhrase?: s
   });
 }
 
-function compactRedeployResult(result: Awaited<ReturnType<typeof triggerVercelRedeploy>>): Record<string, unknown> {
+function compactRedeployResult(result: RedeployResult): Record<string, unknown> {
+  const record = result as Record<string, unknown>;
   return {
-    ok: result.ok,
-    blocked: result.blocked,
-    status: result.status,
-    targetSystem: result.targetSystem,
-    mode: result.mode,
-    deploymentUrl: result.deploymentUrl,
-    error: result.error,
+    ok: record.ok,
+    blocked: record.blocked,
+    status: record.status,
+    targetSystem: record.targetSystem,
+    mode: record.mode,
+    deploymentUrl: record.deploymentUrl,
+    error: record.error,
   };
 }
 
-function getDeploymentTarget(result: Awaited<ReturnType<typeof triggerVercelRedeploy>>) {
-  const data = isRecord(result.data) ? result.data : {};
+function redeployError(result: RedeployResult) {
+  return stringValue((result as Record<string, unknown>).error);
+}
+
+function getDeploymentTarget(result: RedeployResult) {
+  const record = result as Record<string, unknown>;
+  const data = isRecord(record.data) ? record.data : {};
   const id = stringValue(data.id);
   const url = stringValue(data.url);
-  const deploymentUrl = result.deploymentUrl ?? (url ? `https://${url}` : null);
+  const deploymentUrl = stringValue(record.deploymentUrl) ?? (url ? `https://${url}` : null);
   const idOrUrl = id ?? url;
   if (!idOrUrl) return null;
   return { idOrUrl, deploymentUrl };
