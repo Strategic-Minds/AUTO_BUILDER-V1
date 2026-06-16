@@ -53,10 +53,24 @@ function targetSystem(value: unknown): RedeployTarget {
   return value === "eden_skye_studios" ? "eden_skye_studios" : "auto_builder";
 }
 
+function redeployTerms(objective: string, actions: string[]) {
+  return [objective, ...actions].map((item) => item.toLowerCase());
+}
+
+function hasRedeployIntent(objective: string, actions: string[]) {
+  return redeployTerms(objective, actions).some((term) => term.includes("redeploy"));
+}
+
+function normalizeProvider(provider: string, objective: string, actions: string[]) {
+  const normalized = provider.toLowerCase();
+  if ((normalized === "auto_builder" || normalized === "auto-builder") && hasRedeployIntent(objective, actions)) {
+    return "vercel";
+  }
+  return normalized;
+}
+
 function isVercelRedeploy(provider: string, objective: string, actions: string[]) {
-  if (provider !== "vercel") return false;
-  const terms = [objective, ...actions].map((item) => item.toLowerCase());
-  return terms.some((term) => term.includes("redeploy"));
+  return provider === "vercel" && hasRedeployIntent(objective, actions);
 }
 
 function productionApproved(payload: Record<string, unknown>) {
@@ -189,8 +203,8 @@ async function runVercelRedeployJob(input: UniversalJobPayload, provider: string
 
 export async function runUniversalJob(input: UniversalJobPayload) {
   const mode = input.mode ?? "dry_run";
-  const provider = input.provider.toLowerCase();
   const actions = input.actions ?? [];
+  const provider = normalizeProvider(input.provider, input.objective, actions);
   const blockedActions = Array.from(new Set([...(input.blocked_actions ?? []), ...defaultBlockedActions]));
   const fallbacks = Array.from(new Set([...(input.fallbacks ?? []), ...defaultFallbacks]));
 
