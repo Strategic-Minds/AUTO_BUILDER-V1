@@ -1,6 +1,7 @@
 import { createMcpHandler } from 'mcp-handler';
 import { z } from 'zod';
 
+import { getVercelRedeployReadiness, triggerVercelRedeploy } from '@/lib/bridges/vercelRedeployBridge';
 import {
   activeOperatingMap,
   autoBuilder2ExecutionToolNames,
@@ -46,6 +47,7 @@ const visibleRepoPaths = [
 const jobModeSchema = z.enum(jobModes);
 const dryRunExecuteModeSchema = z.enum(['dry_run', 'execute']);
 const dryRunRollbackModeSchema = z.enum(['dry_run', 'rollback']);
+const passthroughPayloadSchema = z.object({}).passthrough();
 
 const listRepoFilesSchema = {
   subpath: z.string().optional(),
@@ -63,10 +65,24 @@ const universalJobSchema = {
   job_id: z.string(),
   mode: jobModeSchema.optional(),
   action: z.string().optional(),
+  actions: z.array(z.string()).optional(),
   target_system: z.string().optional(),
   provider: z.string().optional(),
   command_folder_id: z.string().optional(),
-  objective: z.string().optional()
+  root_resource_id: z.string().optional(),
+  objective: z.string().optional(),
+  approval_required: z.boolean().optional(),
+  blocked_actions: z.array(z.string()).optional(),
+  fallbacks: z.array(z.string()).optional(),
+  payload: passthroughPayloadSchema.optional(),
+  project_id: z.string().optional(),
+  projectId: z.string().optional(),
+  repo_id: z.string().optional(),
+  repoId: z.string().optional(),
+  ref: z.string().optional(),
+  sha: z.string().optional(),
+  approvedProductionDeploy: z.boolean().optional(),
+  approvalPhrase: z.string().optional()
 };
 
 const driveJobSchema = {
@@ -129,8 +145,135 @@ const rollbackSchema = {
   command_folder_id: z.string().optional()
 };
 
+type JsonRecord = Record<string, unknown>;
+
 function mcpText(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function boolValue(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function payloadFor(input: JsonRecord): JsonRecord {
+  return isRecord(input.payload) ? input.payload : {};
+}
+
+function actionTerms(input: JsonRecord) {
+  const action = stringValue(input.action) ?? '';
+  const objective = stringValue(input.objective) ?? '';
+  const actions = Array.isArray(input.actions) ? input.actions.filter((item): item is string => typeof item === 'string') : [];
+  return [action, objective, ...actions].map((item) => item.toLowerCase());
+}
+
+function shouldRouteVercelRedeploy(input: JsonRecord) {
+  const provider = stringValue(input.provider)?.toLowerCase();
+  const targetSystem = stringValue(input.target_system)?.toLowerCase();
+  const hasRedeployIntent = actionTerms(input).some((term) => term.includes('redeploy'));
+  return provider === 'vercel' && hasRedeployIntent && (targetSystem === undefined || targetSystem === 'auto_builder' || targetSystem === 'eden_skye_studios');
+}
+
+async function runVercelRedeployTool(input: JsonRecord) {
+  const payload = payloadFor(input);
+  const mode = stringValue(input.mode) ?? 'dry_run';
+  const targetSystem = stringValue(payload.targetSystem) ?? stringValue(payload.target_system) ?? stringValue(input.target_system) ?? 'auto_builder';
+  const redeployMode = payload.mode === 'production' || payload.target === 'production' ? 'production' : 'preview';
+  const productionApproved = boolValue(payload.approvedProductionDeploy ?? input.approvedProductionDeploy) === true;
+  const approvalPhrase = stringValue(payload.approvalPhrase) ?? stringValue(input.approvalPhrase);
+
+  if (redeployMode === 'production' && !(productionApproved && approvalPhrase === 'APPROVE PRODUCTION DEPLOY')) {
+    return {
+      job_id: input.job_id,
+      status: 'blocked',
+      mode,
+      action: 'redeploy_preview',
+      target_system: targetSystem,
+      timestamp: new Date().toISOString(),
+      receipt: { required: true, status: 'production_redeploy_blocked' },
+      rollback: { available: false, status: 'not_required_for_blocked_action' },
+      data: {
+        routed_to: 'vercel_redeploy_bridge',
+        validation_status: 'blocked',
+        blocked_operations: [{ action: 'production_redeploy', status: 'blocked_by_policy' }],
+        requiredApprovalPhrase: 'APPROVE PRODUCTION DEPLOY'
+      },
+      errors: []
+    };
+  }
+
+  if (mode !== 'execute') {
+    return {
+      job_id: input.job_id,
+      status: 'dry_run_complete',
+      mode,
+      action: 'redeploy_preview',
+      target_system: targetSystem,
+      timestamp: new Date().toISOString(),
+      receipt: { required: true, status: 'vercel_redeploy_plan_ready' },
+      rollback: { available: true, status: 'prior_deployment_can_be_redeployed_or_promoted' },
+      data: {
+        routed_to: 'vercel_redeploy_bridge',
+        validation_status: 'planned',
+        readiness: getVercelRedeployReadiness(),
+        planned_operations: [{ provider: 'vercel', action: 'preview_redeploy', target_system: targetSystem, dry_run: true }],
+        next_actions: ['Run mode=execute for preview redeploy.', 'Poll Vercel deployment and verify routes.']
+      },
+      errors: []
+    };
+  }
+
+  const providerResult = await triggerVercelRedeploy({
+    targetSystem: targetSystem === 'eden_skye_studios' ? 'eden_skye_studios' : 'auto_builder',
+    mode: redeployMode,
+    ref: stringValue(payload.ref) ?? stringValue(input.ref) ?? 'main',
+    sha: stringValue(payload.sha) ?? stringValue(input.sha),
+    requestedBy: 'AUTO BUILDER 2 MCP runner',
+    projectId: stringValue(payload.projectId) ?? stringValue(payload.project_id) ?? stringValue(input.projectId) ?? stringValue(input.project_id),
+    repoId: stringValue(payload.repoId) ?? stringValue(payload.repo_id) ?? stringValue(input.repoId) ?? stringValue(input.repo_id),
+    approvedProductionDeploy: productionApproved,
+    approvalPhrase,
+    metadata: { source: 'auto-builder-2-mcp-runner' }
+  });
+
+  return {
+    job_id: input.job_id,
+    status: providerResult.ok ? 'accepted' : providerResult.blocked ? 'blocked' : 'failed',
+    mode,
+    action: 'redeploy_preview',
+    target_system: targetSystem,
+    timestamp: new Date().toISOString(),
+    receipt: { required: true, status: providerResult.ok ? 'vercel_redeploy_submitted' : 'vercel_redeploy_failed' },
+    rollback: { available: true, status: 'prior_deployment_can_be_redeployed_or_promoted' },
+    data: {
+      routed_to: 'vercel_redeploy_bridge',
+      validation_status: providerResult.ok ? 'queued' : providerResult.blocked ? 'blocked' : 'failed',
+      provider_result: providerResult,
+      next_actions: providerResult.ok
+        ? ['Poll Vercel deployment until READY or ERROR.', 'Verify deployment commit and required runtime routes.']
+        : ['Inspect provider_result status/error.', 'Use BROWSER_WORKER_URL fallback only if a browser worker is configured.']
+    },
+    errors: []
+  };
+}
+
+async function runJobWithVercelAdapter(input: unknown) {
+  const record = isRecord(input) ? input : {};
+  if (shouldRouteVercelRedeploy(record)) return runVercelRedeployTool(record);
+  return runJob(record as never);
+}
+
+async function runUniversalJobWithVercelAdapter(input: unknown) {
+  const record = isRecord(input) ? input : {};
+  if (shouldRouteVercelRedeploy(record)) return runVercelRedeployTool(record);
+  return runUniversalJob(record as never);
 }
 
 function connectorIntegrity() {
@@ -188,8 +331,8 @@ const handler = createMcpHandler(
     });
     server.registerTool('read_bootstrap_status', { title: 'Read Bootstrap Status', description: 'Inspect bootstrap status, callable tool expectations, and stale ChatGPT connector diagnostics.', inputSchema: {} }, async () => mcpText(strictStatus()));
     server.registerTool('read_text_file', { title: 'Read Text File', description: 'Read safe bundled control-plane file metadata by path.', inputSchema: readTextFileSchema }, async ({ path, startLine, endLine }) => mcpText({ path, startLine, endLine, connectorIntegrity: connectorIntegrity(), note: 'Strict MCP route exposes safe bundled file metadata. Use GitHub for exact source audit when needed.' }));
-    server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (input) => mcpText(runJob(input as never)));
-    server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (input) => mcpText(runUniversalJob(input as never)));
+    server.registerTool('run_job', { title: 'Run Job', description: 'Generic dry-run-first Auto Builder 2 job entrypoint.', inputSchema: universalJobSchema }, async (input) => mcpText(await runJobWithVercelAdapter(input)));
+    server.registerTool('run_universal_job', { title: 'Run Universal Job', description: 'Dry-run-first universal automation runner.', inputSchema: universalJobSchema }, async (input) => mcpText(await runUniversalJobWithVercelAdapter(input)));
     server.registerTool('run_drive_job', { title: 'Run Drive Job', description: 'Governed Google Drive job runner for dry-run folder manifests and approved folder creation.', inputSchema: driveJobSchema }, async (input) => mcpText(await runDriveJobTool(input as never)));
     server.registerTool('drive_list_tree', { title: 'Drive List Tree', description: 'Read or plan a Google Drive folder tree listing.', inputSchema: driveJobSchema }, async (input) => mcpText(driveListTreeTool(input as never)));
     server.registerTool('drive_create_folder', { title: 'Drive Create Folder', description: 'Dry-run-first Google Drive folder creation planner.', inputSchema: { ...driveJobSchema, mode: dryRunExecuteModeSchema.optional() } }, async (input) => mcpText(await driveCreateFolderTool(input as never)));
