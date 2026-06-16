@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requiresOperatorAuth, verifyExecutionRouteAuth } from '@/lib/autobuilder-v2/execution-route-auth';
 import {
+  getVercelDeploymentStatus,
   getVercelRollbackReadiness,
   triggerVercelRollback,
   type VercelRollbackRequest
@@ -18,7 +19,16 @@ function rollbackRequiresAuth(input: VercelRollbackRequest & Record<string, unkn
   );
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const deploymentId = request.nextUrl.searchParams.get('deploymentId') || request.nextUrl.searchParams.get('id');
+  if (deploymentId) {
+    const auth = verifyExecutionRouteAuth(request);
+    if (!auth.ok) return NextResponse.json({ ok: false, error: auth.message }, { status: auth.status });
+
+    const result = await getVercelDeploymentStatus(deploymentId);
+    return NextResponse.json(result, { status: result.ok ? 200 : result.status || 500 });
+  }
+
   return NextResponse.json({
     name: 'Auto Builder Vercel Rollback Bridge',
     mode: 'governed_rollback_executor',
@@ -33,6 +43,12 @@ export async function GET() {
       sourceDeploymentId: 'optional deployment being rolled back from',
       approvedProductionDeploy: false,
       approvalPhrase: 'APPROVE PRODUCTION DEPLOY only when production rollback is explicitly approved'
+    },
+    statusShape: {
+      route: '/api/bridge/vercel/rollback?deploymentId=dpl_...',
+      authRequired: true,
+      provider: 'vercel',
+      readyState: 'READY is required before rollback evidence can pass'
     }
   });
 }
