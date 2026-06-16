@@ -1,6 +1,6 @@
 name: AWOS Autonomous Bridge Smoke
 
-# Keep package files in this path list so dependency remediation reruns PR evidence.
+# Keep package files in this path list so dependency remediation and lockfile validation rerun PR evidence.
 on:
   workflow_dispatch:
     inputs:
