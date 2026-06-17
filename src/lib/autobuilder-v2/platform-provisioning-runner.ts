@@ -82,9 +82,9 @@ function parseGitHubRepo(input: PlatformProvisioningPayload) {
   if (explicitOwner && explicitRepo) return { owner: explicitOwner, repo: explicitRepo.replace(/^.*\//, "") };
 
   const value = input.git_repository_url ?? "";
-  const match = value.match(/github\.com[:/](?<owner>[^/]+)\/(?<repo>[^/.]+)(?:\.git)?/i);
-  if (!match?.groups) return null;
-  return { owner: match.groups.owner, repo: match.groups.repo };
+  const match = value.match(/github\.com[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
 }
 
 function encodeBase64(content: string) {
