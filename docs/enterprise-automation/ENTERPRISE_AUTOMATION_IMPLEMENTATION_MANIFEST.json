@@ -1,0 +1,141 @@
+{
+  "schema_name": "AUTO_BUILDER_ENTERPRISE_AUTOMATION_IMPLEMENTATION_MANIFEST",
+  "version": "2026-06-17",
+  "default_mode": "draft_safe",
+  "public_execution_allowed": false,
+  "protected_actions_executed_by_this_package": false,
+  "workflow_rerun_executed_by_this_package": false,
+  "deployment_executed_by_this_package": false,
+  "vercel_env_mutation_executed_by_this_package": false,
+  "database_migration_executed_by_this_package": false,
+  "secret_mutation_executed_by_this_package": false,
+  "workflow_lanes": [
+    {
+      "id": "recursive_control",
+      "route": "/api/cron/recursive-control",
+      "schedule": "*/5 * * * *",
+      "status": "implemented_existing",
+      "purpose": "Bounded recursive control, bucket claim, task ranking, durable workflow start.",
+      "validator_agent": "cron-health-validator",
+      "receipt_required": true
+    },
+    {
+      "id": "autobuilder_generator",
+      "route": "/api/cron/autobuilder-generator",
+      "schedule": "*/5 * * * *",
+      "status": "implemented_existing",
+      "purpose": "Generator plan tick and telemetry receipt.",
+      "validator_agent": "telemetry-validator",
+      "receipt_required": true
+    },
+    {
+      "id": "social_bridge",
+      "route": "/api/cron/social-bridge",
+      "schedule": "*/5 * * * *",
+      "status": "implemented_existing",
+      "purpose": "Social bridge control loop with protected public-action gates.",
+      "validator_agent": "governance-validator",
+      "receipt_required": true
+    },
+    {
+      "id": "browser_worker",
+      "route": "/api/browser/process",
+      "schedule": "*/5 * * * *",
+      "status": "implemented_existing_schedule_updated_by_this_package",
+      "purpose": "Playwright/Chromium browser task processing, screenshot evidence, browser worker heartbeat.",
+      "validator_agent": "browser-worker-validator",
+      "receipt_required": true
+    }
+  ],
+  "validation_agents": [
+    "cron-health-validator",
+    "telemetry-validator",
+    "receipt-validator",
+    "browser-worker-validator",
+    "queue-validator",
+    "governance-validator",
+    "cost-governor-validator",
+    "deployment-validator",
+    "source-truth-validator"
+  ],
+  "browser_worker": {
+    "route": "/api/browser/process",
+    "requires_dependencies": [
+      "playwright",
+      "playwright-core",
+      "@sparticuz/chromium"
+    ],
+    "dependencies_status": "present_in_package_json",
+    "vercel_env_required": [
+      {
+        "name": "PLAYWRIGHT_WORKER_URL",
+        "value_template": "https://<auto-builder-vercel-domain>/api/browser/process",
+        "required_for": ["preview", "production"],
+        "installed_by_this_package": false,
+        "operator_required": true
+      }
+    ],
+    "optional_env": [
+      "PLAYWRIGHT_HEARTBEAT_URL",
+      "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
+      "BROWSER_WORKER_NAME"
+    ],
+    "evidence_tables": [
+      "browser_tasks",
+      "browser_claims",
+      "browser_evidence",
+      "browser_blockers",
+      "browser_screenshots",
+      "worker_heartbeats"
+    ]
+  },
+  "blocked_actions": [
+    "public_posting",
+    "public_replies",
+    "customer_messages",
+    "paid_promotion",
+    "shopify_mutation",
+    "payment_changes",
+    "production_database_migration",
+    "secret_rotation_or_mutation",
+    "production_deploy_or_promotion",
+    "destructive_github_actions",
+    "drive_delete",
+    "drive_share_change",
+    "credentialed_browser_action_without_explicit_approval",
+    "live_avatar_video_publication"
+  ],
+  "operator_required_actions": [
+    {
+      "id": "inspect_vercel_preview",
+      "description": "Inspect Vercel preview build/logs for this PR."
+    },
+    {
+      "id": "install_playwright_worker_url_preview",
+      "description": "Set PLAYWRIGHT_WORKER_URL to the preview /api/browser/process URL in Vercel preview env."
+    },
+    {
+      "id": "redeploy_preview_after_env",
+      "description": "Redeploy preview if Vercel requires env rebuild."
+    },
+    {
+      "id": "validate_browser_worker_preview",
+      "description": "Call or wait for preview browser worker route and confirm Chromium screenshot evidence."
+    },
+    {
+      "id": "install_playwright_worker_url_production",
+      "description": "Set PLAYWRIGHT_WORKER_URL to production /api/browser/process URL only after preview validation passes."
+    }
+  ],
+  "definition_of_done": [
+    "Vercel preview build passes",
+    "5-minute browser worker cron is present in vercel.json",
+    "PLAYWRIGHT_WORKER_URL is installed and verified in target Vercel env",
+    "Browser worker route returns structured JSON",
+    "Chromium launches in Vercel runtime",
+    "Desktop and mobile screenshot evidence persists",
+    "Worker heartbeat persists",
+    "Validation agents mark cron, telemetry, receipt, browser, queue, and governance lanes pass or explicitly blocked",
+    "Protected actions remain disabled"
+  ]
+}
