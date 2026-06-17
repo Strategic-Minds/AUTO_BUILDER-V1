@@ -6,7 +6,6 @@ import {
   autoBuilder2ExecutionToolNames,
   createAiGatewayTool,
   createGithubRepoTool,
-  createVercelAgentTool,
   createVercelProjectTool,
   driveCreateFolderTool,
   driveListTreeTool,
@@ -193,6 +192,10 @@ function mcpText(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
 }
 
+function withPlatformAction<T extends Record<string, unknown>>(input: T, action: string) {
+  return { ...input, actions: [action] };
+}
+
 function connectorIntegrity() {
   return {
     connector_schema_version: connectorSchemaVersion,
@@ -260,8 +263,8 @@ const handler = createMcpHandler(
     server.registerTool('run_platform_provisioning_job', { title: 'Run Platform Provisioning Job', description: 'Dry-run-first GitHub/Vercel/AI Gateway provisioning planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await runPlatformProvisioningJobTool(input as never)));
     server.registerTool('create_github_repo', { title: 'Create GitHub Repo', description: 'Dry-run-first GitHub repository creation planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await createGithubRepoTool(input as never)));
     server.registerTool('create_vercel_project', { title: 'Create Vercel Project', description: 'Dry-run-first Vercel project creation planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await createVercelProjectTool(input as never)));
-    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow or cron planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await runPlatformProvisioningJobTool({ ...(input as never), actions: ['create_vercel_workflow'] } as never)));
-    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createVercelAgentTool(input as never)));
+    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow or cron planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await runPlatformProvisioningJobTool(withPlatformAction(input as Record<string, unknown>, 'create_vercel_workflow') as never)));
+    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await runPlatformProvisioningJobTool(withPlatformAction(input as Record<string, unknown>, 'create_vercel_agent') as never)));
     server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createAiGatewayTool(input as never)));
     server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode.', inputSchema: rollbackSchema }, async (input) => mcpText(rollbackTool(input as never)));
   },
