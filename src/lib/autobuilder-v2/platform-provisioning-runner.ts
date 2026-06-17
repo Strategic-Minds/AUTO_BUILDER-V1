@@ -15,6 +15,8 @@ export type PlatformProvisioningPayload = {
   workflow_name?: string;
   workflow_entrypoint?: string;
   workflow_topics?: string[];
+  workflow_schedule?: string;
+  timezone?: string;
   sandbox_name?: string;
   ai_gateway_key_name?: string;
   agent_name?: string;
@@ -50,7 +52,7 @@ const defaultBlockedActions = [...platformProvisioningTools, "token_creation", "
 function plannedTarget(input: PlatformProvisioningPayload, action: string) {
   if (action === "create_github_repo") return { provider: "github", owner: input.github_owner, repo: input.github_repo ?? input.name, private: input.github_private ?? true };
   if (action === "create_vercel_project") return { provider: "vercel", teamId: input.vercel_team_id ?? process.env.VERCEL_TEAM_ID, project: input.vercel_project_name ?? input.name, framework: input.framework ?? "nextjs", gitRepository: input.git_repository_url, rootDirectory: input.root_directory };
-  if (action === "create_vercel_workflow") return { provider: "vercel", workflow: input.workflow_name ?? input.name, entrypoint: input.workflow_entrypoint ?? "app/workflows/auto_builder_workflow.ts", topics: input.workflow_topics ?? ["__wkf_*"] };
+  if (action === "create_vercel_workflow") return { provider: "vercel", workflow: input.workflow_name ?? input.name, entrypoint: input.workflow_entrypoint ?? "app/workflows/auto_builder_workflow.ts", schedule: input.workflow_schedule ?? "manual", topics: input.workflow_topics ?? ["__wkf_*"] };
   if (action === "create_vercel_sandbox") return { provider: "vercel", sandbox: input.sandbox_name ?? input.name, project: input.vercel_project_name };
   if (action === "create_ai_gateway") return { provider: "vercel_ai_gateway", keyName: input.ai_gateway_key_name ?? "AI_GATEWAY_API_KEY", project: input.vercel_project_name ?? input.name };
   if (action === "create_vercel_agent") return { provider: "vercel_ai_gateway", agent: input.agent_name ?? input.name, model: input.agent_model ?? "ai-gateway/default" };
@@ -72,6 +74,43 @@ function planOperation(input: PlatformProvisioningPayload, action: string): Oper
     requires_approval: blocked || input.mode !== "dry_run",
     receipt_required: true
   };
+}
+
+function parseGitHubRepo(input: PlatformProvisioningPayload) {
+  const explicitOwner = input.github_owner;
+  const explicitRepo = input.github_repo;
+  if (explicitOwner && explicitRepo) return { owner: explicitOwner, repo: explicitRepo.replace(/^.*\//, "") };
+
+  const value = input.git_repository_url ?? "";
+  const match = value.match(/github\.com[:/](?<owner>[^/]+)\/(?<repo>[^/.]+)(?:\.git)?/i);
+  if (!match?.groups) return null;
+  return { owner: match.groups.owner, repo: match.groups.repo };
+}
+
+function encodeBase64(content: string) {
+  return Buffer.from(content, "utf8").toString("base64");
+}
+
+function decodeBase64(content: string) {
+  return Buffer.from(content, "base64").toString("utf8");
+}
+
+async function githubJson(url: string, init: RequestInit = {}) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return { ok: false, status: 0, data: { error: "GITHUB_TOKEN is not configured." } };
+
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(init.headers ?? {})
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, data };
 }
 
 async function createGithubRepoAdapter(input: PlatformProvisioningPayload): Promise<OperationResult> {
@@ -158,6 +197,58 @@ async function createVercelProjectAdapter(input: PlatformProvisioningPayload): P
   };
 }
 
+async function createVercelWorkflowAdapter(input: PlatformProvisioningPayload): Promise<OperationResult> {
+  const action = "create_vercel_workflow";
+  const base = planOperation(input, action);
+  if (!isApproved(input, action)) return base;
+
+  const repo = parseGitHubRepo(input);
+  if (!repo) return { ...base, status: "blocked_invalid_payload", error: "github_owner/github_repo or git_repository_url is required." };
+
+  const route = input.workflow_entrypoint ?? "/api/cron/validation";
+  const schedule = input.workflow_schedule ?? "*/5 * * * *";
+  const contentsUrl = `https://api.github.com/repos/${repo.owner}/${repo.repo}/contents/vercel.json`;
+  const existing = await githubJson(contentsUrl);
+
+  let config: Record<string, unknown> = {};
+  let sha: string | undefined;
+  if (existing.ok && typeof existing.data?.content === "string") {
+    sha = typeof existing.data.sha === "string" ? existing.data.sha : undefined;
+    try {
+      config = JSON.parse(decodeBase64(existing.data.content));
+    } catch {
+      return { ...base, status: "failed", error: "Existing vercel.json is not valid JSON." };
+    }
+  } else if (existing.status !== 404) {
+    return { ...base, status: "failed", error: JSON.stringify(existing.data) };
+  }
+
+  const crons = Array.isArray(config.crons) ? config.crons.filter((item) => typeof item === "object" && item !== null) as Record<string, unknown>[] : [];
+  const nextCron = { path: route, schedule };
+  const cronIndex = crons.findIndex((item) => item.path === route);
+  const nextCrons = cronIndex >= 0 ? crons.map((item, index) => index === cronIndex ? nextCron : item) : [...crons, nextCron];
+  const nextConfig = { ...config, crons: nextCrons };
+
+  const update = await githubJson(contentsUrl, {
+    method: "PUT",
+    body: JSON.stringify({
+      message: `Configure Vercel workflow cron: ${input.workflow_name ?? route}`,
+      content: encodeBase64(`${JSON.stringify(nextConfig, null, 2)}\n`),
+      sha
+    })
+  });
+
+  if (!update.ok) return { ...base, status: "failed", error: JSON.stringify(update.data) };
+
+  return {
+    ...base,
+    status: sha ? "updated" : "created",
+    created_resource_url: `https://github.com/${repo.owner}/${repo.repo}/blob/main/vercel.json`,
+    created_resource_id: `${repo.owner}/${repo.repo}:vercel.json:${route}`,
+    requires_approval: false
+  };
+}
+
 async function createAiGatewayAdapter(input: PlatformProvisioningPayload): Promise<OperationResult> {
   const action = "create_ai_gateway";
   const base = planOperation(input, action);
@@ -205,6 +296,7 @@ async function createAiGatewayAdapter(input: PlatformProvisioningPayload): Promi
 async function runOperation(input: PlatformProvisioningPayload, action: string): Promise<OperationResult> {
   if (action === "create_github_repo") return createGithubRepoAdapter(input);
   if (action === "create_vercel_project") return createVercelProjectAdapter(input);
+  if (action === "create_vercel_workflow") return createVercelWorkflowAdapter(input);
   if (action === "create_ai_gateway") return createAiGatewayAdapter(input);
   return planOperation(input, action);
 }
@@ -232,9 +324,9 @@ export async function runPlatformProvisioningJob(input: PlatformProvisioningPayl
       created_resource_id: item.created_resource_id,
       timestamp: new Date().toISOString()
     })),
-    validation_status: failed_operations.length ? "failed" : blocked_operations.length ? "blocked" : planned_operations.some((item) => item.status === "created" || item.status === "already_configured") ? "created" : "planned",
-    execution_note: "Dry-run is default. Live repo/project creation requires mode=execute plus approved_actions and provider tokens in the deployment environment.",
-    rollback_plan: "If created, delete the GitHub repository, Vercel project, or project environment variable from the provider dashboard/API. Store created_resource_url and created_resource_id from receipts for rollback."
+    validation_status: failed_operations.length ? "failed" : blocked_operations.length ? "blocked" : planned_operations.some((item) => ["created", "updated", "already_configured"].includes(item.status)) ? "created" : "planned",
+    execution_note: "Dry-run is default. Live repo/project/workflow configuration requires mode=execute plus approved_actions and provider tokens in the deployment environment.",
+    rollback_plan: "If created, delete the GitHub repository, Vercel project, env var, or vercel.json cron entry from the provider dashboard/API. Store created_resource_url and created_resource_id from receipts for rollback."
   };
 }
 
