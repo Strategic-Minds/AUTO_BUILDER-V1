@@ -5,9 +5,7 @@ import {
   activeOperatingMap,
   createAiGatewayTool,
   createGithubRepoTool,
-  createVercelAgentTool,
   createVercelProjectTool,
-  createVercelWorkflowTool,
   defaultCommandFolderId,
   driveCreateFolderTool,
   driveListTreeTool,
@@ -60,10 +58,11 @@ const driveJobSchema = {
   status: z.string().optional(),
   summary: z.string().optional()
 };
-const platformSchema = { job_id: z.string(), mode: dryRunExecuteModeSchema.optional(), command_folder_id: z.string().optional(), owner: z.string().optional(), repo_name: z.string().optional(), visibility: z.enum(['private', 'public', 'internal']).optional(), description: z.string().optional(), initialize_readme: z.boolean().optional(), team_id: z.string().optional(), project_id: z.string().optional(), project_name: z.string().optional(), workflow_name: z.string().optional(), route: z.string().optional(), schedule: z.string().optional(), timezone: z.string().optional(), agent_name: z.string().optional(), agent_scope: z.string().optional(), allowed_tools: z.array(z.string()).optional(), gateway_name: z.string().optional(), providers: z.array(z.string()).optional(), models: z.array(z.string()).optional(), git_repo: z.string().optional(), framework: z.string().optional(), root_directory: z.string().optional() };
+const platformSchema = { job_id: z.string(), mode: dryRunExecuteModeSchema.optional(), command_folder_id: z.string().optional(), owner: z.string().optional(), repo_name: z.string().optional(), visibility: z.enum(['private', 'public', 'internal']).optional(), description: z.string().optional(), initialize_readme: z.boolean().optional(), team_id: z.string().optional(), project_id: z.string().optional(), project_name: z.string().optional(), workflow_name: z.string().optional(), route: z.string().optional(), schedule: z.string().optional(), timezone: z.string().optional(), agent_name: z.string().optional(), agent_scope: z.string().optional(), allowed_tools: z.array(z.string()).optional(), gateway_name: z.string().optional(), providers: z.array(z.string()).optional(), models: z.array(z.string()).optional(), git_repo: z.string().optional(), framework: z.string().optional(), root_directory: z.string().optional(), approved_actions: z.array(z.string()).optional(), blocked_actions: z.array(z.string()).optional() };
 const rollbackSchema = { job_id: z.string(), mode: dryRunRollbackModeSchema.optional(), original_job_id: z.string(), rollback_type: z.string(), command_folder_id: z.string().optional(), rollback_payload: payloadSchema };
 
 function mcpText(value: unknown) { return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] }; }
+function withPlatformAction<T extends Record<string, unknown>>(input: T, action: string) { return { ...input, actions: [action] }; }
 function connectorIntegrity() { return { connector_schema_version: connectorSchemaVersion, expected_tool_count: expectedCallableMcpToolNames.length, production_mcp_url: productionMcpUrl, production_manifest_url: productionManifestUrl, production_tools_url: productionToolsUrl, stale_schema_instructions: 'If ChatGPT exposes fewer than 20 AUTO_BUILDER_2 tools, refresh or re-register the connector against production_mcp_url until api_tool.list_resources reports 20 tools.', server_truth: 'Production MCP manifest and tools endpoints are the authoritative strict-20 surfaces.', no_write_fix_rule: 'Do not run Drive writes, folder creation, uploads, or approved_write jobs to fix connector registration.' }; }
 function readBootstrapStatus() { return { route: '/api/mcp-minimal/mcp', purpose: 'Minimal Auto Builder 2 MCP route for ChatGPT ingestion-safe discovery.', connectorIntegrity: connectorIntegrity(), connector_schema_version: connectorSchemaVersion, expected_tool_count: expectedCallableMcpToolNames.length, activeOperatingMap, expectedCallableMcpTools: expectedCallableMcpToolNames, defaultCommandFolderId, constraints: ['Only the 20 required Auto Builder 2 tools are registered.', 'No browser tools are registered.', 'No Eden dotted aliases are registered.', 'Write-capable tools default to dry_run unless mode=execute or governed approved_write is explicitly supplied.'] }; }
 
@@ -85,8 +84,8 @@ const handler = createMcpHandler(
     server.registerTool('run_platform_provisioning_job', { title: 'Run Platform Provisioning Job', description: 'Dry-run-first GitHub/Vercel/AI Gateway provisioning planner.', inputSchema: platformSchema }, async (payload) => mcpText(await runPlatformProvisioningJobTool(payload as never)));
     server.registerTool('create_github_repo', { title: 'Create GitHub Repo', description: 'Dry-run or explicit execute GitHub repo creation.', inputSchema: platformSchema }, async (payload) => mcpText(await createGithubRepoTool(payload as never)));
     server.registerTool('create_vercel_project', { title: 'Create Vercel Project', description: 'Dry-run or explicit execute Vercel project creation.', inputSchema: platformSchema }, async (payload) => mcpText(await createVercelProjectTool(payload as never)));
-    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow/cron planner.', inputSchema: platformSchema }, async (payload) => mcpText(createVercelWorkflowTool(payload as never)));
-    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformSchema }, async (payload) => mcpText(createVercelAgentTool(payload as never)));
+    server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow/cron planner.', inputSchema: platformSchema }, async (payload) => mcpText(await runPlatformProvisioningJobTool(withPlatformAction(payload as Record<string, unknown>, 'create_vercel_workflow') as never)));
+    server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformSchema }, async (payload) => mcpText(await runPlatformProvisioningJobTool(withPlatformAction(payload as Record<string, unknown>, 'create_vercel_agent') as never)));
     server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformSchema }, async (payload) => mcpText(createAiGatewayTool(payload as never)));
     server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode and provider adapter.', inputSchema: rollbackSchema }, async (payload) => mcpText(rollbackTool(payload as never)));
   },
