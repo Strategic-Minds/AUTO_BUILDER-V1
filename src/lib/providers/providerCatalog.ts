@@ -64,22 +64,6 @@ export const providerCatalog: ProviderCatalogEntry[] = [
     blockedWithoutApproval: ['internal_write', 'external_write', 'public_publish', 'financial', 'destructive', 'authority_mutation']
   },
   {
-    id: 'google_calendar',
-    label: 'Google Calendar',
-    status: 'connected',
-    safeDefaultRiskClass: 'safe_draft',
-    allowedWithoutApproval: ['safe_read', 'safe_draft'],
-    blockedWithoutApproval: ['internal_write', 'external_write', 'public_publish', 'financial', 'destructive', 'authority_mutation']
-  },
-  {
-    id: 'notion',
-    label: 'Notion',
-    status: 'connector_unverified',
-    safeDefaultRiskClass: 'safe_draft',
-    allowedWithoutApproval: ['safe_read', 'safe_draft'],
-    blockedWithoutApproval: ['internal_write', 'external_write', 'public_publish', 'financial', 'destructive', 'authority_mutation']
-  },
-  {
     id: 'klaviyo',
     label: 'Klaviyo',
     status: 'connector_unverified',
