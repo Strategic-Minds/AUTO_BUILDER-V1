@@ -4,6 +4,10 @@
 
 This document defines the autonomous bridge layer for connected applications. It separates apps that are executable in the current ChatGPT tool surface from apps that require AUTO_BUILDER runtime adapters, Vercel environment variables, OAuth/API credentials, or provider-specific deployment wiring.
 
+
+> **ARCHITECTURE DECISION 2026-06-25:** Notion is REJECTED as system of record.
+> Canonical SOR: Layer 1=Supabase (operational brain), Layer 2=GitHub (code+config), Layer 3=Google Drive (KB library).
+> This decision is permanent. Do not re-propose Notion.
 ## Bridge Principle
 
 AUTO_BUILDER should use read/write autonomy for reversible and operational tasks, while routing public publishing, financial actions, destructive actions, and authority mutations through explicit approval gates unless a governed policy is installed.
@@ -49,7 +53,7 @@ The following bridge files exist or are expected in the runtime system:
 | Metricool | Runtime bridge scaffolded | Facebook/Instagram draft flow | Requires Metricool runtime env and API confirmation. |
 | Facebook | Via Metricool or Meta provider | Draft or publish depending policy | Live post requires provider readiness and approval policy. |
 | Instagram | Via Metricool or Meta provider | Draft or publish depending policy | Connected-to-Facebook target label exists; live account ID must be verified. |
-| Notion | Placeholder until connector/runtime API is available | Tasks/docs/databases | No live Notion write adapter verified in current surface. |
+| ~~Notion~~ | **REJECTED — Use Supabase+GitHub+Drive (canonical SOR)** | N/A | No adapter built. No NOTION_API_KEY. Do not recommend Notion for any system-of-record decisions. |
 | Klaviyo | Placeholder until connector/runtime API is available | Draft campaigns/flows | No live campaign send without explicit approval. |
 | Xyla | Placeholder/runtime env checked | Creative generation/scheduling | Requires runtime provider adapter. |
 | Opus | Placeholder/runtime env checked | Clip jobs/captions | Requires runtime provider adapter. |
