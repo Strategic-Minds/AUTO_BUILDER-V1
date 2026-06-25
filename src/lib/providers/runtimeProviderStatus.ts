@@ -224,7 +224,6 @@ export function getRuntimeProviderStatus() {
     readiness('meta_facebook', ['META_ACCESS_TOKEN', 'META_FACEBOOK_PAGE_ID'], 'Required for direct Meta Facebook Graph API writes. Metricool remains the preferred scheduling bridge when direct Meta is absent.'),
     readiness('instagram', ['META_ACCESS_TOKEN', 'META_INSTAGRAM_BUSINESS_ACCOUNT_ID'], 'Required for direct Instagram Graph API writes. Metricool remains the preferred scheduling bridge when direct Instagram is absent.'),
     readiness('google_workspace', ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY'], 'Required for server-side Google Workspace writes from Vercel.'),
-    readiness('notion', ['NOTION_API_KEY'], 'Required for server-side Notion writes.'),
     readiness('klaviyo', ['KLAVIYO_API_KEY'], 'Required for Klaviyo draft/campaign API actions.'),
     readiness('xyla', ['XYLA_API_KEY'], 'Optional direct Xyla provider path. If absent, Eden uses the Shopify-operated Xyla bridge and Metricool-first scheduling.'),
     readiness('opus', ['OPUS_API_KEY'], 'Optional repurposing provider; not required for Eden website/social loop.')
