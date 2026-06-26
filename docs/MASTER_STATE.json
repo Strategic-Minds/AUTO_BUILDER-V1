@@ -1,0 +1,72 @@
+{
+  "generated": "2026-06-26T18:59:23.237080+00:00",
+  "version": "enterprise_hardened_v1",
+  "base44_agent_id": "6a3a1cc6fda8cc665dd22ea4",
+  "drive": {
+    "sm_root": "1M8vlShVcYbPvglZBQolMXiNcb2_sPwnI",
+    "auto_builder_shared": "0AHbNDQ657O3CUk9PVA",
+    "projects_root": "1WWqV5ejMsdH0sa7-cHlyDBeXOqU0Z_Nr",
+    "kb_library": "1KamfNyac7hJGGRReUhdAZBZDOghxB2Lr",
+    "archive": "16O6AKwZ8-gWvb_BXhMbaf11kaf67XxKp",
+    "corporate_structure": {
+      "01_INTELLIGENCE": "11iN8dEzL9HMn7AtPT0RbsPJz46re3XdY",
+      "02_PRODUCTS": "1KtU46i9gpKD-UvwLPcABryub0AFnjQnN",
+      "03_OPERATIONS": "1AQ1ocu4F8nvLpLwMr99CgOmdiaTQsHPl",
+      "04_CLIENTS": "1xpuzemwlSorT0Gna7IHzqMbKKGY0DDPp",
+      "05_AGENTS": "1K3k4XJf58S-zDGljDGVfU16RZuoxRjLk",
+      "06_FINANCE": "1HAfYq5fKRDakjX1hyHuwpqI8acRdv_lk"
+    },
+    "agent_folders": {
+      "APEX": "13wYvQgztZQqNmZH9RNWVmo08rNaPJeWW",
+      "ARIA": "1ukjXImDnwmVqwKkE-dPHJYtYdaTR5dKi",
+      "DISCOVERY": "1c2yNntGOuzBMuPOg8ZAd0IQcujOctPie",
+      "INTELLIGENCE": "18q71pgx30ChHTo6Q5s0S9YCheDmLgoBa",
+      "OUTREACH": "1C_SNfOo-gQ9GtS8dsR-Pk9jLFWtCD8JX",
+      "GHOST": "11aMev_0uZ45i5Ey4axKjVW_Bv7LXzVDS",
+      "VALIDATOR": "1MgBaXmK5P7refd5XWYT8SgeBSJh1rr3e",
+      "BENCHMARK": "1hYYNU-i6hgE3rK3hht0LrO8oEV7SPy-Y",
+      "DOC_SPECIALIST": "1aCNCmJ74FmOhs84uH6ZrktW2hNsukny8"
+    },
+    "drive_cleanup": {
+      "archived_folders": 13,
+      "date": "2026-06-26",
+      "action": "moved to ARCHIVE \u2014 Pre-2026-06-26"
+    }
+  },
+  "supabase": {
+    "url": "https://prhppuuwcnmfdhwsagug.supabase.co",
+    "permanent_keys": [
+      "SECRETS_QUICK_REFERENCE",
+      "SM_CORP_DRIVE_REGISTRY",
+      "MANDATORY_MEMORY_ANALYSIS_SOP",
+      "credential_quick_reference",
+      "agent_registry"
+    ]
+  },
+  "auto_builder": {
+    "url": "https://auto-builder-strategic-minds-advisory.vercel.app",
+    "health": "ok",
+    "tools": 31,
+    "last_cron": "every 5min",
+    "readiness_score": 52
+  },
+  "sync": {
+    "base44_to_supabase": "30min automation",
+    "awos_to_base44": "every 30min",
+    "status": "OPERATIONAL"
+  },
+  "intelligence_system": {
+    "name": "Strategic Minds AI",
+    "pillars": [
+      "AI Consultant System",
+      "Business Factory",
+      "Website Factory"
+    ],
+    "channels": [
+      "XPS",
+      "PCU",
+      "National Epoxy Pro Network"
+    ],
+    "goal_year1": "$1M net profit"
+  }
+}
