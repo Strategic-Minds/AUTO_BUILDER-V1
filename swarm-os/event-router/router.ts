@@ -215,8 +215,14 @@ export async function handleRequest(req: Request): Promise<Response> {
   }
 }
 
-// Start server if running standalone
-if (process.env.PORT) {
-  const port = parseInt(process.env.PORT)
-  Deno.serve({ port }, handleRequest)
+type DenoRuntime = {
+  serve: (options: { port: number }, handler: (req: Request) => Response | Promise<Response>) => unknown
+}
+
+const denoRuntime = (globalThis as typeof globalThis & { Deno?: DenoRuntime }).Deno
+
+// Start server if running standalone in Deno
+if (process.env.PORT && denoRuntime) {
+  const port = parseInt(process.env.PORT, 10)
+  denoRuntime.serve({ port }, handleRequest)
 }
