@@ -79,8 +79,10 @@ for (const marker of [
   'claim_epoxy_queue_job',
   'for update skip locked',
   'revoke all on table',
+  'from anon, authenticated, service_role',
   'grant select on table',
   'grant select, insert, update, delete on table',
+  'revoke execute on function public.claim_epoxy_queue_job(text) from public, anon, authenticated',
   'grant execute on function public.claim_epoxy_queue_job(text) to service_role'
 ]) {
   assert(migration.includes(marker), `Migration missing governance marker: ${marker}.`);
