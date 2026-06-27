@@ -14,8 +14,8 @@
  * - Production actions: L4/L5 (approval required — returns approval request)
  */
 
-import type { SentinelScoreRun, SentinelFinding, SentinelReceipt } from './sentinel-lib';
-import { enforceRiskGate, writeSentinelReceipt } from './sentinel-lib';
+import type { SentinelScoreRun, SentinelFinding, SentinelReceipt } from './lib';
+import { enforceRiskGate, writeSentinelReceipt } from './lib';
 
 // ─── Provider Adapter Interface ───────────────────────────────────────────────
 
