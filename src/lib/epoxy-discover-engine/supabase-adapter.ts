@@ -313,7 +313,7 @@ export async function failEpoxyQueueJob(input: {
       locked_by: null,
       last_error: input.lastError.slice(0, 1000), // cap error length
       updated_at: now,
-      attempts: client.rpc ? undefined : undefined // incremented by DB trigger if present
+      // attempts incremented by DB trigger if configured
     })
     .eq("job_key", input.jobKey);
 
