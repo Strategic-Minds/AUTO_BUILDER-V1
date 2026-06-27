@@ -259,3 +259,68 @@ export async function persistEpoxySnapshot(input: {
     };
   }
 }
+
+// ─── PATCH: Queue row completion functions ────────────────────────────────────
+// Required by worker.ts to transition claimed rows to COMPLETE/FAILED/RETRY.
+// These are L4 operations (live DB writes) — only called when allowLiveWrites=true.
+
+export async function completeEpoxyQueueJob(input: {
+  jobKey: string;
+  workerId: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const config = getEpoxySupabaseConfig();
+  const client = createEpoxySupabaseClient(config);
+  if (!client) return { ok: false, error: "No Supabase client — SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing" };
+
+  const now = new Date().toISOString();
+  const { error } = await client
+    .from("epoxy_queue")
+    .update({
+      status: "COMPLETE",
+      locked_at: null,
+      locked_by: null,
+      last_error: null,
+      updated_at: now
+    })
+    .eq("job_key", input.jobKey)
+    .eq("locked_by", input.workerId); // safety: only update the row WE claimed
+
+  if (error) {
+    console.error("[epoxy-supabase] completeEpoxyQueueJob error:", error.message);
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true };
+}
+
+export async function failEpoxyQueueJob(input: {
+  jobKey: string;
+  lastError: string;
+  retry: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  const config = getEpoxySupabaseConfig();
+  const client = createEpoxySupabaseClient(config);
+  if (!client) return { ok: false, error: "No Supabase client" };
+
+  const now = new Date().toISOString();
+  const newStatus = input.retry ? "RETRY" : "FAILED";
+
+  const { error } = await client
+    .from("epoxy_queue")
+    .update({
+      status: newStatus,
+      locked_at: null,
+      locked_by: null,
+      last_error: input.lastError.slice(0, 1000), // cap error length
+      updated_at: now,
+      attempts: client.rpc ? undefined : undefined // incremented by DB trigger if present
+    })
+    .eq("job_key", input.jobKey);
+
+  if (error) {
+    console.error("[epoxy-supabase] failEpoxyQueueJob error:", error.message);
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true };
+}
