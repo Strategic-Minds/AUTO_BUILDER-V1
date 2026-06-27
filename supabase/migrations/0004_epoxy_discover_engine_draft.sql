@@ -203,7 +203,7 @@ revoke all on table
   public.epoxy_reconstruction_packets,
   public.epoxy_run_receipts,
   public.epoxy_failed_jobs
-from anon;
+from anon, authenticated, service_role;
 
 grant select on table
   public.epoxy_states,
@@ -224,6 +224,8 @@ grant select, insert, update, delete on table
   public.epoxy_failed_jobs
 to service_role;
 
+revoke execute on function public.set_epoxy_updated_at() from public, anon, authenticated;
+revoke execute on function public.claim_epoxy_queue_job(text) from public, anon, authenticated;
 grant execute on function public.claim_epoxy_queue_job(text) to service_role;
 
 do $$ begin
