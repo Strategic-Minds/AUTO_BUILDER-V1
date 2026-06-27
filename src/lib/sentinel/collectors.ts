@@ -7,7 +7,7 @@
  * PRODUCTION MUTATION: NEVER — enforced by read-only HTTP methods only.
  */
 
-import type { SentinelEvidence, CollectorSource } from './sentinel-lib';
+import type { SentinelEvidence, CollectorSource } from './lib';
 
 type CollectorResult = Omit<SentinelEvidence, 'collectedAt'>;
 
