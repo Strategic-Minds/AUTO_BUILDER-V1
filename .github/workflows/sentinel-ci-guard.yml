@@ -1,0 +1,35 @@
+name: Sentinel CI Guard
+on:
+  push:
+    branches: [main, 'feature/sentinel*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  sentinel-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no top-level app directory
+        run: |
+          if [ -d "app" ] && [ ! -d "src" ]; then
+            echo "❌ SENTINEL GUARD: Top-level /app directory detected. Move to /src/app."
+            exit 1
+          fi
+          echo "✅ App directory structure is correct"
+
+      - name: Verify sentinel route exists
+        run: |
+          if [ ! -f "src/app/api/sentinel/route.ts" ]; then
+            echo "⚠️ Sentinel route not found — scoring unavailable"
+          else
+            echo "✅ Sentinel route present"
+          fi
+
+      - name: Check for hardcoded secrets
+        run: |
+          if grep -r "ACd87b3d\|7e73b0fa\|SK5f41f7" src/ --include="*.ts" --include="*.js" 2>/dev/null; then
+            echo "❌ SENTINEL GUARD: Hardcoded secrets detected!"
+            exit 1
+          fi
+          echo "✅ No hardcoded secrets found"
