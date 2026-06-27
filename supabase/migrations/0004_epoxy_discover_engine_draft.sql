@@ -273,3 +273,18 @@ values
     '{"source":"migration_seed","target_competitor_count":50}'::jsonb
   )
 on conflict (job_key) do nothing;
+
+-- RLS for epoxy_receipts (added by APEX audit 2026-06-27)
+alter table public.epoxy_receipts enable row level security;
+
+-- No anon or authenticated reads — service_role only
+create policy "service_role_only_receipts"
+  on public.epoxy_receipts
+  for all
+  using (false)
+  with check (false);
+
+-- Revoke direct access from anon/authenticated
+revoke all on public.epoxy_receipts from anon;
+revoke all on public.epoxy_receipts from authenticated;
+grant all on public.epoxy_receipts to service_role;
