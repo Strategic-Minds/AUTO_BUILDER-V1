@@ -1,19 +1,13 @@
-import type { EpoxySheetRow, EpoxySheetSyncResult } from "./types";
+import type { EpoxyRunMode, EpoxySheetRow } from "./types";
 
-type SheetWebhookResponse = {
-  ok?: boolean;
-  message?: string;
-  receiptId?: string;
+export type EpoxySheetSyncResult = {
+  ok: boolean;
+  mode: EpoxyRunMode;
+  synced: boolean;
+  rowCount?: number;
+  tabs?: string[];
+  error?: string;
 };
-
-async function readJsonResponse(response: Response): Promise<SheetWebhookResponse> {
-  try {
-    const parsed = (await response.json()) as SheetWebhookResponse;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 export async function syncEpoxySheetRows(input: {
   dryRun: boolean;
@@ -21,74 +15,63 @@ export async function syncEpoxySheetRows(input: {
   receiptId: string;
   rows: EpoxySheetRow[];
 }): Promise<EpoxySheetSyncResult> {
+  const mode: EpoxyRunMode = input.dryRun ? "dry_run" : input.allowLiveWrites ? "live_gated" : "observe_only";
+
   const sheetSyncEnabled = process.env.EPOXY_SHEET_SYNC_ENABLED === "1";
   const webhookUrl = process.env.EPOXY_SHEET_SYNC_WEBHOOK_URL;
-  const webhookSecret = process.env.EPOXY_SHEET_SYNC_SECRET;
+  const sheetSecret = process.env.EPOXY_SHEET_SYNC_SECRET;
 
-  if (input.dryRun) {
+  // Dry-run or sheet sync disabled — return mock result
+  if (input.dryRun || !input.allowLiveWrites || !sheetSyncEnabled) {
     return {
-      attempted: false,
       ok: true,
-      status: "dry_run",
-      reason: "Dry-run mode prepared Google Sheet rows without writing them.",
+      mode,
+      synced: false,
       rowCount: input.rows.length,
-      tabs: Array.from(new Set(input.rows.map((row) => row.tab)))
+      tabs: [...new Set(input.rows.map(r => r.tab))],
+      error: sheetSyncEnabled ? undefined : "EPOXY_SHEET_SYNC_ENABLED is not set to 1"
     };
   }
 
-  if (!input.allowLiveWrites || !sheetSyncEnabled) {
+  // Live path — call the internal sheet sync endpoint
+  const url = webhookUrl ?? `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://auto-builder-strategic-minds-advisory.vercel.app"}/api/epoxy/sheet-sync`;
+
+  if (!sheetSecret) {
+    return { ok: false, mode, synced: false, error: "EPOXY_SHEET_SYNC_SECRET not configured" };
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-epoxy-sheet-secret": sheetSecret
+      },
+      body: JSON.stringify({
+        receiptId: input.receiptId,
+        workbook: "Epoxy Competitor Intelligence Master Sheet",
+        rows: input.rows
+      }),
+      signal: AbortSignal.timeout(15000)
+    });
+
+    const data = await res.json() as {
+      ok: boolean;
+      rowCount?: number;
+      tabs?: string[];
+      message?: string;
+      error?: string;
+    };
+
     return {
-      attempted: false,
-      ok: true,
-      status: "disabled",
-      reason: "Sheet sync is disabled until release approval and EPOXY_SHEET_SYNC_ENABLED=1.",
-      rowCount: input.rows.length,
-      tabs: Array.from(new Set(input.rows.map((row) => row.tab)))
+      ok: data.ok,
+      mode,
+      synced: data.ok,
+      rowCount: data.rowCount,
+      tabs: data.tabs,
+      error: data.ok ? undefined : (data.error ?? data.message ?? "Sheet sync failed")
     };
+  } catch (e) {
+    return { ok: false, mode, synced: false, error: String(e) };
   }
-
-  if (!webhookUrl) {
-    return {
-      attempted: true,
-      ok: false,
-      status: "missing_env",
-      reason: "Missing EPOXY_SHEET_SYNC_WEBHOOK_URL for Google Sheet sync.",
-      rowCount: input.rows.length
-    };
-  }
-
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(webhookSecret ? { "x-epoxy-sheet-secret": webhookSecret } : {})
-    },
-    body: JSON.stringify({
-      receiptId: input.receiptId,
-      workbook: "Epoxy Competitor Intelligence Master Sheet",
-      rows: input.rows
-    })
-  });
-
-  const responseJson = await readJsonResponse(response);
-  if (!response.ok) {
-    return {
-      attempted: true,
-      ok: false,
-      status: "failed",
-      reason: responseJson.message ?? `Sheet sync webhook failed with HTTP ${response.status}.`,
-      rowCount: input.rows.length,
-      webhookStatus: response.status
-    };
-  }
-
-  return {
-    attempted: true,
-    ok: responseJson.ok ?? true,
-    status: "persisted",
-    reason: responseJson.message ?? "Sheet sync webhook accepted epoxy intelligence rows.",
-    rowCount: input.rows.length,
-    tabs: Array.from(new Set(input.rows.map((row) => row.tab))),
-    webhookStatus: response.status
-  };
 }
