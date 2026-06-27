@@ -4,8 +4,8 @@
  * All scoring is L0 (read-only). No production mutation.
  */
 
-import type { SentinelEvidence, SentinelScoreRun, SentinelFinding, SentinelDomainScore } from './sentinel-lib';
-import { scoreDomain, writeSentinelReceipt } from './sentinel-lib';
+import type { SentinelEvidence, SentinelScoreRun, SentinelFinding, SentinelDomainScore } from './lib';
+import { scoreDomain, writeSentinelReceipt } from './lib';
 
 // ─── Domain Scorers ───────────────────────────────────────────────────────────
 
