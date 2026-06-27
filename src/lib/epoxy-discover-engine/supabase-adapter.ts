@@ -131,12 +131,13 @@ export async function claimNextEpoxyQueueJob(input: {
     rowCount: 1,
     tables: ["epoxy_queue"],
     claimedJob: {
-      jobKey:     data.job_key,
-      stateCode:  data.state_code as EpoxyQueueJob["stateCode"],
-      priority:   data.priority ?? 100,
-      jobType:    (data.job_type ?? "discover_state_competitors") as EpoxyQueueJob["jobType"],
-      createdAt:  data.created_at ?? new Date().toISOString(),
-      attempts:   data.attempts ?? 0
+      jobKey:    data.job_key,
+      stateCode: data.state_code as EpoxyQueueJob["stateCode"],
+      priority:  data.priority ?? 100,
+      // Fields not returned by claim RPC — use safe defaults
+      jobType:   "discover_state_competitors" as EpoxyQueueJob["jobType"],
+      createdAt: new Date().toISOString(),
+      attempts:  0
     }
   };
 }
