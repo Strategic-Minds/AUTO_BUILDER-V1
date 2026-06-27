@@ -26,6 +26,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/epoxy-competitor-queue",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/bridge/retry",
       "schedule": "*/2 * * * *"
     },
