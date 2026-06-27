@@ -36,6 +36,34 @@
     {
       "path": "/api/browser/process",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/apex/qa-heal",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/apex/awos-sync",
+      "schedule": "30 */2 * * *"
+    },
+    {
+      "path": "/api/apex/council-sync",
+      "schedule": "0 6,18 * * *"
+    },
+    {
+      "path": "/api/apex/swarm-nightly",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/apex/swarm-master",
+      "schedule": "0 7 * * 0"
+    },
+    {
+      "path": "/api/apex/seo-sweep",
+      "schedule": "30 14 * * *"
+    },
+    {
+      "path": "/api/apex/social-sweep",
+      "schedule": "0 15 * * *"
     }
   ]
 }
