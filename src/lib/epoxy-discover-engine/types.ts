@@ -28,6 +28,7 @@ export type EpoxyQueueJob = {
   targetCompetitorCount: number;
   createdAt: string;
   source: string;
+  attempts?: number;
 };
 
 export type EpoxyWorkerInput = {
@@ -103,4 +104,25 @@ export type EpoxyWorkerResult = {
   receiptWrite: EpoxyWriteResult;
   receipt: EpoxyReceipt;
   nextInstruction: string;
+};
+
+// ─── PATCH: Queue claim result type ──────────────────────────────────────────
+// Defines the shape returned by claimNextEpoxyQueueJob so worker.ts can
+// access claimedJob.jobKey, .jobType, .stateCode, .priority, .createdAt, .attempts
+
+export type EpoxyClaimedJob = {
+  jobKey: string;
+  jobType: string;
+  stateCode: string;
+  priority: number;
+  createdAt: string;
+  attempts: number;
+};
+
+export type EpoxyQueueClaimResult = {
+  ok: boolean;
+  mode: EpoxyRunMode;
+  claimed: boolean;
+  claimedJob?: EpoxyClaimedJob;
+  error?: string;
 };
