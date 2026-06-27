@@ -112,7 +112,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.match_documents(vector(1536), int, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.match_documents(vector(1536), int, text) TO service_role;
+REVOKE ALL ON FUNCTION public.match_documents(vector, integer, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.match_documents(vector, integer, text) TO service_role;
 
 COMMIT;
