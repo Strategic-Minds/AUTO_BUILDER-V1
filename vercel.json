@@ -30,10 +30,6 @@
       "schedule": "*/2 * * * *"
     },
     {
-      "path": "/api/cron/social-bridge",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/browser/process",
       "schedule": "*/10 * * * *"
     },
@@ -60,10 +56,6 @@
     {
       "path": "/api/apex/seo-sweep",
       "schedule": "30 14 * * *"
-    },
-    {
-      "path": "/api/apex/social-sweep",
-      "schedule": "0 15 * * *"
     }
   ]
 }
