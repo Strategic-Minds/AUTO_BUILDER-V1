@@ -74,7 +74,7 @@ export async function claimNextEpoxyQueueJob(input: {
   workerId: string;
   dryRun: boolean;
   allowLiveWrites: boolean;
-}): Promise<EpoxyWriteResult & { claimedJob?: Pick<EpoxyQueueJob, "jobKey" | "stateCode" | "priority"> }> {
+}): Promise<EpoxyWriteResult & { claimedJob?: Pick<EpoxyQueueJob, "jobKey" | "stateCode" | "priority" | "jobType" | "createdAt" | "attempts"> }> {
   if (input.dryRun) {
     return {
       attempted: false,
@@ -131,9 +131,12 @@ export async function claimNextEpoxyQueueJob(input: {
     rowCount: 1,
     tables: ["epoxy_queue"],
     claimedJob: {
-      jobKey: data.job_key,
-      stateCode: data.state_code as EpoxyQueueJob["stateCode"],
-      priority: data.priority
+      jobKey:     data.job_key,
+      stateCode:  data.state_code as EpoxyQueueJob["stateCode"],
+      priority:   data.priority ?? 100,
+      jobType:    (data.job_type ?? "discover_state_competitors") as EpoxyQueueJob["jobType"],
+      createdAt:  data.created_at ?? new Date().toISOString(),
+      attempts:   data.attempts ?? 0
     }
   };
 }
