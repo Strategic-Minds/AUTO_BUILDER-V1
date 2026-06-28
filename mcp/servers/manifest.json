@@ -1,9 +1,10 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.1",
   "name": "Strategic Minds Enterprise MCP",
   "description": "Full autonomous enterprise MCP kernel for Strategic Minds AI operations across all accounts, providers, and platforms.",
   "kernel": "auto_builder_mcp",
   "created": "2026-06-28",
+  "updated": "2026-06-28",
   "execution_modes": ["OBSERVE_ONLY","DRAFT_ONLY","APPROVAL_REQUIRED","FULL_AUTONOMOUS","SUPERADMIN_EXECUTE"],
   "default_mode": "APPROVAL_REQUIRED",
   "servers": [
@@ -12,7 +13,7 @@
       "name": "AUTO_BUILDER MCP",
       "role": "master_kernel",
       "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp",
-      "description": "Master kernel — all other MCP servers are registered here"
+      "description": "Master kernel — all other MCP servers registered here"
     },
     {
       "server_id": "strategic_minds_universal_ops_mcp",
@@ -36,6 +37,39 @@
       "description": "Unified entry point for GPT Agent Builder, Base44, Vercel agents, crons, webhooks"
     }
   ],
+  "xps_schema": {
+    "factory_projects": {
+      "status": "EXISTS",
+      "type": "BASE TABLE",
+      "columns": 23,
+      "description": "Canonical XPS project record linking client, queue, gates, payments, files, handoff, receipts",
+      "rls": true
+    },
+    "factory_whatsapp_messages": {
+      "status": "CREATED_2026-06-28",
+      "type": "BASE TABLE",
+      "columns": 22,
+      "description": "Inbound/outbound WhatsApp messages with parsed commands, gate_id, provider receipt, error state",
+      "rls": true,
+      "indexes": ["project_id","from_number","status"]
+    },
+    "factory_image_assets": {
+      "status": "EXISTS_AUDITED",
+      "type": "BASE TABLE",
+      "columns": 35,
+      "description": "All project images — source, generated, Drive-hosted. Includes license, permission, alt_text, crop_instructions, approval_status, usage_restrictions",
+      "rls": true
+    },
+    "factory_receipts": {
+      "status": "CREATED_2026-06-28",
+      "type": "BASE TABLE",
+      "columns": 16,
+      "description": "XPS-scoped receipt ledger. factory_receipts_full VIEW unions XPS-tagged mcp_receipts + factory_receipts for complete audit trail",
+      "rls": true,
+      "view": "factory_receipts_full",
+      "view_description": "UNION of mcp_receipts (xps-tagged) + factory_receipts — use for complete XPS receipt audit"
+    }
+  },
   "governance": {
     "every_run_receipt": true,
     "rollback_data_stored": true,
