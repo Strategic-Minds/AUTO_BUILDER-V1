@@ -1,0 +1,83 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Strategic Minds Enterprise MCP Gateway",
+    "version": "2.0.0",
+    "description": "Universal MCP gateway for GPT Agent Builder. Routes to all connected providers. Every action is receipted and audited."
+  },
+  "servers": [
+    { "url": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/gateway" }
+  ],
+  "paths": {
+    "/discover": {
+      "get": {
+        "operationId": "discoverTools",
+        "summary": "List all available MCP tools",
+        "parameters": [
+          {"name":"namespace","in":"query","schema":{"type":"string"}},
+          {"name":"provider","in":"query","schema":{"type":"string"}},
+          {"name":"enabled_only","in":"query","schema":{"type":"boolean"}}
+        ],
+        "responses": {"200":{"description":"Tool list with schemas and availability"}}
+      }
+    },
+    "/execute": {
+      "post": {
+        "operationId": "executeTool",
+        "summary": "Execute any registered MCP tool",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "required": ["tool_id"],
+            "properties": {
+              "tool_id": {"type":"string","description":"Fully qualified tool ID e.g. ops.drive.create_folder"},
+              "namespace_id": {"type":"string"},
+              "execution_mode": {"type":"string","enum":["OBSERVE_ONLY","DRAFT_ONLY","APPROVAL_REQUIRED","FULL_AUTONOMOUS","SUPERADMIN_EXECUTE"]},
+              "caller_agent": {"type":"string"},
+              "input": {"type":"object","additionalProperties":true}
+            }
+          }}}
+        },
+        "responses": {
+          "200": {"description":"Tool execution result with run_id, receipt_id, rollback_id"},
+          "202": {"description":"Queued for approval — returns approval_request_id"},
+          "403": {"description":"Blocked — execution_mode insufficient or approval required"}
+        }
+      }
+    },
+    "/status/{run_id}": {
+      "get": {
+        "operationId": "getRunStatus",
+        "summary": "Get status of a tool run",
+        "parameters": [{"name":"run_id","in":"path","required":true,"schema":{"type":"string"}}],
+        "responses": {"200":{"description":"Run status, receipt, output"}}
+      }
+    },
+    "/receipt/{receipt_id}": {
+      "get": {
+        "operationId": "getReceipt",
+        "summary": "Get MCP receipt",
+        "parameters": [{"name":"receipt_id","in":"path","required":true,"schema":{"type":"string"}}],
+        "responses": {"200":{"description":"Full receipt including rollback data"}}
+      }
+    },
+    "/webhook": {
+      "post": {
+        "operationId": "receiveWebhook",
+        "summary": "Receive and route webhook events from any provider",
+        "requestBody": {
+          "content": {"application/json": {"schema": {"type":"object","additionalProperties":true}}}
+        },
+        "responses": {"200":{"description":"Event queued"},"202":{"description":"Event routed"}}
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "gatewayHealth",
+        "summary": "MCP gateway health + provider status",
+        "responses": {"200":{"description":"Provider health map"}}
+      }
+    }
+  }
+}
