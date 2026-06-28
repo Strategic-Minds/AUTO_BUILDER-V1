@@ -152,7 +152,7 @@ for each row execute function public.set_epoxy_updated_at();
 create or replace function public.claim_epoxy_queue_job(p_worker_id text)
 returns public.epoxy_queue
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -274,17 +274,17 @@ values
   )
 on conflict (job_key) do nothing;
 
--- RLS for epoxy_receipts (added by APEX audit 2026-06-27)
-alter table public.epoxy_receipts enable row level security;
+-- RLS for epoxy_run_receipts (added by APEX audit 2026-06-27)
+alter table public.epoxy_run_receipts enable row level security;
 
--- No anon or authenticated reads — service_role only
+-- No anon or authenticated reads; service_role is the only granted writer.
 create policy "service_role_only_receipts"
-  on public.epoxy_receipts
+  on public.epoxy_run_receipts
   for all
   using (false)
   with check (false);
 
 -- Revoke direct access from anon/authenticated
-revoke all on public.epoxy_receipts from anon;
-revoke all on public.epoxy_receipts from authenticated;
-grant all on public.epoxy_receipts to service_role;
+revoke all on public.epoxy_run_receipts from anon;
+revoke all on public.epoxy_run_receipts from authenticated;
+grant all on public.epoxy_run_receipts to service_role;
