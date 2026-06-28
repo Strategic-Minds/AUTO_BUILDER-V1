@@ -1,8 +1,6 @@
 import type { StateCode } from "./states";
 import type { EpoxySheetSyncResult } from "./sheet-sync-adapter";
 
-export type { EpoxySheetSyncResult } from "./sheet-sync-adapter";
-
 export type EpoxyRunMode = "dry_run" | "observe_only" | "live_gated";
 
 export type EpoxyQueueStatus = "NEW" | "RUNNING" | "COMPLETE" | "FAILED" | "RETRY" | "DEADLETTER" | "DRY_RUN";
