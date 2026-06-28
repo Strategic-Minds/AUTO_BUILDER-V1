@@ -1,0 +1,208 @@
+{
+  "providers": [
+    {
+      "provider_id": "google_workspace",
+      "name": "Google Workspace",
+      "type": "saas",
+      "auth_type": "oauth2",
+      "api_base_url": "https://www.googleapis.com",
+      "status": "partial",
+      "namespaces": [
+        "ops.gmail",
+        "ops.drive",
+        "ops.docs",
+        "ops.sheets",
+        "ops.slides",
+        "ops.forms",
+        "ops.calendar",
+        "ops.tasks",
+        "ops.contacts"
+      ]
+    },
+    {
+      "provider_id": "google_cloud",
+      "name": "Google Cloud Platform",
+      "type": "cloud",
+      "auth_type": "service_account",
+      "api_base_url": "https://cloudresourcemanager.googleapis.com",
+      "status": "partial",
+      "namespaces": [
+        "ops.google_cloud"
+      ]
+    },
+    {
+      "provider_id": "github",
+      "name": "GitHub",
+      "type": "vcs",
+      "auth_type": "token",
+      "api_base_url": "https://api.github.com",
+      "status": "configured",
+      "namespaces": [
+        "ops.github"
+      ]
+    },
+    {
+      "provider_id": "vercel",
+      "name": "Vercel",
+      "type": "hosting",
+      "auth_type": "token",
+      "api_base_url": "https://api.vercel.com",
+      "status": "configured",
+      "namespaces": [
+        "ops.vercel",
+        "ops.vercel_agents",
+        "ops.cron"
+      ]
+    },
+    {
+      "provider_id": "supabase",
+      "name": "Supabase",
+      "type": "database",
+      "auth_type": "service_role",
+      "api_base_url": "https://prhppuuwcnmfdhwsagug.supabase.co",
+      "status": "configured",
+      "namespaces": [
+        "ops.supabase",
+        "ops.rag",
+        "ops.vector"
+      ]
+    },
+    {
+      "provider_id": "openai",
+      "name": "OpenAI",
+      "type": "ai",
+      "auth_type": "api_key",
+      "api_base_url": "https://api.openai.com/v1",
+      "status": "configured",
+      "namespaces": [
+        "ops.openai",
+        "ops.gpt_agents"
+      ]
+    },
+    {
+      "provider_id": "base44",
+      "name": "Base44",
+      "type": "platform",
+      "auth_type": "api_key",
+      "api_base_url": "https://api.base44.com",
+      "status": "partial",
+      "namespaces": [
+        "ops.base44"
+      ]
+    },
+    {
+      "provider_id": "shopify",
+      "name": "Shopify",
+      "type": "ecommerce",
+      "auth_type": "admin_token",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.shopify"
+      ]
+    },
+    {
+      "provider_id": "square",
+      "name": "Square",
+      "type": "payments",
+      "auth_type": "oauth2",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.square"
+      ]
+    },
+    {
+      "provider_id": "twilio",
+      "name": "Twilio",
+      "type": "comms",
+      "auth_type": "basic",
+      "status": "configured",
+      "namespaces": [
+        "ops.twilio",
+        "ops.whatsapp"
+      ]
+    },
+    {
+      "provider_id": "meta",
+      "name": "Meta (Facebook/Instagram/WhatsApp)",
+      "type": "social",
+      "auth_type": "oauth2",
+      "status": "blocked",
+      "namespaces": [
+        "ops.meta",
+        "ops.facebook",
+        "ops.instagram"
+      ]
+    },
+    {
+      "provider_id": "pinterest",
+      "name": "Pinterest",
+      "type": "social",
+      "auth_type": "oauth2",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.pinterest"
+      ]
+    },
+    {
+      "provider_id": "snapchat",
+      "name": "Snapchat",
+      "type": "social",
+      "auth_type": "oauth2",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.snapchat"
+      ]
+    },
+    {
+      "provider_id": "buffer",
+      "name": "Buffer",
+      "type": "social_scheduler",
+      "auth_type": "oauth2",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.buffer"
+      ]
+    },
+    {
+      "provider_id": "repurpose_io",
+      "name": "Repurpose.io",
+      "type": "content_distribution",
+      "auth_type": "api_key",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.repurpose_io"
+      ]
+    },
+    {
+      "provider_id": "heygen",
+      "name": "HeyGen",
+      "type": "video_ai",
+      "auth_type": "api_key",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.heygen"
+      ]
+    },
+    {
+      "provider_id": "n8n",
+      "name": "n8n",
+      "type": "automation",
+      "auth_type": "api_key",
+      "status": "unconfigured",
+      "namespaces": [
+        "ops.n8n"
+      ]
+    },
+    {
+      "provider_id": "browser",
+      "name": "Headless Browser (Playwright)",
+      "type": "automation",
+      "auth_type": "none",
+      "status": "available",
+      "namespaces": [
+        "ops.browser"
+      ]
+    }
+  ],
+  "total": 18
+}
