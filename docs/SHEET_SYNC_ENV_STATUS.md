@@ -1,0 +1,4 @@
+# Sheet Sync Env Status
+Updated: 2026-06-28
+GOOGLE_SHEET_ID_3: 1VYLJtW7yaLTWwufjcewJTfIcbTzTx7lDHtf1cJ_yT_E
+EPOXY_SHEET_SYNC_ENABLED: 1
