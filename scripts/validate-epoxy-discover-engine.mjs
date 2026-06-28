@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 
+const migrationPath = 'supabase/migrations/20260628003500_epoxy_discover_engine_phase1.sql';
+
 const requiredFiles = [
   'src/app/api/cron/epoxy-competitor-queue/route.ts',
   'src/app/api/preview/epoxy-competitor-queue-dry-run/route.ts',
@@ -10,7 +12,7 @@ const requiredFiles = [
   'src/lib/epoxy-discover-engine/sheet-sync-adapter.ts',
   'src/lib/epoxy-discover-engine/receipt-writer.ts',
   'src/lib/epoxy-discover-engine/worker.ts',
-  'supabase/migrations/0004_epoxy_discover_engine_draft.sql',
+  migrationPath,
   'docs/epoxy-discover-engine/IMPLEMENTATION_LANE.md'
 ];
 
@@ -66,7 +68,7 @@ for (const marker of ['EPOXY_SHEET_SYNC_ENABLED', 'EPOXY_SHEET_SYNC_WEBHOOK_URL'
 const receiptWriter = readFileSync('src/lib/epoxy-discover-engine/receipt-writer.ts', 'utf8');
 assert(receiptWriter.includes('epoxy_run_receipts'), 'Receipt writer must target epoxy_run_receipts.');
 
-const migration = readFileSync('supabase/migrations/0004_epoxy_discover_engine_draft.sql', 'utf8');
+const migration = readFileSync(migrationPath, 'utf8');
 for (const table of [
   'epoxy_states',
   'epoxy_queue',
@@ -84,6 +86,7 @@ for (const table of [
 for (const marker of [
   'claim_epoxy_queue_job',
   'for update skip locked',
+  'security invoker',
   'revoke all on table',
   'from anon, authenticated, service_role',
   'grant select on table',
@@ -180,4 +183,3 @@ assert(
 console.log("  ✅ completeEpoxyQueueJob scoped to locked_by=workerId (safety guard)");
 
 console.log("\n✅ ALL CLAIMED-JOB-KEY PRESERVATION CHECKS PASSED");
-

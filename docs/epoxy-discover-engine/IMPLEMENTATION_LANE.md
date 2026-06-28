@@ -21,7 +21,7 @@ Required live-write env gates:
 - `EPOXY_DISCOVER_RELEASE_APPROVED=1`
 - `EPOXY_DISCOVER_PERSISTENCE_ENABLED=1`
 - `EPOXY_DISCOVER_DRY_RUN_DEFAULT=0`
-- `EPOXY_SHEET_SYNC_ENABLED=1`
+- `EPOXY_SHEET_SYNC_ENABLED=1` for live Google Sheet writes after endpoint validation
 - `EPOXY_SHEET_SYNC_WEBHOOK_URL`
 - `SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`, or `SUPABASE_SECRET_KEY`
@@ -63,7 +63,7 @@ Expected behavior:
 
 Before release:
 
-- Review and approve `supabase/migrations/0004_epoxy_discover_engine_draft.sql`.
+- Review and approve `supabase/migrations/20260628003500_epoxy_discover_engine_phase1.sql`.
 - Apply the migration only through the approved Supabase release path.
 - Confirm explicit grants and RLS policies with Supabase advisors.
 - Configure Vercel env vars.
@@ -71,3 +71,9 @@ Before release:
 - Run the dry-run endpoint in preview.
 - Capture receipt evidence in the Drive receipts folder.
 - Approve production deployment separately.
+
+## Phase 1 Launch Shape
+
+- Supabase persistence can be launched once the migration and production deploy pass.
+- Live Google Sheet sync should remain disabled until the `/api/epoxy/sheet-sync` endpoint is validated with the production secret.
+- Live discovery remains disabled until external discovery adapters are implemented and approved.
