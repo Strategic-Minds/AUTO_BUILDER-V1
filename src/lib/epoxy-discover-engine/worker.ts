@@ -2,7 +2,7 @@ import { claimNextEpoxyQueueJob, completeEpoxyQueueJob, failEpoxyQueueJob, getEp
 import { buildDryRunCandidates, buildSheetRows, buildStateQueueJob } from "./state-queue";
 import { syncEpoxySheetRows } from "./sheet-sync-adapter";
 import { writeEpoxyReceipt } from "./receipt-writer";
-import type { EpoxyGateStatus, EpoxyQueueJob, EpoxyReceipt, EpoxyRunMode, EpoxyWorkerInput, EpoxyWorkerResult } from "./types";
+import type { EpoxyGateStatus, EpoxyQueueJob, EpoxyReceipt, EpoxyRunMode, EpoxyWorkerInput, EpoxyWorkerResult, EpoxyWriteResult } from "./types";
 
 const ROUTE = "/api/cron/epoxy-competitor-queue" as const;
 
@@ -28,16 +28,26 @@ function buildGateStatus(allowLiveWrites: boolean): EpoxyGateStatus {
   };
 }
 
+function buildFailedWriteResult(reason: string, tables?: string[]): EpoxyWriteResult {
+  return {
+    attempted: true,
+    ok: false,
+    status: "failed",
+    reason,
+    tables,
+    errors: [reason]
+  };
+}
+
 /**
  * Resolve the queue job to execute.
  *
- * PATCH (launch-blocking):
- * When a live Supabase queue row is claimed, preserve its jobKey exactly —
- * do NOT generate a new key. This ensures the claimed epoxy_queue row can
+ * When a live Supabase queue row is claimed, preserve its jobKey exactly.
+ * Do not generate a new key. This ensures the claimed epoxy_queue row can
  * be transitioned to COMPLETE/FAILED/RETRY on the same primary key.
  *
  * Dry-run or unclaimed paths continue to generate a synthetic key via
- * buildStateQueueJob for local receipt/sheet-sync purposes only.
+ * buildStateQueueJob for local receipt and sheet-sync purposes only.
  */
 function resolveQueueJob(
   queueClaim: Awaited<ReturnType<typeof claimNextEpoxyQueueJob>>,
@@ -46,24 +56,23 @@ function resolveQueueJob(
 ): { queueJob: EpoxyQueueJob; isLiveClaimedRow: boolean } {
   const claimed = queueClaim.claimedJob;
 
-  // Live claimed row: preserve the existing job key from the DB row
   if (claimed && queueClaim.ok && !input.dryRun) {
     return {
       queueJob: {
-        jobKey: claimed.jobKey,           // ← preserve — do NOT regenerate
+        jobKey: claimed.jobKey,
         jobType: claimed.jobType ?? "discover_state_competitors",
         stateCode: claimed.stateCode,
         status: "RUNNING",
         priority: claimed.priority ?? 100,
         targetCompetitorCount: 50,
         createdAt: claimed.createdAt ?? timestamp,
-        source: input.source
+        source: input.source,
+        attempts: claimed.attempts
       },
       isLiveClaimedRow: true
     };
   }
 
-  // Dry-run or no live claim: generate a synthetic job for local use
   const requestedState = claimed?.stateCode ?? input.state;
   return {
     queueJob: buildStateQueueJob({
@@ -81,14 +90,12 @@ export async function runEpoxyCompetitorQueue(input: EpoxyWorkerInput): Promise<
   const config = getEpoxySupabaseConfig();
   const allowLiveWrites = !input.dryRun && liveWritesAllowed(config);
 
-  // Step 1: Claim next queue job (L0 — read-only claim attempt)
   const queueClaim = await claimNextEpoxyQueueJob({
     workerId: input.requestId ?? `epoxy-worker-${timestamp}`,
     dryRun: input.dryRun,
     allowLiveWrites
   });
 
-  // Step 2: Resolve job — PATCH: preserve claimedJob.jobKey for live rows
   const { queueJob, isLiveClaimedRow } = resolveQueueJob(queueClaim, input, timestamp);
 
   const receiptId = buildReceiptId(timestamp, queueJob.stateCode, input.requestId);
@@ -97,11 +104,9 @@ export async function runEpoxyCompetitorQueue(input: EpoxyWorkerInput): Promise<
   let sheetSync: Awaited<ReturnType<typeof syncEpoxySheetRows>>;
 
   try {
-    // Step 3: Discover candidates
     const candidates = buildDryRunCandidates(queueJob.stateCode, input.maxCandidates ?? 10);
     const sheetRows = buildSheetRows({ queueJob, candidates, timestamp });
 
-    // Step 4: Persist snapshot
     persistence = await persistEpoxySnapshot({
       dryRun: input.dryRun,
       allowLiveWrites,
@@ -110,7 +115,6 @@ export async function runEpoxyCompetitorQueue(input: EpoxyWorkerInput): Promise<
       timestamp
     });
 
-    // Step 5: Sheet sync
     sheetSync = await syncEpoxySheetRows({
       dryRun: input.dryRun,
       allowLiveWrites,
@@ -118,7 +122,6 @@ export async function runEpoxyCompetitorQueue(input: EpoxyWorkerInput): Promise<
       rows: sheetRows
     });
 
-    // Step 6: PATCH — Transition claimed live row to COMPLETE
     if (isLiveClaimedRow && allowLiveWrites) {
       await completeEpoxyQueueJob({
         jobKey: queueJob.jobKey,
@@ -171,9 +174,7 @@ export async function runEpoxyCompetitorQueue(input: EpoxyWorkerInput): Promise<
         ? "Live gated lane is enabled. Continue processing the claimed state queue with external discovery adapters."
         : "Release gate is closed. Review dry-run evidence, migration draft, and validation before enabling production persistence."
     };
-
   } catch (err: unknown) {
-    // Step 6 (error path): PATCH — Transition claimed live row to FAILED or RETRY
     const errMsg = err instanceof Error ? err.message : String(err);
     const attempts = queueClaim.claimedJob?.attempts ?? 0;
 
@@ -181,13 +182,20 @@ export async function runEpoxyCompetitorQueue(input: EpoxyWorkerInput): Promise<
       await failEpoxyQueueJob({
         jobKey: queueJob.jobKey,
         lastError: errMsg,
-        retry: attempts < 3   // retry up to 3 times, then FAILED
+        retry: attempts < 3
       });
     }
 
-    // Return error result with safe defaults
     const gates = buildGateStatus(allowLiveWrites);
     const mode = determineMode(input.dryRun, allowLiveWrites);
+    const failedPersistence = buildFailedWriteResult(errMsg, ["epoxy_states", "epoxy_queue", "epoxy_competitors"]);
+    const failedSheetSync: EpoxyReceipt["sheetSync"] = {
+      ok: false,
+      mode,
+      synced: false,
+      error: errMsg
+    };
+
     const errorReceipt: EpoxyReceipt = {
       receiptId,
       generatedAt: timestamp,
@@ -200,15 +208,15 @@ export async function runEpoxyCompetitorQueue(input: EpoxyWorkerInput): Promise<
       candidates: [],
       gates,
       queueClaim,
-      persistence: { ok: false, mode, persisted: false, error: errMsg },
-      sheetSync: { ok: false, mode, synced: false, error: errMsg }
+      persistence: failedPersistence,
+      sheetSync: failedSheetSync
     };
 
     const receiptWrite = await writeEpoxyReceipt({
       receipt: errorReceipt,
       dryRun: input.dryRun,
       allowLiveWrites
-    }).catch(() => ({ ok: false, mode, written: false }));
+    }).catch(() => buildFailedWriteResult("Failed to write epoxy error receipt.", ["epoxy_run_receipts"]));
 
     return {
       ok: false,
