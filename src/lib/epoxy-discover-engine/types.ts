@@ -1,4 +1,7 @@
 import type { StateCode } from "./states";
+import type { EpoxySheetSyncResult } from "./sheet-sync-adapter";
+
+export type { EpoxySheetSyncResult } from "./sheet-sync-adapter";
 
 export type EpoxyRunMode = "dry_run" | "observe_only" | "live_gated";
 
@@ -67,11 +70,6 @@ export type EpoxySheetRow = {
   values: Record<string, string | number | boolean | null>;
 };
 
-export type EpoxySheetSyncResult = EpoxyWriteResult & {
-  tabs?: string[];
-  webhookStatus?: number;
-};
-
 export type EpoxyReceipt = {
   receiptId: string;
   generatedAt: string;
@@ -106,14 +104,10 @@ export type EpoxyWorkerResult = {
   nextInstruction: string;
 };
 
-// ─── PATCH: Queue claim result type ──────────────────────────────────────────
-// Defines the shape returned by claimNextEpoxyQueueJob so worker.ts can
-// access claimedJob.jobKey, .jobType, .stateCode, .priority, .createdAt, .attempts
-
 export type EpoxyClaimedJob = {
   jobKey: string;
-  jobType: string;
-  stateCode: string;
+  jobType: EpoxyQueueJob["jobType"];
+  stateCode: EpoxyQueueJob["stateCode"];
   priority: number;
   createdAt: string;
   attempts: number;
