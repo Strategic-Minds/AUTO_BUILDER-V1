@@ -16,6 +16,8 @@ type ClaimRow = {
   state_code: string;
   status: string;
   priority: number;
+  attempts: number | null;
+  created_at: string | null;
   payload_json: Record<string, unknown> | null;
 };
 
@@ -131,13 +133,12 @@ export async function claimNextEpoxyQueueJob(input: {
     rowCount: 1,
     tables: ["epoxy_queue"],
     claimedJob: {
-      jobKey:    data.job_key,
+      jobKey: data.job_key,
       stateCode: data.state_code as EpoxyQueueJob["stateCode"],
-      priority:  data.priority ?? 100,
-      // Fields not returned by claim RPC — use safe defaults
-      jobType:   "discover_state_competitors" as EpoxyQueueJob["jobType"],
-      createdAt: new Date().toISOString(),
-      attempts:  0
+      priority: data.priority ?? 100,
+      jobType: data.job_type as EpoxyQueueJob["jobType"],
+      createdAt: data.created_at ?? new Date().toISOString(),
+      attempts: data.attempts ?? 0
     }
   };
 }
@@ -264,9 +265,9 @@ export async function persistEpoxySnapshot(input: {
   }
 }
 
-// ─── PATCH: Queue row completion functions ────────────────────────────────────
+// Queue row completion functions.
 // Required by worker.ts to transition claimed rows to COMPLETE/FAILED/RETRY.
-// These are L4 operations (live DB writes) — only called when allowLiveWrites=true.
+// These are L4 operations (live DB writes) and only run when allowLiveWrites=true.
 
 export async function completeEpoxyQueueJob(input: {
   jobKey: string;
@@ -274,7 +275,7 @@ export async function completeEpoxyQueueJob(input: {
 }): Promise<{ ok: boolean; error?: string }> {
   const config = getEpoxySupabaseConfig();
   const client = createEpoxySupabaseClient(config);
-  if (!client) return { ok: false, error: "No Supabase client — SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing" };
+  if (!client) return { ok: false, error: "No Supabase client - SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing" };
 
   const now = new Date().toISOString();
   const { error } = await client
@@ -287,7 +288,7 @@ export async function completeEpoxyQueueJob(input: {
       updated_at: now
     })
     .eq("job_key", input.jobKey)
-    .eq("locked_by", input.workerId); // safety: only update the row WE claimed
+    .eq("locked_by", input.workerId);
 
   if (error) {
     console.error("[epoxy-supabase] completeEpoxyQueueJob error:", error.message);
@@ -315,9 +316,8 @@ export async function failEpoxyQueueJob(input: {
       status: newStatus,
       locked_at: null,
       locked_by: null,
-      last_error: input.lastError.slice(0, 1000), // cap error length
-      updated_at: now,
-      // attempts incremented by DB trigger if configured
+      last_error: input.lastError.slice(0, 1000),
+      updated_at: now
     })
     .eq("job_key", input.jobKey);
 
