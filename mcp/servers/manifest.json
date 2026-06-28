@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "name": "Strategic Minds Enterprise MCP",
+  "description": "Full autonomous enterprise MCP kernel for Strategic Minds AI operations across all accounts, providers, and platforms.",
+  "kernel": "auto_builder_mcp",
+  "created": "2026-06-28",
+  "execution_modes": ["OBSERVE_ONLY","DRAFT_ONLY","APPROVAL_REQUIRED","FULL_AUTONOMOUS","SUPERADMIN_EXECUTE"],
+  "default_mode": "APPROVAL_REQUIRED",
+  "servers": [
+    {
+      "server_id": "auto_builder_mcp",
+      "name": "AUTO_BUILDER MCP",
+      "role": "master_kernel",
+      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp",
+      "description": "Master kernel — all other MCP servers are registered here"
+    },
+    {
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "Strategic Minds Universal Ops MCP",
+      "role": "enterprise_connector_layer",
+      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/universal-ops",
+      "description": "Full read/write/execute connector for all connected accounts and APIs"
+    },
+    {
+      "server_id": "xps_website_factory_mcp",
+      "name": "XPS Website Factory MCP",
+      "role": "business_workflow_layer",
+      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/xps-factory",
+      "description": "XPS-specific business workflows: intake, build, QA, deploy, handoff"
+    },
+    {
+      "server_id": "mcp_gateway_router",
+      "name": "MCP Gateway Router",
+      "role": "unified_gateway",
+      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/gateway",
+      "description": "Unified entry point for GPT Agent Builder, Base44, Vercel agents, crons, webhooks"
+    }
+  ],
+  "governance": {
+    "every_run_receipt": true,
+    "rollback_data_stored": true,
+    "audit_log": true,
+    "production_gate_required": true,
+    "max_retries": 5,
+    "deadletter_after_max": true
+  }
+}
