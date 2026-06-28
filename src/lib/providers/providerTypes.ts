@@ -1,4 +1,4 @@
-export type ProviderId = 'google_drive' | 'google_calendar' | 'klaviyo' | 'metricool';
+export type ProviderId = 'google_drive' | 'google_calendar' | 'klaviyo' | 'metricool' | 'n8n' | 'workflow';
 
 export type ProviderRiskClass =
   | 'safe_read'
