@@ -1,0 +1,476 @@
+{
+  "namespaces": [
+    {
+      "namespace_id": "ops.google_workspace",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.google_workspace",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.google_cloud",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.google_cloud",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.gmail",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.gmail",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.drive",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.drive",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.docs",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.docs",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.sheets",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.sheets",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.slides",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.slides",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.forms",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.forms",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.calendar",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.calendar",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.tasks",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.tasks",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.contacts",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.contacts",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.github",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.github",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.vercel",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.vercel",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.vercel_agents",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.vercel_agents",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.supabase",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.supabase",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.openai",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.openai",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.gpt_agents",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.gpt_agents",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.base44",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.base44",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.shopify",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.shopify",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.square",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.square",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.twilio",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.twilio",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.whatsapp",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.whatsapp",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.meta",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.meta",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.facebook",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.facebook",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.instagram",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.instagram",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.snapchat",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.snapchat",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.pinterest",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.pinterest",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.buffer",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.buffer",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.repurpose_io",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.repurpose_io",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.heygen",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.heygen",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.n8n",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.n8n",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.browser",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.browser",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.files",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.files",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.zip",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.zip",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.images",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.images",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.rag",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.rag",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.vector",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.vector",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.cron",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.cron",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.queue",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.queue",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.webhooks",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.webhooks",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.secrets",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.secrets",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.env",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.env",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.audit",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.audit",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.receipts",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.receipts",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.security",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.security",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "ops.rollback",
+      "server_id": "strategic_minds_universal_ops_mcp",
+      "name": "ops.rollback",
+      "category": "universal_ops",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.project",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.project",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.intake",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.intake",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.queue",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.queue",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.gates",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.gates",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.brand_pack",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.brand_pack",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.website_pack",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.website_pack",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.templates",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.templates",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.assets",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.assets",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.competitor_intel",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.competitor_intel",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.qa",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.qa",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.auto_fix",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.auto_fix",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.auto_heal",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.auto_heal",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.auto_harden",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.auto_harden",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.seo",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.seo",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.blog",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.blog",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.social",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.social",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.payments",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.payments",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.whatsapp",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.whatsapp",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.calendar",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.calendar",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.handoff",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.handoff",
+      "category": "xps_factory",
+      "enabled": true
+    },
+    {
+      "namespace_id": "xps.receipts",
+      "server_id": "xps_website_factory_mcp",
+      "name": "xps.receipts",
+      "category": "xps_factory",
+      "enabled": true
+    }
+  ],
+  "total": 67,
+  "ops_count": 46,
+  "xps_count": 21
+}
