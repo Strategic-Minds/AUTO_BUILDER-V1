@@ -329,6 +329,26 @@ async function callSheets(cap: string, input: Record<string, unknown>) {
 }
 
 async function callOpenAI(cap: string, input: Record<string, unknown>) {
+  // Try Groq first (no IP restrictions, 10x faster, OpenAI-compatible)
+  const groqKey = process.env.GROQ_API_KEY ?? "";
+  if (groqKey && (cap === "chat" || cap === "complete")) {
+    const groqModel = (input.model as string)?.replace("gpt-4o", "llama-3.3-70b-versatile")
+                                               .replace("gpt-4",  "llama-3.3-70b-versatile")
+                                               .replace("gpt-3.5","llama3-8b-8192") ?? "llama-3.3-70b-versatile";
+    try {
+      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: groqModel, messages: input.messages ?? [], temperature: (input.temperature as number) ?? 0.7, max_tokens: (input.max_tokens as number) ?? 2048 }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        return { ...d, _provider: "groq", _model: groqModel };
+      }
+    } catch { /* fall through to OpenAI */ }
+  }
+
+  // Fallback: OpenAI direct
   const key = process.env.OPENAI_API_KEY ?? "";
   if (!key) return { blocked: true, reason: "OPENAI_API_KEY not configured" };
   const h = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
