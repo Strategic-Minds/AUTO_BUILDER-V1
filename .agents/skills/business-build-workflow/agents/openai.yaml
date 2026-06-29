@@ -1,0 +1,3 @@
+display_name: Business Build Workflow
+short_description: Standardizes every business build from questions through discovery, brand pack, website pack, build, QA, hardening, and deployment handoff.
+default_prompt: Bootstrap this business build using the standard gated workflow. Ask only blocking questions, run discovery, create a brand pack and website pack, wait for my selected website option, then build, test, harden, and prepare deployment.
