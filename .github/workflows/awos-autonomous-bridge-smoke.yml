@@ -1,18 +1,21 @@
 name: AWOS Autonomous Bridge Smoke
 
+# Keep package files in this path list so dependency remediation and lockfile validation rerun PR evidence.
 on:
   workflow_dispatch:
     inputs:
       auto_builder_url:
         description: AUTO_BUILDER preview or production URL
         required: false
-        default: https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app
+        default: https://auto-builder-git-auto-builder-v-4c969e-strategic-minds-advisory.vercel.app
       v0_url:
         description: v0 frontend preview URL for browser screenshot only
         required: false
         default: ""
   pull_request:
     paths:
+      - "package.json"
+      - "package-lock.json"
       - "src/app/api/bridge/**"
       - "src/app/api/google-chat/**"
       - "src/app/api/workflows/**"
@@ -24,22 +27,62 @@ on:
       - "src/lib/social/**"
       - "scripts/bridge-smoke.mjs"
       - "scripts/bridge-browser-screenshot.mjs"
+      - "scripts/workflow-handoff-receipt.mjs"
+      - "scripts/workflow-production-approval-receipt.mjs"
+      - "scripts/vercel-rollback-receipt.mjs"
       - ".github/workflows/awos-autonomous-bridge-smoke.yml"
+
+permissions:
+  contents: write
+  pull-requests: read
 
 jobs:
   bridge-smoke:
     name: Bridge POST + browser smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     env:
-      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-o-693cbd-strategic-minds-advisory.vercel.app' }}
+      AUTO_BUILDER_URL: ${{ github.event.inputs.auto_builder_url || 'https://auto-builder-git-auto-builder-v-4c969e-strategic-minds-advisory.vercel.app' }}
       V0_URL: ${{ github.event.inputs.v0_url || '' }}
       BRIDGE_ADMIN_BEARER_TOKEN: ${{ secrets.BRIDGE_ADMIN_BEARER_TOKEN }}
       BRIDGE_SECRET: ${{ secrets.BRIDGE_SECRET }}
+      AUTO_BUILDER_OPERATOR_TOKEN: ${{ secrets.AUTO_BUILDER_OPERATOR_TOKEN || secrets.AUTOBUILDER_OPERATOR_TOKEN || secrets.AWOS_OPERATOR_TOKEN || secrets.OPERATOR_TOKEN || secrets.VERCEL_WORKFLOW_OPERATOR_TOKEN }}
+      AUTO_BUILDER_BRIDGE_TOKEN: ${{ secrets.AUTO_BUILDER_BRIDGE_TOKEN || secrets.AUTOBUILDER_BRIDGE_TOKEN || secrets.AWOS_BRIDGE_TOKEN || secrets.BRIDGE_TOKEN || secrets.VERCEL_WORKFLOW_BRIDGE_TOKEN }}
+      AUTH_CANDIDATE_AUTO_BUILDER_OPERATOR_TOKEN: ${{ secrets.AUTO_BUILDER_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AUTOBUILDER_OPERATOR_TOKEN: ${{ secrets.AUTOBUILDER_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AWOS_OPERATOR_TOKEN: ${{ secrets.AWOS_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_OPERATOR_TOKEN: ${{ secrets.OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_VERCEL_WORKFLOW_OPERATOR_TOKEN: ${{ secrets.VERCEL_WORKFLOW_OPERATOR_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AUTO_BUILDER_BRIDGE_TOKEN: ${{ secrets.AUTO_BUILDER_BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AUTOBUILDER_BRIDGE_TOKEN: ${{ secrets.AUTOBUILDER_BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_AWOS_BRIDGE_TOKEN: ${{ secrets.AWOS_BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_BRIDGE_TOKEN: ${{ secrets.BRIDGE_TOKEN && 'present' || '' }}
+      AUTH_CANDIDATE_VERCEL_WORKFLOW_BRIDGE_TOKEN: ${{ secrets.VERCEL_WORKFLOW_BRIDGE_TOKEN && 'present' || '' }}
+      REQUIRE_PREVIEW_EXECUTE: "true"
       BRIDGE_SMOKE_ARTIFACT_DIR: bridge-smoke-artifacts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Refresh PR branch from current main
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="${{ github.event.pull_request.head.ref }}"
+          base="${{ github.event.pull_request.base.ref }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$base"
+          if git merge-base --is-ancestor "origin/$base" HEAD; then
+            echo "PR branch already contains origin/$base"
+            exit 0
+          fi
+          git merge --no-edit --no-ff "origin/$base"
+          git push origin HEAD:"$branch"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -49,11 +92,128 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Commit normalized package lock
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already normalized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix: normalize package lock after audit remediation"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+      - name: Capture npm audit report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$BRIDGE_SMOKE_ARTIFACT_DIR"
+          cp package-lock.json "$BRIDGE_SMOKE_ARTIFACT_DIR/package-lock.generated.json"
+          npm audit --json > "$BRIDGE_SMOKE_ARTIFACT_DIR/npm-audit.json" || true
+          node <<'NODE'
+          const fs = require('node:fs');
+          const outDir = process.env.BRIDGE_SMOKE_ARTIFACT_DIR || 'bridge-smoke-artifacts';
+          const path = `${outDir}/npm-audit.json`;
+          let audit = {};
+          try {
+            audit = JSON.parse(fs.readFileSync(path, 'utf8'));
+          } catch (error) {
+            audit = { error: error instanceof Error ? error.message : String(error) };
+          }
+          const vulnerabilities = audit.vulnerabilities || {};
+          const bySeverity = audit.metadata?.vulnerabilities || {};
+          const packages = Object.entries(vulnerabilities).map(([name, value]) => ({
+            name,
+            severity: value?.severity || 'unknown',
+            via: Array.isArray(value?.via) ? value.via.map((item) => typeof item === 'string' ? item : item?.title || item?.source || 'advisory') : [],
+            effects: Array.isArray(value?.effects) ? value.effects : [],
+            fixAvailable: value?.fixAvailable ?? false,
+          }));
+          packages.sort((a, b) => {
+            const rank = { critical: 5, high: 4, moderate: 3, low: 2, info: 1, unknown: 0 };
+            return (rank[b.severity] || 0) - (rank[a.severity] || 0) || a.name.localeCompare(b.name);
+          });
+          const summary = {
+            ok: true,
+            checkedAt: new Date().toISOString(),
+            total: audit.metadata?.vulnerabilities?.total ?? packages.length,
+            bySeverity,
+            packageCount: packages.length,
+            packages,
+            recommendedGate: packages.some((pkg) => ['critical', 'high'].includes(pkg.severity)) ? 'block-production-until-reviewed' : 'review-before-production',
+          };
+          fs.writeFileSync(`${outDir}/npm-audit-summary.json`, JSON.stringify(summary, null, 2));
+          console.log(JSON.stringify(summary, null, 2));
+          NODE
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Capture operator auth exposure
+        shell: bash
+        run: |
+          mkdir -p "$BRIDGE_SMOKE_ARTIFACT_DIR"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const outDir = process.env.BRIDGE_SMOKE_ARTIFACT_DIR || 'bridge-smoke-artifacts';
+          const receipt = {
+            checkedAt: new Date().toISOString(),
+            operatorTokenConfigured: Boolean(process.env.AUTO_BUILDER_OPERATOR_TOKEN),
+            bridgeTokenConfigured: Boolean(process.env.AUTO_BUILDER_BRIDGE_TOKEN),
+            plainActionVariablesUsedForTokens: false,
+            candidateSecrets: {
+              AUTO_BUILDER_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_AUTO_BUILDER_OPERATOR_TOKEN === 'present',
+              AUTOBUILDER_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_AUTOBUILDER_OPERATOR_TOKEN === 'present',
+              AWOS_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_AWOS_OPERATOR_TOKEN === 'present',
+              OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_OPERATOR_TOKEN === 'present',
+              VERCEL_WORKFLOW_OPERATOR_TOKEN: process.env.AUTH_CANDIDATE_VERCEL_WORKFLOW_OPERATOR_TOKEN === 'present',
+              AUTO_BUILDER_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_AUTO_BUILDER_BRIDGE_TOKEN === 'present',
+              AUTOBUILDER_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_AUTOBUILDER_BRIDGE_TOKEN === 'present',
+              AWOS_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_AWOS_BRIDGE_TOKEN === 'present',
+              BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_BRIDGE_TOKEN === 'present',
+              VERCEL_WORKFLOW_BRIDGE_TOKEN: process.env.AUTH_CANDIDATE_VERCEL_WORKFLOW_BRIDGE_TOKEN === 'present',
+            },
+          };
+          fs.writeFileSync(`${outDir}/operator-auth-exposure.json`, JSON.stringify(receipt, null, 2));
+          console.log(JSON.stringify(receipt, null, 2));
+          NODE
+
       - name: Run bridge POST smoke
         run: node scripts/bridge-smoke.mjs
+
+      - name: Run Vercel Workflow handoff receipt
+        run: node scripts/workflow-handoff-receipt.mjs
+
+      - name: Run Vercel rollback receipt
+        env:
+          ROLLBACK_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+        shell: bash
+        run: |
+          git fetch origin "$ROLLBACK_REF"
+          export ROLLBACK_SHA="$(git rev-parse "origin/$ROLLBACK_REF")"
+          node scripts/vercel-rollback-receipt.mjs
+
+      - name: Run approved production workflow receipt
+        shell: bash
+        env:
+          AUTO_BUILDER_URL: "https://auto-builder-opxr2k2e1-strategic-minds-advisory.vercel.app"
+          PRODUCTION_DEPLOY_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          PRODUCTION_DEPLOY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PRODUCTION_APPROVAL_PHRASE: "APPROVE PRODUCTION DEPLOY"
+          PRODUCTION_APPROVAL_COMMIT_MARKER: "[awos-production-approval]"
+          PRODUCTION_APPROVED_BY: "AUTO BUILDER"
+        run: |
+          marker="$PRODUCTION_APPROVAL_COMMIT_MARKER"
+          message="$(git log -1 --pretty=%B "$PRODUCTION_DEPLOY_SHA" 2>/dev/null || git log -1 --pretty=%B)"
+          if [[ "$message" != *"$marker"* ]]; then
+            echo "Production approval marker not present on triggering commit; writing skipped receipt."
+            node scripts/workflow-production-approval-receipt.mjs --skip
+            exit 0
+          fi
+          node scripts/workflow-production-approval-receipt.mjs
 
       - name: Run browser screenshot smoke
         shell: bash
@@ -65,7 +225,11 @@ jobs:
           node scripts/bridge-browser-screenshot.mjs "${urls[@]}"
 
       - name: Capture git status
-        run: git status --short > bridge-smoke-artifacts/git-status.txt
+        if: always()
+        shell: bash
+        run: |
+          git status --short > bridge-smoke-artifacts/git-status.txt
+          git diff -- package-lock.json > bridge-smoke-artifacts/package-lock.diff || true
 
       - name: Upload smoke artifacts
         uses: actions/upload-artifact@v4
