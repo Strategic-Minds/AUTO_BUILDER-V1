@@ -30,3 +30,26 @@ Approval required: production, secrets, payments, live publishing, customer mess
 
 ## Required final sections
 VERIFIED, INFERRED, COULD NOT VERIFY, BLOCKERS, WORKAROUNDS, NEXT ACTIONS.
+# AGENTS.md Addendum: Swarm Intelligence Layer
+
+## Mandatory routing
+For every multi-agent, swarm, memory, intelligence, website factory, Auto Social, lead generation, or system replication request, invoke `auto-builder-orchestrator` first, then route to specialist skills.
+
+## Swarm hierarchy
+- Base44 Super Agent Apex: external orchestrator and UI operating surface.
+- AUTO_BUILDER: governed validator brain and source-truth controller.
+- GPT Business Workspace Agents: role-specific reasoning and document/system operators.
+- Codex Agents: repo-scoped implementation, test, audit, and repair operators.
+- Vercel Workflow/Cron: five-minute heartbeat and queue runner.
+- Supabase: persistent state, memory, queues, receipts, approvals, embeddings, agent registry.
+- Google Shared Drive: human-readable source truth, deliverables, intelligence library, and client folders.
+
+## Default execution mode
+Read broadly. Draft in branch/sandbox. Validate. Write receipts. Stop at approval gates.
+
+## Shared intelligence rule
+All intelligence must be classified into one of two primary libraries:
+1. Universal Business Intelligence
+2. Epoxy / Decorative Concrete / Polished Concrete Intelligence
+
+Every ingested artifact must include source, timestamp, category, confidence, owner, destination folder, Supabase record ID, and retrieval tags.
