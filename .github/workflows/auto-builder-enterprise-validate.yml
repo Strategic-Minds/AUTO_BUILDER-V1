@@ -1,0 +1,18 @@
+name: AUTO_BUILDER Enterprise Validate
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate skill files exist
+        run: |
+          test -d .agents/skills
+          find .agents/skills -name SKILL.md | wc -l
+      - name: Validate required docs
+        run: |
+          test -f 01_Builder_Docs/ENTERPRISE_COMPLETION_MANIFEST.md
+          test -f 06_Governance/AGENTS_ENTERPRISE_APPEND.md
+          test -f supabase/migrations/20260629002000_enterprise_completion_core.sql

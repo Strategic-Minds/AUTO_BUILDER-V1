@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/cron/auto-builder", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/enterprise-kernel", "schedule": "*/5 * * * *" }
+  ]
+}
