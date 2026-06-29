@@ -1,0 +1,2 @@
+batch_id,run_date,campaign,asset_id,variant_number,finish_category,prompt_text,negative_prompt,platform,aspect_ratio,source_image_id,status,notes
+BATCH-0001,2026-06-27,Launch Sample,CON-0001,1,full_flake_epoxy,"Create an ultra-realistic full flake epoxy garage floor in a clean two-car garage with neutral gray flake blend, satin-gloss topcoat, realistic stem walls, baseboards, joints, and garage door daylight.","CGI; fake text; logos; impossible reflections; marble veins; oversized flakes; warped room",Instagram Feed,4:5,SRC-0000,ready_for_generation,Seed row

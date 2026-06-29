@@ -1,0 +1,47 @@
+{
+  "valid_finish_categories": [
+    "full_flake_epoxy",
+    "metallic_epoxy",
+    "quartz_epoxy",
+    "solid_color_epoxy",
+    "stained_concrete",
+    "natural_polished_concrete",
+    "decorative_overlay",
+    "microtopping",
+    "concrete_countertop"
+  ],
+  "valid_statuses": [
+    "draft",
+    "ready_for_generation",
+    "review",
+    "approved",
+    "revise",
+    "rejected",
+    "published",
+    "archived"
+  ],
+  "source_image_rights_statuses": [
+    "owned",
+    "customer_approved",
+    "licensed",
+    "manufacturer_approved",
+    "style_reference_only",
+    "unknown_do_not_use"
+  ],
+  "required_image_manifest_fields": [
+    "asset_id",
+    "date_created",
+    "campaign",
+    "finish_category",
+    "space_type",
+    "platform",
+    "aspect_ratio",
+    "source_image_id",
+    "prompt_id",
+    "prompt_text",
+    "negative_prompt",
+    "filename",
+    "status",
+    "qa_notes"
+  ]
+}

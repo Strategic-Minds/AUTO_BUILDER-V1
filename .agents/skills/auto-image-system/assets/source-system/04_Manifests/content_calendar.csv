@@ -1,0 +1,7 @@
+date,campaign,finish_category,space_type,asset_type,platform,aspect_ratio,quantity,prompt_pack,source_image_needed,approval_required,status
+2026-06-29,Garage Floor Week,full_flake_epoxy,residential_garage,before_after_concept,Instagram Feed,4:5,1,prompt_pack_full_flake_epoxy,optional,yes,planned
+2026-06-30,Commercial Durability,quartz_epoxy,commercial_kitchen,portfolio_concept,Instagram Feed,1:1,1,prompt_pack_quartz_epoxy,optional,yes,planned
+2026-07-01,Luxury Interiors,metallic_epoxy,showroom,website_hero,Website,16:9,1,prompt_pack_metallic_epoxy,optional,yes,planned
+2026-07-02,Modern Concrete,natural_polished_concrete,retail,project_inspiration,Google Business Profile,4:3,1,prompt_pack_natural_polished_concrete,optional,yes,planned
+2026-07-03,Outdoor Decorative,decorative_overlay,patio,social_post,Instagram Story,9:16,1,prompt_pack_overlays_microtoppings,optional,yes,planned
+2026-07-04,Kitchen Countertops,concrete_countertop,kitchen,sales_visual,Instagram Feed,4:5,1,prompt_pack_concrete_countertops,optional,yes,planned

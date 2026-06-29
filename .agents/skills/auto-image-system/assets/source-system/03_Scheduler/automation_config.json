@@ -1,0 +1,54 @@
+{
+  "system_name": "Concrete GPT Image Automation System",
+  "timezone": "America/New_York",
+  "industry": "epoxy coatings, polished concrete, decorative concrete, overlays, microtoppings, concrete countertops",
+  "finish_categories": [
+    "full_flake_epoxy",
+    "metallic_epoxy",
+    "quartz_epoxy",
+    "solid_color_epoxy",
+    "stained_concrete",
+    "natural_polished_concrete",
+    "decorative_overlay",
+    "microtopping",
+    "concrete_countertop"
+  ],
+  "default_jobs": [
+    {
+      "name": "Daily Prompt Builder",
+      "schedule": "daily 08:30",
+      "prompt_file": "09_GPT_Automation_Packets/daily_prompt_builder_packet.md"
+    },
+    {
+      "name": "Optional Image Generator",
+      "schedule": "daily 12:00",
+      "prompt_file": "03_Scheduler/gpt_scheduler_master_prompt.md"
+    },
+    {
+      "name": "QA Reviewer",
+      "schedule": "daily 16:00",
+      "prompt_file": "09_GPT_Automation_Packets/qa_review_packet.md"
+    },
+    {
+      "name": "Weekly Campaign Planner",
+      "schedule": "weekly Monday 10:00",
+      "prompt_file": "09_GPT_Automation_Packets/weekly_campaign_planner_packet.md"
+    }
+  ],
+  "always_disclose_generated_concepts": true,
+  "blocked_claims": [
+    "real completed project unless verified",
+    "manufacturer-certified system unless verified",
+    "guaranteed lifespan",
+    "slip-proof",
+    "maintenance-free",
+    "customer testimonial unless real"
+  ],
+  "quality_priorities": [
+    "ultra-realistic",
+    "material-accurate",
+    "contractor-buildable",
+    "platform-ready",
+    "clear finish type"
+  ]
+}

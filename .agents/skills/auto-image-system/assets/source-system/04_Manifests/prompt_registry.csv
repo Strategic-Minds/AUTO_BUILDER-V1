@@ -1,0 +1,9 @@
+prompt_id,prompt_pack,finish_category,use_case,platform,aspect_ratio,status,notes
+PR-0001,prompt_pack_full_flake_epoxy,full_flake_epoxy,Residential garage hero,Instagram Feed,4:5,active,Best for garage coating ads
+PR-0002,prompt_pack_metallic_epoxy,metallic_epoxy,Luxury showroom hero,Website,16:9,active,Best for high-end interiors
+PR-0003,prompt_pack_quartz_epoxy,quartz_epoxy,Commercial kitchen,Instagram Feed,1:1,active,Best for hygienic commercial floors
+PR-0004,prompt_pack_solid_color_epoxy,solid_color_epoxy,Warehouse solid gray,Google Business Profile,4:3,active,Best for industrial content
+PR-0005,prompt_pack_stained_concrete,stained_concrete,Restaurant stain,Instagram Feed,4:5,active,Best for decorative interior floors
+PR-0006,prompt_pack_natural_polished_concrete,natural_polished_concrete,Retail polish,Website,16:9,active,Best for polished concrete campaigns
+PR-0007,prompt_pack_overlays_microtoppings,decorative_overlay,Patio overlay,Instagram Story,9:16,active,Best for outdoor decorative systems
+PR-0008,prompt_pack_concrete_countertops,concrete_countertop,Kitchen countertop,Instagram Feed,4:5,active,Best for countertop inspiration

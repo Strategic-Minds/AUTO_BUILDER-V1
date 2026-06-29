@@ -1,0 +1,10 @@
+reason_code,reason,example_fix
+RR-001,Finish type inaccurate,Regenerate with finish-specific material rules
+RR-002,Too CGI or fake,Add real lens, natural shadows, and contractor portfolio style
+RR-003,Impossible reflections,Reduce gloss and specify believable topcoat reflection
+RR-004,Wrong flake or quartz scale,Specify correct chip or aggregate size
+RR-005,Room geometry warped,Use natural 24mm or 35mm interior photography
+RR-006,Missing installation details,Add edges, joints, thresholds, drains, cove base, or baseboards
+RR-007,Fake text or logos,Remove text/logos and add copy later in design software
+RR-008,Countertop impossible,Specify realistic thickness, support, seams, and cutouts
+RR-009,Looks like competitor project claim,Label as concept or use approved source image only

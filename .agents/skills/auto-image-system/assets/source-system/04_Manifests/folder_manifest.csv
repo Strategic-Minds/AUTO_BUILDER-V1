@@ -1,0 +1,11 @@
+folder,path,purpose,status
+System Docs,01_System_Docs,Operating model and setup instructions,active
+Prompt Library,02_Prompt_Library,Finish-specific image prompts,active
+Scheduler,03_Scheduler,Scheduler cadence and automation config,active
+Manifests,04_Manifests,Tracking files and schemas,active
+Source Image Folder,05_Source_Image_Folder,Approved project photos and references,active
+Output Queue,06_Output_Queue,Generated drafts awaiting QA,active
+QA Review,07_QA_Review,Realism and approval checks,active
+Archive,08_Archive,Completed or rejected assets,active
+GPT Automation Packets,09_GPT_Automation_Packets,Copy-ready GPT Scheduler prompts,active
+Finish Reference Cards,10_Finish_Reference_Cards,Quick finish rules for prompt accuracy,active
