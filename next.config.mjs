@@ -1,8 +1,6 @@
-import { withWorkflow } from "workflow/next";
-import path from "node:path";
-
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  outputFileTracingRoot: path.resolve(process.cwd())
+  reactStrictMode: true,
 };
 
-export default withWorkflow(nextConfig);
+export default nextConfig;
