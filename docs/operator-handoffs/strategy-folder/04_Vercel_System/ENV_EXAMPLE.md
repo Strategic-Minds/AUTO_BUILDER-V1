@@ -1,0 +1,36 @@
+# Vercel Environment Variables Example
+
+Never commit real values.
+
+```txt
+AUTO_BUILDER_OPERATOR_EMAIL=jeremy@autobuilderos.com
+AUTO_BUILDER_AI_EMAIL=ai@autobuilderos.com
+AUTO_BUILDER_MODE=dry_run
+AUTO_BUILDER_REQUIRE_APPROVAL=true
+GOOGLE_WORKSPACE_DOMAIN=autobuilderos.com
+GOOGLE_DRIVE_ROOT_FOLDER_ID=1B6qh7cxE4mftl91w5SzwaTqB2Edsv3lm
+GITHUB_ORG=Strategic-Minds
+GITHUB_REPO=AUTO_BUILDER
+SUPABASE_URL=replace_in_vercel_only
+SUPABASE_ANON_KEY=replace_in_vercel_only
+SUPABASE_SERVICE_ROLE_KEY=replace_in_vercel_only
+AI_GATEWAY_API_KEY=replace_in_vercel_only
+OPENAI_API_KEY=replace_in_vercel_only
+VERCEL_TOKEN=replace_in_vercel_only
+VERCEL_TEAM_ID=replace_in_vercel_only
+WHATSAPP_PROVIDER=twilio_or_meta
+TWILIO_ACCOUNT_SID=replace_in_vercel_only
+TWILIO_AUTH_TOKEN=replace_in_vercel_only
+TWILIO_WHATSAPP_FROM=whatsapp:+10000000000
+SLACK_BOT_TOKEN=replace_in_vercel_only
+BUFFER_ACCESS_TOKEN=replace_in_vercel_only
+SHOPIFY_ADMIN_TOKEN=replace_in_vercel_only
+SHOPIFY_SHOP=replace_if_store_based
+STRIPE_SECRET_KEY=replace_in_vercel_only
+MESSAGE_SENDS_REQUIRE_APPROVAL=true
+OUTBOUND_MESSAGING_DRY_RUN=true
+PAYMENTS_TEST_MODE=true
+MAX_AUTO_HEAL_ITERATIONS=5
+RELEASE_THRESHOLD=100
+MIN_RELEASE_THRESHOLD_WITH_BLOCKERS=95
+```

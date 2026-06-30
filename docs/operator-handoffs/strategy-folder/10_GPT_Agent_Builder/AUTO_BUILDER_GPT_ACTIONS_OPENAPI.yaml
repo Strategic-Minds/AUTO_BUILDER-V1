@@ -1,0 +1,70 @@
+openapi: 3.1.0
+info:
+  title: AUTO_BUILDER Control Plane
+  version: 1.0.0
+servers:
+  - url: https://YOUR-VERCEL-CONTROL-PLANE.vercel.app
+paths:
+  /api/control-plane/project/intake:
+    post:
+      operationId: createProjectIntake
+      summary: Create or update project intake in dry-run/staging mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode: { type: string, enum: [dry_run, draft, staging, execute] }
+                project_name: { type: string }
+                business_name: { type: string }
+                industry: { type: string }
+                intake: { type: object }
+              required: [mode, project_name]
+      responses:
+        '200': { description: Intake receipt }
+  /api/control-plane/drive/scaffold:
+    post:
+      operationId: scaffoldDriveFolders
+      summary: Scaffold Drive folders in missing-only mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode: { type: string, enum: [dry_run, draft, execute] }
+                root_folder_id: { type: string }
+                folder_manifest:
+                  type: array
+                  items: { type: string }
+                approval_id: { type: string }
+              required: [mode, root_folder_id, folder_manifest]
+      responses:
+        '200': { description: Drive scaffold receipt }
+  /api/control-plane/competitive/top3:
+    post:
+      operationId: runTop3CompetitiveResearch
+      summary: Run top-three public benchmark research.
+      responses:
+        '200': { description: Competitive research receipt }
+  /api/control-plane/strategy/consultation-pack:
+    post:
+      operationId: createConsultationPack
+      summary: Generate PDF-ready consultation pack docs.
+      responses:
+        '200': { description: Consultation pack receipt }
+  /api/control-plane/qa/run:
+    post:
+      operationId: runFiveStageQA
+      summary: Run 5-stage QA in preview/sandbox.
+      responses:
+        '200': { description: QA score receipt }
+  /api/control-plane/autoheal/run:
+    post:
+      operationId: runAutoHealPreview
+      summary: Run preview-branch auto-heal loop.
+      responses:
+        '200': { description: Auto-heal receipt }

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Drive Strategy Folder Bootstrap"
+  short_description: "Use when scaffolding Google Drive strategy folders, Docs, Sheets, Forms, assets, receipts, and Drive-first source truth "
