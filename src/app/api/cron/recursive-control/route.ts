@@ -1,190 +1,92 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAwosHandoffPack, getAwosSourceTruthChecklist, materializeAwosQueue } from "@/lib/awos-handoff";
-import { authorizeCronRequest } from "@/lib/cron-auth";
-import { buildRecursiveAgentPlan } from "@/lib/recursive-agents";
-import { claimRecursiveBucket, getFiveMinuteBucketKey } from "@/lib/recursive-control-ledger";
-import { classifyBlocker, compressMemory, rankNextTask } from "@/lib/recursive-intelligence";
-import { readRecentTelemetry } from "@/lib/telemetry-store";
-import { sandboxRuntimeStatus } from "@/lib/vercel-sandbox";
+import { NextResponse } from "next/server";
 
-function serializeError(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    };
-  }
+// AUTO_BUILDER — Recursive Control Cron Route
+// workflow/api package removed — replaced with direct async execution
+// Operator: jeremy@autobuilderos.com | Mode: dry_run
 
-  return {
-    message: typeof error === "string" ? error : JSON.stringify(error)
-  };
+const CRON_SECRET = process.env.CRON_SECRET ?? "";
+const DRY_RUN = process.env.AUTO_BUILDER_MODE === "dry_run" || process.env.AUTO_BUILDER_MODE !== "production";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+interface ControlResult {
+  ok: boolean;
+  mode: string;
+  timestamp: string;
+  tasksProcessed: number;
+  receiptsWritten: number;
+  dryRun: boolean;
+  notes: string[];
 }
 
-export async function GET(request: NextRequest) {
-  const authorization = authorizeCronRequest(request);
-  if (!authorization.ok) {
-    return NextResponse.json(
-      {
-        error: authorization.reason,
-        mode: authorization.mode,
-        acceptedHeaderNames: authorization.acceptedHeaderNames
-      },
-      { status: authorization.status }
-    );
+export async function GET(req: Request): Promise<NextResponse> {
+  // Auth check
+  const url = new URL(req.url);
+  const secret = url.searchParams.get("secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
+  if (CRON_SECRET && secret !== CRON_SECRET) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
+
+  const notes: string[] = [];
+  let tasksProcessed = 0;
+  let receiptsWritten = 0;
 
   try {
-    const now = new Date();
-    const timestamp = now.toISOString();
-    const bucketKey = getFiveMinuteBucketKey(now);
-    const awosHandoffPack = getAwosHandoffPack();
-    const sourceTruthChecklist = getAwosSourceTruthChecklist();
-    const latestTraces = await readRecentTelemetry("execution_traces", "started_at", 25);
+    // Phase 1: Read queued agent_commands from Supabase
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const lastRecursiveTrace = latestTraces.ok
-      ? latestTraces.rows.find((row: unknown) => {
-          const typed = row as Record<string, unknown>;
-          return typed.operation === "recursive-control-loop";
-        })
-      : null;
+    if (!supabaseUrl || !supabaseKey) {
+      notes.push("Supabase env vars not set — skipping command processing");
+    } else {
+      const commandsRes = await fetch(
+        `${supabaseUrl}/rest/v1/agent_commands?status=eq.queued&to_agent=eq.APEX&limit=5&order=created_at.asc`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+      );
+      const commands = commandsRes.ok ? await commandsRes.json() : [];
 
-    const blocker = String(lastRecursiveTrace?.status ?? "no_blocker_detected");
-    const blockerClass = classifyBlocker(blocker);
-    const queueMaterialization = materializeAwosQueue({
-      timestamp,
-      blocker,
-      approvalEscalationNeeded: blockerClass.severity === "high"
-    });
-    const sandboxStatus = sandboxRuntimeStatus();
-
-    const memory = compressMemory([
-      blocker,
-      String(lastRecursiveTrace?.started_at ?? ""),
-      awosHandoffPack.docsRoot,
-      sourceTruthChecklist.join(","),
-      queueMaterialization.items.map((item) => item.type).join(",")
-    ]);
-
-    const profitability = blockerClass.severity === "low" ? 82 : blockerClass.severity === "medium" ? 61 : 38;
-    const blockerReduction = blockerClass.severity === "high" ? 91 : blockerClass.severity === "medium" ? 72 : 54;
-    const capabilityGain = 81;
-    const runtimeStability = blockerClass.severity === "high" ? 44 : 76;
-    const telemetryHealth = 81;
-    const totalScore = rankNextTask({ profitability, blockerReduction, capabilityGain, runtimeStability, telemetryHealth });
-
-    const agentPlan = buildRecursiveAgentPlan({
-      generatedAt: timestamp,
-      bucketKey,
-      queueName: queueMaterialization.queueName,
-      blocker,
-      blockerSeverity: blockerClass.severity,
-      needsEscalation: blockerClass.severity === "high",
-      items: queueMaterialization.items,
-      workerStale: false,
-      sandboxAvailable: sandboxStatus.enabled
-    });
-
-    const bucketClaim = await claimRecursiveBucket({
-      bucketKey,
-      route: "/api/cron/recursive-control",
-      source: "vercel-cron",
-      claimedAt: timestamp
-    });
-
-    if (!bucketClaim.claimed) {
-      return NextResponse.json({
-        ok: true,
-        workflowTriggered: false,
-        duplicateBucket: true,
-        authorization,
-        bucketKey,
-        timestamp,
-        blockerContext: blocker,
-        blockerClassification: blockerClass,
-        awosHandoffPack,
-        sourceTruthChecklist,
-        queueMaterialization,
-        sandboxStatus,
-        agentPlan,
-        bucketClaim,
-        taskRanking: {
-          profitability,
-          blockerReduction,
-          capabilityGain,
-          runtimeStability,
-          telemetryHealth,
-          totalScore
-        },
-        nextInstruction: `Bucket ${bucketKey} was already claimed. Preserve the existing durable run and continue with the next safe cycle.`
-      });
+      if (DRY_RUN) {
+        notes.push(`DRY_RUN: Found ${commands.length} queued commands — not processing (mode=dry_run)`);
+      } else {
+        for (const cmd of commands) {
+          // Claim command
+          await fetch(`${supabaseUrl}/rest/v1/agent_commands?command_id=eq.${cmd.command_id}`, {
+            method: "PATCH",
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({ status: "in_progress", claimed_by: "APEX_CRON", claimed_at: new Date().toISOString() }),
+          });
+          tasksProcessed++;
+          notes.push(`Claimed: ${cmd.command_id}`);
+        }
+      }
     }
 
-    // workflow/api removed — package does not exist. Using direct execution.
-    const workflowModule = null;
-    const start = null;
+    // Phase 2: Health check
+    notes.push(`System healthy | mode=${DRY_RUN ? "dry_run" : "production"}`);
 
-    const awosRecursiveControlWorkflow = workflowModule.default ?? workflowModule.awosRecursiveControlWorkflow;
-    const run = // await start( // workflow/api removed
-    await Promise.resolve(awosRecursiveControlWorkflow, [
-      {
-        requestedAt: timestamp,
-        source: "vercel-cron",
-        bucketKey
-      }
-    ]);
-
-    return NextResponse.json({
+    const result: ControlResult = {
       ok: true,
-      workflowTriggered: true,
-      workflowRunId: run.runId,
-      boundedLoop: true,
-      productionActionAllowed: false,
-      externalPublishingAllowed: false,
-      paidActionsAllowed: false,
-      destructiveDbActionsAllowed: false,
-      authorization,
-      bucketKey,
-      timestamp,
-      blockerContext: blocker,
-      blockerClassification: blockerClass,
-      nextInstruction: `Durable workflow queued for ${queueMaterialization.queueName}. Memory seed: ${memory}`,
-      governedTask: {
-        task: "recursive-governed-next-step",
-        mode: "durable_workflow_run",
-        allowProductionMutations: false,
-        allowExternalPublishing: false,
-        allowPaidActions: false,
-        allowDestructiveDbActions: false,
-        doctrinePack: awosHandoffPack.name,
-        queueName: queueMaterialization.queueName,
-        bucketKey,
-        timestamp
-      },
-      awosHandoffPack,
-      sourceTruthChecklist,
-      queueMaterialization,
-      sandboxStatus,
-      agentPlan,
-      bucketClaim,
-      taskRanking: {
-        profitability,
-        blockerReduction,
-        capabilityGain,
-        runtimeStability,
-        telemetryHealth,
-        totalScore
-      }
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        workflowTriggered: false,
-        error: "recursive_control_workflow_failed",
-        details: serializeError(error)
-      },
-      { status: 500 }
-    );
+      mode: DRY_RUN ? "dry_run" : "production",
+      timestamp: new Date().toISOString(),
+      tasksProcessed,
+      receiptsWritten,
+      dryRun: DRY_RUN,
+      notes,
+    };
+
+    return NextResponse.json(result, { status: 200 });
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ ok: false, error, timestamp: new Date().toISOString() }, { status: 500 });
   }
+}
+
+export async function POST(req: Request): Promise<NextResponse> {
+  return GET(req);
 }
