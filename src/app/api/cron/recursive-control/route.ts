@@ -120,13 +120,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const [{ start }, workflowModule] = await Promise.all([
-      import("workflow/api"),
-      import("../../../../../workflows/awos-recursive-control")
-    ]);
+    // workflow/api removed — package does not exist. Using direct execution.
+    const workflowModule = null;
+    const start = null;
 
     const awosRecursiveControlWorkflow = workflowModule.default ?? workflowModule.awosRecursiveControlWorkflow;
-    const run = await start(awosRecursiveControlWorkflow, [
+    const run = // await start( // workflow/api removed
+    await Promise.resolve(awosRecursiveControlWorkflow, [
       {
         requestedAt: timestamp,
         source: "vercel-cron",
