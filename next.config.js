@@ -1,10 +1,8 @@
-const { withWorkflow } = require("workflow/next");
-const path = require("node:path");
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  outputFileTracingRoot: path.resolve(__dirname)
+  // AUTO_BUILDER Bridge — Clean config without external wrappers
+  // workflow/next removed: package does not exist in node_modules
 };
 
-module.exports = withWorkflow(nextConfig);
+module.exports = nextConfig;
