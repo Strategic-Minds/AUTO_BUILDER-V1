@@ -1,0 +1,3 @@
+interface:
+  display_name: "Github Supabase Vercel Provisioning"
+  short_description: "Use when branch-safe implementation must create GitHub repo/branch docs, Supabase staging migration, Vercel preview proj"
