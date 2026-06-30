@@ -23,13 +23,13 @@
     "playwright-core": "^1.53.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "workflow": "^4.0.1-beta.26",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@playwright/test": "^1.40.0"
   }
 }
