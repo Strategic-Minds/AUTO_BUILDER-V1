@@ -1,0 +1,3 @@
+interface:
+  display_name: "Qa Autoheal Headless Agent"
+  short_description: "Use when executing 5-stage QA, Playwright Chromium desktop/mobile/PWA tests, humanistic headless user simulation, score "
