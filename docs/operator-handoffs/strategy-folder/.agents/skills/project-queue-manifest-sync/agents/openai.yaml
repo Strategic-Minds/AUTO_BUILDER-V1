@@ -1,0 +1,3 @@
+interface:
+  display_name: "Project Queue Manifest Sync"
+  short_description: "Use when syncing project lifecycle state, manifest sheet rows, Supabase project_queue, receipts, archive, finished folde"
