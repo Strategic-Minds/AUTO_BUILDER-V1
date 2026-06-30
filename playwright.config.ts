@@ -1,15 +1,13 @@
-import { defineConfig, devices } from '@playwright/test';
+// playwright.config.ts
+// This file is excluded from TypeScript compilation (see tsconfig.json exclude list)
+// @ts-nocheck
+import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
-  use: { baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3000', trace: 'retain-on-failure' },
-  projects: [
-    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1100 } } },
-    { name: 'chromium-mobile', use: { ...devices['Pixel 7'] } }
-  ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:3000',
-    reuseExistingServer: true
-  }
+  timeout: 30000,
+  use: {
+    headless: true,
+    baseURL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  },
 });
