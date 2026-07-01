@@ -1,0 +1,99 @@
+{
+  "packet_name": "national_epoxy_pros_auto_builder_vercel_cron_execution_packet",
+  "schema_version": "2026-07-01",
+  "mode": "dry_run",
+  "business": {
+    "name": "National Epoxy Pros",
+    "powered_by": "Xtreme Polishing Systems",
+    "phone": "(877) 958-6408",
+    "primary_offer": "Premium epoxy, polished concrete, stained concrete, concrete countertops, training, products, and nationwide installation network"
+  },
+  "control_plane": {
+    "repo": "Strategic-Minds/AUTO_BUILDER",
+    "command_folder": "V2 MASTER AUTO BUILDER",
+    "default_mode": "dry_run",
+    "protected_mutation_rule": "No GitHub, Drive, Vercel, Supabase, production, paid API, or external-message mutation without explicit current-session approval."
+  },
+  "implementation_targets": {
+    "control_plane_docs_path": "docs/builds/national-epoxy-pros/",
+    "factory_project_path": "factory/projects/national-epoxy-pros/",
+    "app_repo_default_from_memory": "Strategic-Minds/XPSWEBSITES",
+    "vercel_default_live_url_from_memory": "https://xpswebsites.vercel.app",
+    "target_runtime": "Next.js on Vercel"
+  },
+  "source_inputs": [
+    { "file": "01-National_Epoxy_Pros_Pixel_Reconstruction_Builder_Docs.zip", "role": "pixel reconstruction source truth" },
+    { "file": "02-ChatGPT-Image-Jun-29-2026-09_41_17-PM.png", "role": "visual collage source truth" },
+    { "file": "03-universal-site-clone-factory-full.zip", "role": "Auto Builder, repo, Vercel, cron, validation, and generator reference" },
+    { "file": "04-playwright-chromium-validation-skill.zip", "role": "browser validation skill and blocker-reporting standard" }
+  ],
+  "required_outputs": [
+    "source_analysis",
+    "implementation_brief",
+    "repo_file_manifest",
+    "vercel_cron_contract",
+    "environment_contract",
+    "api_data_contract",
+    "validation_matrix",
+    "playwright_validation_plan",
+    "approval_gate_packet",
+    "release_runbook",
+    "codex_implementation_prompt"
+  ],
+  "route_inventory": [
+    "/",
+    "/digital-bid",
+    "/visualizer",
+    "/design-center",
+    "/locations",
+    "/flake-epoxy",
+    "/metallic-epoxy",
+    "/polished-concrete",
+    "/stained-concrete",
+    "/concrete-countertops",
+    "/training",
+    "/business-packages",
+    "/products",
+    "/about",
+    "/contact",
+    "/dashboard/customer",
+    "/dashboard/crew",
+    "/dashboard/supervisor",
+    "/dashboard/owner",
+    "/dashboard/admin",
+    "/install"
+  ],
+  "cron_workflows": [
+    { "name": "nep_factory_readiness", "path": "/api/cron/nep/factory-readiness", "schedule": "*/5 * * * *", "purpose": "Check env readiness, source packet availability, route manifest integrity, and approval status." },
+    { "name": "nep_source_sync", "path": "/api/cron/nep/source-sync", "schedule": "*/15 * * * *", "purpose": "Normalize source-truth docs, route maps, screenshots, and asset manifests into the build queue." },
+    { "name": "nep_seo_observation", "path": "/api/cron/nep/seo-observation", "schedule": "0 */6 * * *", "purpose": "Check sitemap, metadata, schema readiness, and search-observation tasks where approved." },
+    { "name": "nep_validation_sweep", "path": "/api/cron/nep/validation-sweep", "schedule": "*/30 * * * *", "purpose": "Trigger route smoke checks, QA queue work, and browser validation handoff." },
+    { "name": "nep_receipt_rollup", "path": "/api/cron/nep/receipt-rollup", "schedule": "0 8 * * *", "purpose": "Summarize receipts, blocked actions, validation status, and release readiness." },
+    { "name": "nep_open_gap_review", "path": "/api/cron/nep/open-gap-review", "schedule": "0 9 * * 1", "purpose": "Produce weekly unresolved gap review for human approval and remediation planning." }
+  ],
+  "blocked_without_approval": [
+    "github_write",
+    "drive_write",
+    "vercel_project_mutation",
+    "vercel_env_mutation",
+    "production_deploy",
+    "supabase_mutation",
+    "paid_api_spend",
+    "external_message",
+    "schema_migration",
+    "delete",
+    "rename_existing",
+    "move_existing"
+  ],
+  "acceptance_criteria": [
+    "All 21 routes are represented in code or explicit route stubs.",
+    "Public pages match the black, gold, white, premium contractor design system from the collage.",
+    "Dashboard pages preserve dense dark UI structure and role-specific widgets.",
+    "Digital bid and contact forms post to local mock/API route first and do not require live Supabase for first build.",
+    "Vercel cron endpoints require CRON_SECRET authorization.",
+    "Cron handlers are idempotent and return structured JSON receipts.",
+    "No live secrets are committed.",
+    "Playwright desktop and mobile screenshots are captured when Chromium is available.",
+    "Release is blocked until GitHub push, Vercel config, env setup, and validation are explicitly approved."
+  ]
+}
