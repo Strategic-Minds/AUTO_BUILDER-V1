@@ -1,0 +1,28 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/nep/factory-readiness",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/nep/source-sync",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/nep/seo-observation",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/nep/validation-sweep",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/nep/receipt-rollup",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/nep/open-gap-review",
+      "schedule": "0 9 * * 1"
+    }
+  ]
+}
