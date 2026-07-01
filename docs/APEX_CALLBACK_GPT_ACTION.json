@@ -1,0 +1,63 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "APEX Callback API",
+    "description": "Send task results back to the APEX swarm. Use this after completing any task — it routes your output to the right Slack channel and saves it to APEX memory automatically.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://auto-builder-strategic-minds-advisory.vercel.app" }
+  ],
+  "paths": {
+    "/api/apex/callback": {
+      "post": {
+        "operationId": "sendToApex",
+        "summary": "Send task result to APEX",
+        "description": "Call this when you complete a task. APEX will receive it, save to memory, and post to the right Slack channel automatically.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["agent","task","status","summary"],
+                "properties": {
+                  "agent": { "type": "string", "description": "Your agent name e.g. business_builder, brand_agent, gpt_worker" },
+                  "task": { "type": "string", "description": "What you just did e.g. brand_pack_complete, site_built, leads_found" },
+                  "project": { "type": "string", "description": "Project name e.g. NEP, XPS, PCU" },
+                  "status": { "type": "string", "enum": ["success","error","needs_approval"] },
+                  "summary": { "type": "string", "description": "1-2 sentence summary of what you did and the result" },
+                  "data": { "type": "object", "description": "Full result payload — URLs, counts, any structured output" },
+                  "slack_channel": { "type": "string", "enum": ["ops","builds","approvals","leads","intel","alerts","revenue"], "description": "Which Slack channel to post to. Default: ops" },
+                  "needs_approval": { "type": "boolean", "description": "Set true if Jeremy needs to approve before you proceed. Routes to #apex-approvals." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Received and routed successfully" },
+          "401": { "description": "Invalid API key" }
+        },
+        "security": [{ "ApexKey": [] }]
+      },
+      "get": {
+        "operationId": "checkApexHealth",
+        "summary": "Check APEX connection",
+        "description": "Verify your connection to APEX is working",
+        "responses": {
+          "200": { "description": "APEX is online and ready" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApexKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-apex-key"
+      }
+    }
+  }
+}
