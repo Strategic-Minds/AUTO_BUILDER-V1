@@ -30,6 +30,13 @@ const requiredFiles = [
   'docs/PASSIVE_REVERSE_ENGINEERING_SYSTEM.md',
   'docs/FINANCIAL_PREDICTION_SIMULATION_SYSTEM.md',
   'docs/auto-builder-os/V2_TO_V1_ENHANCEMENT_MAP.md',
+  'lib/receipt.mjs',
+  'scripts/validate-browser.mjs',
+  'scripts/validate-routes.mjs',
+  'scripts/validate-cron.mjs',
+  'scripts/public-discovery.mjs',
+  'docs/gpt-action-contract.md',
+  '.github/workflows/browser-validation.yml',
   '.github/workflows/preview-validation.yml'
 ];
 
@@ -112,4 +119,12 @@ for (const marker of ['validate:factory', 'npm run build']) {
   }
 }
 
-console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, registry manifests, and cron route parity are installed.');
+const browserWorkflow = readRequiredFile('.github/workflows/browser-validation.yml');
+for (const marker of ['validate:routes', 'validate:cron', 'validate:browser', 'playwright install --with-deps chromium']) {
+  if (!browserWorkflow.includes(marker)) {
+    console.error(`Browser workflow missing marker: ${marker}`);
+    process.exit(1);
+  }
+}
+
+console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, registry manifests, browser contract, and cron route parity are installed.');
