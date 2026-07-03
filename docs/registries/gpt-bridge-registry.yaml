@@ -1,0 +1,88 @@
+schema_version: "2026-07-03"
+system: AUTO_BUILDER-V1
+role: active_gpt_mcp_bridge_registry
+bridges:
+  - id: strict_mcp_bridge
+    target: AUTO_BUILDER MCP
+    canonical_route: /api/mcp
+    allowed:
+      - health_check
+      - repo_read
+      - dry_run_job
+      - drive_plan
+      - platform_plan
+    gated:
+      - production_deploy
+      - direct_default_branch_write
+      - credential_or_secret_change
+      - destructive_action
+    receipt_required: true
+  - id: supabase_mcp_bridge
+    target: Supabase
+    canonical_route: /api/mcp-supabase
+    allowed:
+      - supabase_status
+      - supabase_read
+      - staged_migration_plan
+      - dry_run_write
+      - dry_run_execute
+    gated:
+      - write_live_data
+      - execute_raw_sql
+      - destructive_migration
+      - deploy_edge_function
+      - secret_change
+    receipt_required: true
+  - id: github_bridge
+    target: GitHub
+    allowed:
+      - read_repos
+      - create_branch
+      - write_branch_files
+      - create_draft_pr
+      - compare_branch
+    gated:
+      - merge_pr
+      - delete_branch
+      - write_default_branch
+      - branch_protection_change
+    receipt_required: true
+  - id: drive_bridge
+    target: Google Drive
+    allowed:
+      - read_docs
+      - create_draft_docs
+      - upload_receipts
+      - folder_plan
+    gated:
+      - delete_files
+      - move_canonical_folders
+      - share_external
+      - overwrite_canon
+    receipt_required: true
+  - id: vercel_bridge
+    target: Vercel
+    allowed:
+      - read_project
+      - create_preview_plan
+      - dry_run_cron
+      - inspect_logs_when_available
+    gated:
+      - production_deploy
+      - env_secret_change
+      - domain_change
+      - spend_change
+    receipt_required: true
+  - id: base44_apex_bridge
+    target: Base44 APEX
+    allowed:
+      - handoff
+      - status
+      - validation_request
+      - receipt_request
+      - branch_safe_queue_instruction
+    gated:
+      - policy_change
+      - protected_action_approval
+      - live_customer_action
+    receipt_required: true
