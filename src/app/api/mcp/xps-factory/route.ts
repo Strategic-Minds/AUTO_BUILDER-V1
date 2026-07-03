@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuthorizedExecution } from "@/lib/autobuilder-v2/execution-route-auth";
 import { routeTool } from "@/lib/mcp/gateway-router";
 export const runtime = "nodejs"; export const dynamic = "force-dynamic";
 
@@ -6,6 +7,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { workflow, step, project_id, execution_mode, input } = body;
   if (!workflow || !step) return NextResponse.json({ ok:false, error:"workflow and step required" }, { status:400 });
+
+  const auth = requireAuthorizedExecution(req, body);
+  if (!auth.ok) return NextResponse.json({ ok: false, error: auth.message }, { status: auth.status });
+
   const tool_id = `xps.${workflow}.${step}`;
   const result = await routeTool({ tool_id, namespace_id:`xps.${workflow}`, execution_mode:execution_mode??"APPROVAL_REQUIRED", caller_agent:body.caller_agent??"xps_factory", input:{ ...input, project_id } });
   return NextResponse.json({ ok: result.status !== "failed", ...result });
