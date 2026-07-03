@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuthorizedExecution } from "@/lib/autobuilder-v2/execution-route-auth";
 import { routeTool } from "@/lib/mcp/gateway-router";
 export const runtime = "nodejs"; export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   if (!body.tool_id) return NextResponse.json({ ok:false, error:"tool_id required" }, { status:400 });
+
+  const auth = requireAuthorizedExecution(req, body);
+  if (!auth.ok) return NextResponse.json({ ok: false, error: auth.message }, { status: auth.status });
+
   const result = await routeTool(body);
   return NextResponse.json({ ok: result.status !== "failed", ...result });
 }
