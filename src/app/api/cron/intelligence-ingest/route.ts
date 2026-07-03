@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 
-// Enterprise kernel heartbeat: registry/queue consistency check.
-// Was declared in vercel.json but had no route file - caused live 404s.
-// Safe dry-run only; no production mutation performed here.
+// Intelligence ingest: rolls up intelligence/competitor/template signals.
+// Was declared in vercel.json but had no route file.
+// Safe dry-run only; no external writes performed here.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET
   const auth = req.headers.get('authorization')
@@ -13,8 +13,8 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     mode,
-    route: '/api/cron/enterprise-kernel',
-    action: 'registry_consistency_heartbeat',
+    route: '/api/cron/intelligence-ingest',
+    action: 'intelligence_rollup_ingest',
     production_mutation: false,
   })
 }
