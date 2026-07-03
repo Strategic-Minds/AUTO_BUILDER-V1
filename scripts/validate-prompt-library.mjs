@@ -2,13 +2,16 @@ import { existsSync, readFileSync } from 'node:fs';
 
 const requiredFiles = [
   'docs/prompt-library/README.md',
+  'docs/prompt-library/master-prompt-outline.md',
   'docs/prompt-library/taxonomy.yaml',
   'docs/prompt-library/index.json',
   'docs/prompt-library/logging.md',
+  'docs/prompt-library/missing-pieces.md',
   'docs/prompt-library/prompts/ab-master-autonomous-build-001.md',
   'docs/prompt-library/prompts/ab-forensic-audit-001.md',
   'docs/prompt-library/prompts/ab-validation-loop-001.md',
-  'docs/prompt-library/prompts/ab-packaging-handoff-001.md'
+  'docs/prompt-library/prompts/ab-packaging-handoff-001.md',
+  'docs/prompt-library/prompts/ab-gap-closure-001.md'
 ];
 
 const missing = requiredFiles.filter((file) => !existsSync(file));
@@ -21,6 +24,20 @@ const index = JSON.parse(readFileSync('docs/prompt-library/index.json', 'utf8'))
 for (const prompt of index.prompts ?? []) {
   if (!existsSync(prompt.path)) {
     console.error(`Prompt index path missing: ${prompt.path}`);
+    process.exit(1);
+  }
+}
+
+const indexedPromptIds = new Set((index.prompts ?? []).map((prompt) => prompt.prompt_id));
+for (const promptId of [
+  'ab-master-autonomous-build-001',
+  'ab-forensic-audit-001',
+  'ab-validation-loop-001',
+  'ab-packaging-handoff-001',
+  'ab-gap-closure-001'
+]) {
+  if (!indexedPromptIds.has(promptId)) {
+    console.error(`Prompt missing from index: ${promptId}`);
     process.exit(1);
   }
 }
