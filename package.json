@@ -10,8 +10,11 @@
     "validate:mcp-tools": "node scripts/validate-mcp-tools.mjs",
     "validate:autonomous-control-plane": "node scripts/validate-autonomous-control-plane.mjs",
     "validate:epoxy-discover-engine": "node scripts/validate-epoxy-discover-engine.mjs",
+    "validate:hardening": "node scripts/validate-autobuilder-v1-hardening.mjs",
+    "validate:all": "npm run validate:mcp-tools && npm run validate:factory && npm run validate:autonomous-control-plane && npm run validate:hardening && npm run typecheck",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx"
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",

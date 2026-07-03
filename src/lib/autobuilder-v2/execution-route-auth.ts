@@ -1,7 +1,25 @@
 import type { NextRequest } from "next/server";
 
+const EXECUTION_MODES_REQUIRING_AUTH = new Set([
+  "execute",
+  "rollback",
+  "FULL_AUTONOMOUS",
+  "SUPERADMIN_EXECUTE",
+  "live"
+]);
+
 export function requiresOperatorAuth(input: Record<string, unknown>) {
-  return input.mode === "execute" || input.mode === "rollback";
+  const mode = String(input.mode ?? "");
+  return EXECUTION_MODES_REQUIRING_AUTH.has(mode);
+}
+
+export function requiresGatewayAuth(input: Record<string, unknown>) {
+  const mode = String(input.execution_mode ?? input.mode ?? "APPROVAL_REQUIRED");
+
+  // Gateway POST routes can create tool-run rows and dispatch provider writes.
+  // Treat every gateway POST as operator-gated unless it is explicitly a
+  // local/read-only health path handled outside the gateway router.
+  return mode !== "OBSERVE_ONLY" || Boolean(input.tool_id || input.namespace || input.workflow);
 }
 
 export function verifyExecutionRouteAuth(request: NextRequest) {
@@ -14,7 +32,7 @@ export function verifyExecutionRouteAuth(request: NextRequest) {
     return {
       ok: false as const,
       status: 503,
-      message: "AUTO_BUILDER_OPERATOR_TOKEN or AUTO_BUILDER_BRIDGE_TOKEN must be configured for execute/rollback routes."
+      message: "AUTO_BUILDER_OPERATOR_TOKEN or AUTO_BUILDER_BRIDGE_TOKEN must be configured for write-capable execution routes."
     };
   }
 
@@ -24,7 +42,7 @@ export function verifyExecutionRouteAuth(request: NextRequest) {
     return {
       ok: false as const,
       status: 401,
-      message: "Bearer token required for execute/rollback routes."
+      message: "Bearer token required for write-capable execution routes."
     };
   }
 
@@ -37,4 +55,9 @@ export function verifyExecutionRouteAuth(request: NextRequest) {
   }
 
   return { ok: true as const };
+}
+
+export function requireAuthorizedExecution(request: NextRequest, input: Record<string, unknown>) {
+  if (!requiresGatewayAuth(input)) return { ok: true as const };
+  return verifyExecutionRouteAuth(request);
 }

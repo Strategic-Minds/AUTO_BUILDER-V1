@@ -1,6 +1,5 @@
 // playwright.config.ts
 // This file is excluded from TypeScript compilation (see tsconfig.json exclude list)
-// @ts-nocheck
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({

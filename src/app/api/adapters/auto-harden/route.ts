@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizeCronRequest } from '@/lib/cron-auth'
 import { run } from '@/workers/adapters/auto-harden'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  return NextResponse.json({ adapter: 'auto-harden', ready: true })
+  return NextResponse.json({ adapter: 'auto-harden', ready: true, production_mutation: false })
 }
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret')
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  const authorization = authorizeCronRequest(req)
+  if (!authorization.ok) {
+    return NextResponse.json({ ok: false, error: authorization.reason, authorization }, { status: authorization.status })
   }
+
   const result = await run()
   const statusCode = result.status === 'error' ? 500 : 200
-  return NextResponse.json(result, { status: statusCode })
+  return NextResponse.json({ ...result, authorization }, { status: statusCode })
 }

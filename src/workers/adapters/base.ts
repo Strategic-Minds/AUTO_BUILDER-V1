@@ -16,9 +16,9 @@ export type AdapterContext = {
 }
 
 /**
- * Every adapter run gets wrapped: idempotency-safe, always writes a receipt
- * to factory_receipts, never throws past this boundary (errors are captured
- * and returned so callers/cron get a structured result instead of a 500).
+ * Every adapter run gets wrapped: idempotency-safe, returns a structured
+ * receipt object, and never throws past this boundary. Persisting receipts
+ * during dry-run is opt-in because it still writes to Supabase.
  */
 export async function runAdapter(
   adapterName: string,
@@ -49,6 +49,21 @@ export async function runAdapter(
 }
 
 async function writeReceipt(adapterName: string, result: AdapterResult, startedAt: string) {
+  const receiptWritesEnabled = process.env.AUTO_BUILDER_RECEIPT_WRITES_ENABLED === '1'
+  if (result.dry_run && !receiptWritesEnabled) {
+    result.details.receipt_write_skipped = true
+    result.details.receipt_write_skip_reason = 'Dry-run receipt persistence requires AUTO_BUILDER_RECEIPT_WRITES_ENABLED=1.'
+    result.details.receipt = {
+      receipt_id: `${adapterName}_${startedAt}_dry_run`,
+      action: `adapter_run:${adapterName}`,
+      status: result.status,
+      production_mutated: false,
+      execution_mode: 'dry_run',
+      caller_agent: 'base44_superagent',
+    }
+    return
+  }
+
   try {
     const supabase = getServiceClient()
     await supabase.from('factory_receipts').insert({

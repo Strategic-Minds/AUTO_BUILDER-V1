@@ -64,7 +64,7 @@ export default function DashboardPage() {
       const sb = await fetch("/api/bridge/supabase").then(r => r.json());
       if (sb?.sentinel) setSentinel(sb.sentinel);
       if (sb?.events) setEvents(sb.events);
-    } catch {}
+    } catch (e) { console.warn("Supabase dashboard refresh failed", e); }
 
     setLastRefresh(new Date());
     setLoading(false);
