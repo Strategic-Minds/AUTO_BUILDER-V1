@@ -1,0 +1,56 @@
+{
+  "schema_version": "2026-07-03",
+  "system": "AUTO_BUILDER-V1",
+  "role": "active_operating_brain",
+  "source_truth": {
+    "runtime": "Strategic-Minds/AUTO_BUILDER-V1",
+    "live_state": "Supabase project prhppuuwcnmfdhwsagug",
+    "human_docs": "Google Drive canon",
+    "reference_only": "Strategic-Minds/AUTOBUILDER-V2"
+  },
+  "governance": {
+    "dry_run_default": true,
+    "branch_safe_changes_only": true,
+    "receipt_required": true,
+    "protected_actions": [
+      "production_deploy",
+      "destructive_database_change",
+      "payment_execution",
+      "dns_or_domain_change",
+      "credential_or_secret_creation",
+      "live_customer_message",
+      "live_social_publish",
+      "protected_policy_change"
+    ]
+  },
+  "registries": [
+    "agent_registry",
+    "agent_memory",
+    "task_queue",
+    "bridge_receipts",
+    "bridge_tasks",
+    "approval_gate",
+    "agent_messages",
+    "agent_channels",
+    "rag_documents",
+    "rag_chunks",
+    "rag_source_refs",
+    "agent_task_log",
+    "agent_ledger",
+    "runtime_telemetry_events",
+    "execution_traces",
+    "tool_receipts"
+  ],
+  "write_policy": {
+    "default": "branch_or_dry_run",
+    "safe_low_risk": "validator_authorized_with_receipt",
+    "protected": "jeremy_approval_required"
+  },
+  "rehydrate_required_before_meaningful_work": true,
+  "dehydrate_required_after_meaningful_work": true,
+  "do_not_replace": [
+    "src/app/api/mcp/route.ts",
+    "src/app/api/mcp-supabase/route.ts",
+    "src/lib/autobuilder-v2/supabase-job-runner.ts"
+  ]
+}
