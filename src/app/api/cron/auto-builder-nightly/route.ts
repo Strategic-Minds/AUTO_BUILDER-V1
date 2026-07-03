@@ -5,10 +5,6 @@ import { runAutonomousPackageLoop } from '@/lib/auto-builder/autonomous-package-
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-function shouldExecuteWorkers(req: NextRequest) {
-  return req.nextUrl.searchParams.get('executeWorkers') === '1' || process.env.AUTO_BUILDER_AUTONOMOUS_WORKERS_ENABLED === '1'
-}
-
 export async function GET(req: NextRequest) {
   const authorization = authorizeCronRequest(req)
   if (!authorization.ok) {
@@ -16,15 +12,14 @@ export async function GET(req: NextRequest) {
   }
 
   const result = await runAutonomousPackageLoop({
-    cadence: 'heartbeat_5m',
-    source: 'api/cron/auto-builder',
-    executeWorkers: shouldExecuteWorkers(req),
+    cadence: 'nightly_drain',
+    source: 'api/cron/auto-builder-nightly',
+    executeWorkers: req.nextUrl.searchParams.get('executeWorkers') === '1' || process.env.AUTO_BUILDER_NIGHTLY_WORKERS_ENABLED === '1',
   })
 
   return NextResponse.json({
     ok: result.ok,
-    mode: process.env.AUTO_BUILDER_MODE || 'dry_run',
-    action: 'auto_builder_5_minute_autonomous_package_loop',
+    action: 'auto_builder_nightly_repair_hardening_package_drain',
     production_mutation: false,
     productionActionAllowed: result.productionActionAllowed,
     authorization,

@@ -45,9 +45,12 @@ function isLocalDevelopment() {
 }
 
 export function authorizeCronRequest(request: NextRequest): CronAuthorizationResult {
-  const acceptedTokens = [process.env.CRON_SECRET, process.env.CRON_API_TOKEN, process.env.EPOXY_CRON_SECRET].filter(
-    (value): value is string => Boolean(value && value.length >= 8)
-  );
+  const acceptedTokens = [
+    process.env.CRON_SECRET,
+    process.env.AUTO_BUILDER_CRON_TOKEN,
+    process.env.CRON_API_TOKEN,
+    process.env.EPOXY_CRON_SECRET,
+  ].filter((value): value is string => Boolean(value && value.length >= 8));
 
   if (acceptedTokens.length === 0) {
     if (isLocalDevelopment()) {
@@ -65,7 +68,7 @@ export function authorizeCronRequest(request: NextRequest): CronAuthorizationRes
       ok: false,
       status: 503,
       mode: "missing_configuration",
-      reason: "CRON_SECRET, CRON_API_TOKEN, or EPOXY_CRON_SECRET must be configured before cron execution outside local development.",
+      reason: "CRON_SECRET, AUTO_BUILDER_CRON_TOKEN, CRON_API_TOKEN, or EPOXY_CRON_SECRET must be configured before cron execution outside local development.",
       tokenSource: "missing",
       acceptedHeaderNames: ["authorization", "x-cron-token", "x-cron-secret"]
     };

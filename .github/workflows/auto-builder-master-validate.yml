@@ -35,6 +35,9 @@
           "run": "npm run validate:hardening"
         },
         {
+          "run": "npm run validate:package-loop"
+        },
+        {
           "run": "npm run build"
         },
         {

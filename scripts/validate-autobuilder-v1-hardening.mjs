@@ -53,6 +53,7 @@ for (const path of cronRoutes) {
 const cronAuth = read('src/lib/cron-auth.ts')
 assert(cronAuth.includes('missing_configuration'), 'cron auth must fail closed when no production secret is configured')
 assert(cronAuth.includes('authorization') && cronAuth.includes('x-cron-token') && cronAuth.includes('x-cron-secret'), 'cron auth must accept documented token headers')
+assert(cronAuth.includes('AUTO_BUILDER_CRON_TOKEN'), 'cron auth must support AUTO_BUILDER_CRON_TOKEN alias')
 
 const adapterRoutes = [
   'src/app/api/adapters/auto-fix/route.ts',

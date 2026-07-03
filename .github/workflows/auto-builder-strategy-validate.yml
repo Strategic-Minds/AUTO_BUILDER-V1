@@ -25,9 +25,7 @@ jobs:
       - name: Playwright tests
         run: npx playwright test --project=chromium || true
       - name: Secret scan lite
-        run: |
-          ! grep -R "SUPABASE_SERVICE_ROLE_KEY=.*[A-Za-z0-9]" -n . || exit 1
-          ! grep -R "OPENAI_API_KEY=.*sk-" -n . || exit 1
+        run: npm run secret-scan:lite
       - name: Required docs check
         run: |
           test -f AGENTS.md || echo "AGENTS.md missing"
