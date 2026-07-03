@@ -30,7 +30,7 @@ export async function GET(req: Request): Promise<NextResponse> {
 
   const notes: string[] = [];
   let tasksProcessed = 0;
-  let receiptsWritten = 0;
+  const receiptsWritten = 0;
 
   try {
     // Phase 1: Read queued agent_commands from Supabase
