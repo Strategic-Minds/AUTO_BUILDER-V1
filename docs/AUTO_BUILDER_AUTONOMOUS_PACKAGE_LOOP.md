@@ -65,6 +65,23 @@ Always requires explicit approval:
   - package candidate generation
   - morning summary inputs
 
+## Cron Auth Tokens
+
+Staging and production cron requests must be signed with one of these approved env values:
+
+- `CRON_SECRET`
+- `AUTO_BUILDER_CRON_TOKEN`
+- `CRON_API_TOKEN`
+- `EPOXY_CRON_SECRET`
+
+Accepted request headers:
+
+- `Authorization: Bearer <token>`
+- `x-cron-token: <token>`
+- `x-cron-secret: <token>`
+
+Without one of those env values, cron routes are open only in local development and fail closed outside local development.
+
 ## Worker Execution
 
 The loop plans worker execution by default. It executes workers only when one of these is true:
@@ -77,11 +94,15 @@ Even when workers execute, PR #75 makes the adapters dry-run safe unless `AUTO_B
 
 ## Supabase Persistence
 
-The migration draft is in:
+The forward migration draft is in:
 
 `supabase/migrations/20260703110000_autonomous_package_loop.sql`
 
-It defines:
+The rollback migration draft is in:
+
+`supabase/migrations/20260703110001_autonomous_package_loop_rollback.sql`
+
+The forward migration defines:
 
 - `automation_queue`
 - `automation_runs`
@@ -130,7 +151,8 @@ Vercel rollback:
 Supabase rollback:
 
 - do not apply the migration until reviewed
-- if applied later, prepare a separate down/rollback migration before production rollout
+- review `20260703110001_autonomous_package_loop_rollback.sql` before staging application
+- apply rollback only in staging first, with backup/restore evidence and an approval receipt
 
 ## Validation
 
@@ -139,6 +161,7 @@ Run:
 ```bash
 npm run validate:package-loop
 npm run validate:hardening
+npm run secret-scan:lite
 npm run typecheck
 npm run build
 ```
