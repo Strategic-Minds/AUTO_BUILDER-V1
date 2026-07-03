@@ -17,6 +17,27 @@ export async function runAutoFix(ctx: AdapterContext) {
   if (error) return { status: 'error' as const, processed: 0, skipped: 0, errors: [error.message], details: {} }
   if (!findings || findings.length === 0) return { status: 'ok' as const, processed: 0, skipped: 0, errors: [], details: { reason: 'no_auto_fixable_findings' } }
 
+  if (ctx.dryRun) {
+    return {
+      status: 'ok' as const,
+      processed: 0,
+      skipped: findings.length,
+      errors: [],
+      details: {
+        dry_run_only: true,
+        planned_table: 'factory_repair_jobs',
+        planned_repair_jobs: findings.map((finding) => ({
+          project_id: finding.project_id,
+          finding_id: finding.id,
+          repair_type: finding.category || 'general',
+          status: 'recipe_ready',
+          recipe: { fix_recipe: finding.fix_recipe || 'no_recipe_provided', severity: finding.severity },
+        })),
+        note: 'Dry-run only; no repair jobs inserted and no findings updated.',
+      },
+    }
+  }
+
   let processed = 0
   const errors: string[] = []
   for (const finding of findings) {
