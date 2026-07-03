@@ -25,6 +25,7 @@ export async function runQualityScan(ctx: AdapterContext) {
 
   let processed = 0
   const errors: string[] = []
+  const plannedScores: Array<Record<string, unknown>> = []
   for (const projectId of projectIds) {
     const { data: findings, error: findErr } = await supabase
       .from('factory_quality_findings')
@@ -37,8 +38,7 @@ export async function runQualityScan(ctx: AdapterContext) {
     const weights: Record<string, number> = { critical: 25, high: 15, medium: 7, low: 2 }
     const deduction = (findings || []).reduce((sum, f) => sum + (weights[f.severity] ?? 5), 0)
     const score = Math.max(0, 100 - deduction)
-
-    const { error: insErr } = await supabase.from('factory_quality_scores').insert({
+    const scorePayload = {
       score_id: `qs_${projectId}_${Date.now()}`,
       project_id: projectId,
       score_type: 'composite',
@@ -46,11 +46,30 @@ export async function runQualityScan(ctx: AdapterContext) {
       grade: grade(score),
       checked_at: new Date().toISOString(),
       details: { open_findings: findings?.length ?? 0, deduction },
-    })
+    }
+
+    if (ctx.dryRun) {
+      plannedScores.push(scorePayload)
+      processed++
+      continue
+    }
+
+    const { error: insErr } = await supabase.from('factory_quality_scores').insert(scorePayload)
     if (insErr) errors.push(`${projectId}: ${insErr.message}`)
     else processed++
   }
-  return { status: (errors.length ? 'partial' : 'ok') as 'ok' | 'partial', processed, skipped: 0, errors, details: { table: 'factory_quality_scores', scored_projects: projectIds } }
+  return {
+    status: (errors.length ? 'partial' : 'ok') as 'ok' | 'partial',
+    processed,
+    skipped: 0,
+    errors,
+    details: {
+      table: 'factory_quality_scores',
+      scored_projects: projectIds,
+      dry_run_only: ctx.dryRun,
+      planned_score_writes: plannedScores,
+    },
+  }
 }
 
 export const run = () => runAdapter('quality-scan', runQualityScan)
