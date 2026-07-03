@@ -22,6 +22,7 @@ export async function runAutoHeal(ctx: AdapterContext) {
   let processed = 0
   let blocked = 0
   const errors: string[] = []
+  const plannedRuns: Array<Record<string, unknown>> = []
   for (const projectId of projectIds) {
     const { count } = await supabase
       .from('auto_heal_runs')
@@ -30,27 +31,57 @@ export async function runAutoHeal(ctx: AdapterContext) {
 
     const iteration = (count || 0) + 1
     if (iteration > MAX_ITERATIONS) {
-      const { error: insErr } = await supabase.from('auto_heal_runs').insert({
-        project_id: projectId, iteration, diagnosis: 'max_iterations_exceeded', status: 'blocked',
+      const blockedRun = {
+        project_id: projectId,
+        iteration,
+        diagnosis: 'max_iterations_exceeded',
+        status: 'blocked',
         blockers: [{ reason: `exceeded MAX_AUTO_HEAL_ITERATIONS=${MAX_ITERATIONS}` }],
-      })
+      }
+
+      if (ctx.dryRun) {
+        plannedRuns.push(blockedRun)
+        blocked++
+        continue
+      }
+
+      const { error: insErr } = await supabase.from('auto_heal_runs').insert(blockedRun)
       if (insErr) errors.push(`${projectId}: ${insErr.message}`)
       else blocked++
       continue
     }
 
-    const { error: insErr } = await supabase.from('auto_heal_runs').insert({
+    const healRun = {
       project_id: projectId,
       iteration,
       diagnosis: 'open_repair_jobs_present',
       patch_branch: `auto-heal/${projectId}/iter-${iteration}`,
       status: 'healing',
       blockers: [],
-    })
+    }
+
+    if (ctx.dryRun) {
+      plannedRuns.push(healRun)
+      processed++
+      continue
+    }
+
+    const { error: insErr } = await supabase.from('auto_heal_runs').insert(healRun)
     if (insErr) errors.push(`${projectId}: ${insErr.message}`)
     else processed++
   }
-  return { status: (errors.length ? 'partial' : blocked > 0 ? 'blocked' : 'ok') as 'ok' | 'partial' | 'blocked', processed, skipped: blocked, errors, details: { table: 'auto_heal_runs', max_iterations: MAX_ITERATIONS } }
+  return {
+    status: (errors.length ? 'partial' : blocked > 0 ? 'blocked' : 'ok') as 'ok' | 'partial' | 'blocked',
+    processed,
+    skipped: blocked,
+    errors,
+    details: {
+      table: 'auto_heal_runs',
+      max_iterations: MAX_ITERATIONS,
+      dry_run_only: ctx.dryRun,
+      planned_heal_runs: plannedRuns,
+    },
+  }
 }
 
 export const run = () => runAdapter('auto-heal', runAutoHeal)
