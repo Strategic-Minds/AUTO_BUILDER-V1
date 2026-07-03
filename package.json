@@ -10,6 +10,10 @@
     "validate:mcp-tools": "node scripts/validate-mcp-tools.mjs",
     "validate:autonomous-control-plane": "node scripts/validate-autonomous-control-plane.mjs",
     "validate:epoxy-discover-engine": "node scripts/validate-epoxy-discover-engine.mjs",
+    "validate:routes": "node scripts/validate-routes.mjs",
+    "validate:cron": "node scripts/validate-cron.mjs",
+    "validate:browser": "node scripts/validate-browser.mjs",
+    "validate:discovery": "node scripts/public-discovery.mjs",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx"
   },
