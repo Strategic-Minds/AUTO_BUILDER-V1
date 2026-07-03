@@ -1,0 +1,48 @@
+{
+  "library": "AUTO_BUILDER",
+  "schema_version": 1,
+  "current_master_prompt": {
+    "prompt_id": "ab-master-autonomous-build-001",
+    "path": "docs/prompt-library/prompts/ab-master-autonomous-build-001.md",
+    "version": "1.0.0",
+    "status": "active"
+  },
+  "prompts": [
+    {
+      "prompt_id": "ab-master-autonomous-build-001",
+      "title": "Master Autonomous Build Prompt",
+      "path": "docs/prompt-library/prompts/ab-master-autonomous-build-001.md",
+      "type": "master_spec",
+      "phase": "design",
+      "status": "active",
+      "tags": ["master", "workflow", "cron", "validation", "handoff"]
+    },
+    {
+      "prompt_id": "ab-forensic-audit-001",
+      "title": "Forensic Audit Prompt",
+      "path": "docs/prompt-library/prompts/ab-forensic-audit-001.md",
+      "type": "audit_prompt",
+      "phase": "audit",
+      "status": "active",
+      "tags": ["audit", "gap-analysis", "canon"]
+    },
+    {
+      "prompt_id": "ab-validation-loop-001",
+      "title": "Validation Loop Prompt",
+      "path": "docs/prompt-library/prompts/ab-validation-loop-001.md",
+      "type": "validation_prompt",
+      "phase": "validate",
+      "status": "active",
+      "tags": ["build", "routes", "cron", "browser", "receipts"]
+    },
+    {
+      "prompt_id": "ab-packaging-handoff-001",
+      "title": "Packaging And Handoff Prompt",
+      "path": "docs/prompt-library/prompts/ab-packaging-handoff-001.md",
+      "type": "packaging_prompt",
+      "phase": "package",
+      "status": "active",
+      "tags": ["leadership", "handoff", "resume", "release"]
+    }
+  ]
+}
