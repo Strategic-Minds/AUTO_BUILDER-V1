@@ -2,7 +2,7 @@ import { readdir, readFile } from 'fs/promises'
 import path from 'path'
 
 const SECRET_PATTERNS: { name: string; re: RegExp }[] = [
-  { name: 'generic_api_key', re: /(?:api[_-]?key|secret|token)\s*[:=]\s*['"][A-Za-z0-9_\-]{20,}['"]/i },
+  { name: 'generic_api_key', re: /(?:api[_-]?key|secret|token)\s*[:=]\s*['"][A-Za-z0-9_-]{20,}['"]/i },
   { name: 'aws_access_key', re: /AKIA[0-9A-Z]{16}/ },
   { name: 'private_key_block', re: /-----BEGIN (RSA |EC )?PRIVATE KEY-----/ },
   { name: 'stripe_live_key', re: /sk_live_[0-9a-zA-Z]{20,}/ },

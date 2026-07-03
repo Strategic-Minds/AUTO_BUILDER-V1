@@ -4,10 +4,13 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 // native WebSocket global (Node 22+). This repo targets Node 20 LTS in CI/sandbox,
 // so we polyfill it with `ws`. Harmless in Node 22+ environments (the check just
 // won't fire there).
-if (typeof globalThis.WebSocket === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  globalThis.WebSocket = require('ws')
+async function ensureWebSocketPolyfill() {
+  if (typeof globalThis.WebSocket === 'undefined') {
+    const { default: WS } = await import('ws')
+    ;(globalThis as unknown as { WebSocket: unknown }).WebSocket = WS
+  }
 }
+void ensureWebSocketPolyfill()
 
 let cached: SupabaseClient | null = null
 

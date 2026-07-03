@@ -10,7 +10,8 @@
     "validate:mcp-tools": "node scripts/validate-mcp-tools.mjs",
     "validate:autonomous-control-plane": "node scripts/validate-autonomous-control-plane.mjs",
     "validate:epoxy-discover-engine": "node scripts/validate-epoxy-discover-engine.mjs",
-    "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs"
+    "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
@@ -27,10 +28,13 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "@playwright/test": "^1.40.0",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.10",
     "typescript": "^5.8.3"
   }
 }
