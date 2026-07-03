@@ -11,6 +11,18 @@ function assert(condition, message) {
   }
 }
 
+const automationTables = [
+  'automation_queue',
+  'automation_runs',
+  'automation_jobs',
+  'automation_scorecards',
+  'automation_repair_queue',
+  'automation_hardening_queue',
+  'automation_package_candidates',
+  'automation_approvals',
+  'automation_receipts',
+]
+
 const requiredFiles = [
   'src/lib/auto-builder/autonomous-package-loop.ts',
   'src/app/api/cron/auto-builder/route.ts',
@@ -18,6 +30,7 @@ const requiredFiles = [
   'src/app/api/cron/auto-builder-full-validate/route.ts',
   'src/app/api/cron/auto-builder-nightly/route.ts',
   'supabase/migrations/20260703110000_autonomous_package_loop.sql',
+  'supabase/migrations/20260703110001_autonomous_package_loop_rollback.sql',
   'docs/AUTO_BUILDER_AUTONOMOUS_PACKAGE_LOOP.md',
   'docs/AUTO_BUILDER_AUTONOMOUS_PACKAGE_LOOP_RECEIPT.md',
 ]
@@ -65,7 +78,7 @@ for (const path of cronRoutes) {
   assert(source.includes('authorizeCronRequest'), `${path} must use shared cron auth`)
   assert(source.includes('runAutonomousPackageLoop'), `${path} must run autonomous package loop`)
   assert(source.includes('production_mutation: false'), `${path} must declare no production mutation`)
-  assert(source.includes('productionActionAllowed'), `${path} must expose productionActionAllowed`) 
+  assert(source.includes('productionActionAllowed'), `${path} must expose productionActionAllowed`)
 }
 
 const vercel = read('vercel.json')
@@ -83,32 +96,30 @@ assert(vercel.includes('0 6,18 * * *'), 'vercel.json must include twice-daily va
 assert(vercel.includes('0 2 * * *'), 'vercel.json must include nightly drain cadence')
 
 const migration = read('supabase/migrations/20260703110000_autonomous_package_loop.sql')
-for (const table of [
-  'automation_queue',
-  'automation_runs',
-  'automation_jobs',
-  'automation_scorecards',
-  'automation_repair_queue',
-  'automation_hardening_queue',
-  'automation_package_candidates',
-  'automation_approvals',
-  'automation_receipts',
-]) {
+for (const table of automationTables) {
   assert(migration.includes(`create table if not exists ${table}`), `migration missing ${table}`)
   assert(migration.includes(`alter table ${table} enable row level security`), `migration missing RLS for ${table}`)
 }
 assert(migration.includes("auth.role() = 'service_role'"), 'migration must include explicit service-role policies')
 assert(migration.includes('Do not apply to production'), 'migration must carry production approval warning')
 
+const rollback = read('supabase/migrations/20260703110001_autonomous_package_loop_rollback.sql')
+for (const table of automationTables) {
+  assert(rollback.includes(`drop table if exists ${table}`), `rollback migration missing drop for ${table}`)
+}
+assert(rollback.includes('Do not apply to production'), 'rollback migration must carry production approval warning')
+
 const docs = read('docs/AUTO_BUILDER_AUTONOMOUS_PACKAGE_LOOP.md')
 for (const phrase of ['queue -> validate -> score -> fix -> retest -> harden -> retest -> package', 'Protected Lane', 'Package Done Standard', 'Rollback']) {
   assert(docs.includes(phrase), `docs missing phrase: ${phrase}`)
 }
+assert(docs.includes('20260703110001_autonomous_package_loop_rollback.sql'), 'docs must reference rollback migration draft')
 
 const receipt = read('docs/AUTO_BUILDER_AUTONOMOUS_PACKAGE_LOOP_RECEIPT.md')
 for (const phrase of ['No production deploy', 'No live Supabase mutation', 'No Vercel cron activation', 'Next Gate']) {
   assert(receipt.includes(phrase), `receipt missing phrase: ${phrase}`)
 }
+assert(receipt.includes('rollback migration draft'), 'receipt must mention rollback migration draft')
 
 const packageJson = JSON.parse(read('package.json'))
 assert(packageJson.scripts?.['validate:package-loop'], 'package.json must define validate:package-loop')
