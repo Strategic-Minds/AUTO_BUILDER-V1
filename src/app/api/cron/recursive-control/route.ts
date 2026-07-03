@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { authorizeCronRequest, type CronAuthorizationResult } from "@/lib/cron-auth";
 
 // AUTO_BUILDER — Recursive Control Cron Route
 // workflow/api package removed — replaced with direct async execution
 // Operator: jeremy@autobuilderos.com | Mode: dry_run
 
-const CRON_SECRET = process.env.CRON_SECRET ?? "";
 const DRY_RUN = process.env.AUTO_BUILDER_MODE === "dry_run" || process.env.AUTO_BUILDER_MODE !== "production";
 
 export const runtime = "nodejs";
@@ -18,19 +18,18 @@ interface ControlResult {
   receiptsWritten: number;
   dryRun: boolean;
   notes: string[];
+  authorization: CronAuthorizationResult;
 }
 
-export async function GET(req: Request): Promise<NextResponse> {
-  // Auth check
-  const url = new URL(req.url);
-  const secret = url.searchParams.get("secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
-  if (CRON_SECRET && secret !== CRON_SECRET) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const authorization = authorizeCronRequest(req);
+  if (!authorization.ok) {
+    return NextResponse.json({ ok: false, error: authorization.reason, authorization }, { status: authorization.status });
   }
 
   const notes: string[] = [];
   let tasksProcessed = 0;
-  let receiptsWritten = 0;
+  const receiptsWritten = 0;
 
   try {
     // Phase 1: Read queued agent_commands from Supabase
@@ -78,6 +77,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       receiptsWritten,
       dryRun: DRY_RUN,
       notes,
+      authorization,
     };
 
     return NextResponse.json(result, { status: 200 });
@@ -87,6 +87,6 @@ export async function GET(req: Request): Promise<NextResponse> {
   }
 }
 
-export async function POST(req: Request): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   return GET(req);
 }
