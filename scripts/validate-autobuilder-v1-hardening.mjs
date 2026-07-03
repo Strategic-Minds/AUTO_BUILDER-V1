@@ -22,18 +22,37 @@ for (const path of gatewayRoutes) {
   assert(source.includes('requireAuthorizedExecution'), `${path} must call requireAuthorizedExecution before tool routing`)
 }
 
+const protectedPostRoutes = [
+  'src/app/api/mcp/webhook/route.ts',
+  'src/app/api/workflows/awos-recursive-control/route.ts',
+]
+
+for (const path of protectedPostRoutes) {
+  const source = read(path)
+  assert(source.includes('requireAuthorizedExecution'), `${path} must gate protected POST behavior`)
+  assert(source.includes('production_mutation: false'), `${path} must declare no production mutation in responses`)
+}
+
+const webhookRoute = read('src/app/api/mcp/webhook/route.ts')
+assert(webhookRoute.includes('isDryRun'), 'MCP webhook must honor dry-run mode before Supabase writes')
+assert(webhookRoute.includes('planned_event'), 'MCP webhook must return planned events during dry-run')
+
 const cronRoutes = [
   'src/app/api/cron/auto-builder/route.ts',
   'src/app/api/cron/enterprise-kernel/route.ts',
   'src/app/api/cron/quality-auto-heal/route.ts',
   'src/app/api/cron/intelligence-ingest/route.ts',
+  'src/app/api/cron/recursive-control/route.ts',
 ]
 
 for (const path of cronRoutes) {
   const source = read(path)
   assert(source.includes('authorizeCronRequest'), `${path} must use shared fail-closed cron auth`)
-  assert(source.includes('production_mutation: false'), `${path} must declare no production mutation`)
 }
+
+const cronAuth = read('src/lib/cron-auth.ts')
+assert(cronAuth.includes('missing_configuration'), 'cron auth must fail closed when no production secret is configured')
+assert(cronAuth.includes('authorization') && cronAuth.includes('x-cron-token') && cronAuth.includes('x-cron-secret'), 'cron auth must accept documented token headers')
 
 const adapterRoutes = [
   'src/app/api/adapters/auto-fix/route.ts',
@@ -47,10 +66,6 @@ for (const path of adapterRoutes) {
   assert(source.includes('authorizeCronRequest'), `${path} must use shared fail-closed cron auth`)
   assert(source.includes('production_mutation: false'), `${path} health response must declare no production mutation`)
 }
-
-const cronAuth = read('src/lib/cron-auth.ts')
-assert(cronAuth.includes('missing_configuration'), 'cron auth must fail closed when no production secret is configured')
-assert(cronAuth.includes('authorization') && cronAuth.includes('x-cron-token') && cronAuth.includes('x-cron-secret'), 'cron auth must accept documented token headers')
 
 const executionAuth = read('src/lib/autobuilder-v2/execution-route-auth.ts')
 assert(executionAuth.includes('AUTO_BUILDER_OPERATOR_TOKEN'), 'execution auth must support operator token')
@@ -70,7 +85,7 @@ const dryRunWorkers = [
 
 for (const path of dryRunWorkers) {
   const source = read(path)
-  assert(source.includes('dry_run_only'), `${path} must return dry-run-only details`) 
+  assert(source.includes('dry_run_only'), `${path} must return dry-run-only details`)
   assert(source.includes('ctx.dryRun') || source.includes('_ctx.dryRun'), `${path} must branch on adapter dry-run mode`)
 }
 
