@@ -1,0 +1,75 @@
+name: browser-validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Start app
+        run: |
+          npm run start -- --hostname 127.0.0.1 --port 3000 > validation-artifacts/server.log 2>&1 &
+          echo $! > validation-artifacts/server.pid
+
+      - name: Wait for app
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Run route smoke validation
+        run: npm run validate:routes
+        env:
+          VALIDATION_BASE_URL: http://127.0.0.1:3000
+
+      - name: Run cron dry-run validation
+        run: npm run validate:cron
+        env:
+          VALIDATION_BASE_URL: http://127.0.0.1:3000
+
+      - name: Run browser validation
+        run: npm run validate:browser -- http://127.0.0.1:3000
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-validation-artifacts
+          path: validation-artifacts
+
+      - name: Build PR receipt comment
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          node -e "const fs=require('fs');const p='validation-artifacts/pr-comment.md';const read=(n)=>fs.existsSync('validation-artifacts/'+n)?JSON.parse(fs.readFileSync('validation-artifacts/'+n,'utf8')):null;const receipts=[read('route-smoke.receipt.json'),read('cron-dry-run.receipt.json'),read('browser-validation.receipt.json')].filter(Boolean);const lines=['## Browser Validation Receipt'];for(const item of receipts){lines.push('- '+item.name+': '+item.status);if(item.blocker) lines.push('  - blocker: '+item.blocker);}fs.writeFileSync(p,lines.join('\n')+'\n');"
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: validation-artifacts/pr-comment.md
