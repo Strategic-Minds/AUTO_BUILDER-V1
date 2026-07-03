@@ -141,7 +141,13 @@ const handler = createMcpHandler(
   {
     instructions: "AUTO BUILDER Supabase MCP route. Exposes full read, write, and execute capability through dry-run defaults, explicit approval gates, secret redaction, and rollback metadata. Do not use this route to store or reveal secrets."
   },
-  { basePath: "/api/mcp-supabase", maxDuration: 60, verboseLogs: false }
+  {
+    streamableHttpEndpoint: "/api/mcp-supabase",
+    sseEndpoint: "/api/mcp-supabase/sse",
+    sseMessageEndpoint: "/api/mcp-supabase/message",
+    maxDuration: 60,
+    verboseLogs: false
+  }
 );
 
 export { handler as GET, handler as POST, handler as DELETE };
