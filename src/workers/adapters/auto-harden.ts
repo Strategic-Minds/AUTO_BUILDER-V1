@@ -10,6 +10,23 @@ export async function runAutoHarden(_ctx: AdapterContext) {
 
   const riskLevel = secretFindings.length > 0 ? 'high' : envCoverage.missing.length > 0 ? 'medium' : 'low'
 
+  if (_ctx.dryRun) {
+    return {
+      status: (secretFindings.length > 0 ? 'blocked' : 'ok') as 'ok' | 'blocked',
+      processed: 1,
+      skipped: 0,
+      errors: [],
+      details: {
+        secretFindings,
+        envCoverage,
+        riskLevel,
+        dry_run_only: true,
+        planned_table: 'mcp_audit_log',
+        note: 'Dry-run only; no mcp_audit_log row inserted.',
+      },
+    }
+  }
+
   const supabase = getServiceClient()
   const { error } = await supabase.from('mcp_audit_log').insert({
     audit_id: `harden_${Date.now()}`,
@@ -28,7 +45,7 @@ export async function runAutoHarden(_ctx: AdapterContext) {
     processed: 1,
     skipped: 0,
     errors: error ? [error.message] : [],
-    details: { secretFindings, envCoverage, riskLevel },
+    details: { secretFindings, envCoverage, riskLevel, dry_run_only: false },
   }
 }
 
