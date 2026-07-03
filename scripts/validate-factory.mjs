@@ -29,16 +29,66 @@ const requiredFiles = [
   'docs/CAPABILITY_TEST_SYSTEM.md',
   'docs/PASSIVE_REVERSE_ENGINEERING_SYSTEM.md',
   'docs/FINANCIAL_PREDICTION_SIMULATION_SYSTEM.md',
+  'docs/auto-builder-os/V2_TO_V1_ENHANCEMENT_MAP.md',
   '.github/workflows/preview-validation.yml'
 ];
 
-const missing = requiredFiles.filter((file) => !existsSync(file));
+const registryFiles = [
+  'docs/registries/control-plane-registry.json',
+  'docs/registries/gpt-bridge-registry.yaml',
+  'docs/registries/prompt-library.yaml',
+  'docs/registries/queue-lifecycle.yaml',
+  'docs/registries/validation-scorecard.yaml',
+  'docs/registries/vercel-cron-spec.yaml'
+];
+
+const missing = [...requiredFiles, ...registryFiles].filter((file) => !existsSync(file));
 if (missing.length) {
   console.error('Missing factory files:', missing.join(', '));
   process.exit(1);
 }
 
-const factoryMigration = readFileSync('supabase/migrations/0002_factory_schema.sql', 'utf8');
+function readRequiredFile(file) {
+  return readFileSync(file, 'utf8');
+}
+
+function validateJsonFile(file) {
+  try {
+    JSON.parse(readRequiredFile(file));
+  } catch (error) {
+    console.error(`Registry JSON parse failed for ${file}: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+function validateYamlShape(file, requiredMarkers) {
+  const content = readRequiredFile(file);
+  for (const marker of requiredMarkers) {
+    if (!content.includes(marker)) {
+      console.error(`Registry YAML missing marker ${marker} in ${file}`);
+      process.exit(1);
+    }
+  }
+}
+
+validateJsonFile('docs/registries/control-plane-registry.json');
+validateYamlShape('docs/registries/gpt-bridge-registry.yaml', ['schema_version:', 'bridges:', 'supabase_mcp_bridge']);
+validateYamlShape('docs/registries/prompt-library.yaml', ['schema_version:', 'required_fields:', 'families:']);
+validateYamlShape('docs/registries/queue-lifecycle.yaml', ['schema_version:', 'queue_states:', 'transition_rules:']);
+validateYamlShape('docs/registries/validation-scorecard.yaml', ['schema_version:', 'thresholds:', 'categories:', 'validator_authority:']);
+validateYamlShape('docs/registries/vercel-cron-spec.yaml', ['schema_version:', 'existing_v1_routes:', 'proposed_contracts_from_v2:', 'docs_only']);
+
+const vercelCronSpec = readRequiredFile('docs/registries/vercel-cron-spec.yaml');
+const existingRouteMatches = [...vercelCronSpec.matchAll(/^  - path: (\/api\/cron\/[a-z0-9-]+)$/gm)].map((match) => match[1]);
+for (const route of existingRouteMatches) {
+  const routeFile = `src/app${route}/route.ts`;
+  if (!existsSync(routeFile)) {
+    console.error(`Vercel cron registry route missing file: ${route} -> ${routeFile}`);
+    process.exit(1);
+  }
+}
+
+const factoryMigration = readRequiredFile('supabase/migrations/0002_factory_schema.sql');
 for (const requiredTable of ['ideas', 'build_cards', 'templates', 'jobs', 'approval_requests']) {
   if (!factoryMigration.includes(`public.${requiredTable}`)) {
     console.error(`Factory migration missing table: ${requiredTable}`);
@@ -46,7 +96,7 @@ for (const requiredTable of ['ideas', 'build_cards', 'templates', 'jobs', 'appro
   }
 }
 
-const financeMigration = readFileSync('supabase/migrations/0003_finance_prediction_simulation.sql', 'utf8');
+const financeMigration = readRequiredFile('supabase/migrations/0003_finance_prediction_simulation.sql');
 for (const requiredTable of ['leads', 'opportunities', 'sales', 'spend', 'forecasts', 'simulation_runs', 'decisions']) {
   if (!financeMigration.includes(`public.${requiredTable}`)) {
     console.error(`Finance migration missing table: ${requiredTable}`);
@@ -54,7 +104,7 @@ for (const requiredTable of ['leads', 'opportunities', 'sales', 'spend', 'foreca
   }
 }
 
-const workflow = readFileSync('.github/workflows/preview-validation.yml', 'utf8');
+const workflow = readRequiredFile('.github/workflows/preview-validation.yml');
 for (const marker of ['validate:factory', 'npm run build']) {
   if (!workflow.includes(marker)) {
     console.error(`Workflow missing marker: ${marker}`);
@@ -62,4 +112,4 @@ for (const marker of ['validate:factory', 'npm run build']) {
   }
 }
 
-console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, and docs are installed.');
+console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, registry manifests, and cron route parity are installed.');
