@@ -31,6 +31,7 @@ const requiredFiles = [
   'docs/FINANCIAL_PREDICTION_SIMULATION_SYSTEM.md',
   'docs/auto-builder-os/V2_TO_V1_ENHANCEMENT_MAP.md',
   'lib/receipt.mjs',
+  'scripts/validate-prompt-library.mjs',
   'scripts/validate-browser.mjs',
   'scripts/validate-routes.mjs',
   'scripts/validate-cron.mjs',
@@ -127,4 +128,4 @@ for (const marker of ['validate:routes', 'validate:cron', 'validate:browser', 'p
   }
 }
 
-console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, registry manifests, browser contract, and cron route parity are installed.');
+console.log('Factory validation passed: schema, routes, finance simulation, templates, workflow, registry manifests, browser contract, prompt library, and cron route parity are installed.');
