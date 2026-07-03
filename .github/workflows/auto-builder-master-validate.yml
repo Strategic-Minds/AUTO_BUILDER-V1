@@ -26,10 +26,16 @@
           "run": "npm ci"
         },
         {
-          "run": "npm run lint --if-present"
+          "run": "npm run lint"
         },
         {
-          "run": "npm run build --if-present"
+          "run": "npm run typecheck"
+        },
+        {
+          "run": "npm run validate:hardening"
+        },
+        {
+          "run": "npm run build"
         },
         {
           "run": "npx playwright install --with-deps chromium"
