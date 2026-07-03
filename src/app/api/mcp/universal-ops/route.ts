@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuthorizedExecution } from "@/lib/autobuilder-v2/execution-route-auth";
 import { routeTool } from "@/lib/mcp/gateway-router";
 export const runtime = "nodejs"; export const dynamic = "force-dynamic";
 
@@ -6,6 +7,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { namespace, capability, execution_mode, caller_agent, input } = body;
   if (!namespace || !capability) return NextResponse.json({ ok:false, error:"namespace and capability required" }, { status:400 });
+
+  const auth = requireAuthorizedExecution(req, body);
+  if (!auth.ok) return NextResponse.json({ ok: false, error: auth.message }, { status: auth.status });
+
   const tool_id = `${namespace}.${capability}`;
   const result = await routeTool({ tool_id, namespace_id:namespace, execution_mode, caller_agent, input:input??{} });
   return NextResponse.json({ ok: result.status !== "failed", ...result });
