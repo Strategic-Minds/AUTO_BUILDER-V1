@@ -1,0 +1,63 @@
+schema_version: "2026-07-03"
+system: AUTO_BUILDER-V1
+role: vercel_cron_contract_registry
+auth:
+  required_env: CRON_SECRET
+  unauthorized_status: 401
+  dry_run_default: true
+runtime_boundary:
+  production_mutation_default: false
+  live_mutation_requires_explicit_approval: true
+existing_v1_routes:
+  - path: /api/cron/factory-readiness
+    schedule: governed_by_vercel_json_or_workflow
+    responsibilities:
+      - factory_readiness_check
+      - route_surface_health
+      - validation_packet_status
+  - path: /api/cron/reverse-engineering-passive
+    schedule: governed_by_vercel_json_or_workflow
+    responsibilities:
+      - passive_reverse_engineering_scan
+      - intelligence_signal_collection
+      - discovery_receipt_preparation
+proposed_contracts_from_v2:
+  - id: enterprise_kernel
+    route_candidate: /api/cron/enterprise-kernel
+    cadence: every_5_minutes
+    production_mutation: false
+    responsibilities:
+      - registry_rehydrate
+      - validation_authority_check
+      - safe_progression_proposal
+      - stale_job_detection
+      - approval_queue_refresh
+    receipt_target: bridge_receipts
+  - id: quality_auto_heal
+    route_candidate: /api/cron/quality-auto-heal
+    cadence: every_15_minutes
+    production_mutation: false
+    responsibilities:
+      - artifact_sync
+      - receipt_normalization
+      - registry_reconciliation
+      - repair_queue_schedule
+      - hardening_queue_schedule
+      - retest_after_safe_repairs
+    receipt_target: bridge_receipts
+  - id: intelligence_ingest
+    route_candidate: /api/cron/intelligence-ingest
+    cadence: hourly
+    production_mutation: false
+    responsibilities:
+      - source_registry_refresh
+      - artifact_classification
+      - rag_update_proposal
+      - drift_signal_collection
+      - morning_summary_preparation
+    receipt_target: bridge_receipts
+validation_rules:
+  - every_required_registry_file_must_parse
+  - every_declared_existing_route_must_have_a_route_file
+  - proposed_contract_routes_are_docs_only_until_implemented
+  - no_cron_route_may_perform_live_mutation_without_explicit_approval
