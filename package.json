@@ -13,6 +13,7 @@
     "validate:hardening": "node scripts/validate-autobuilder-v1-hardening.mjs",
     "validate:package-loop": "node scripts/validate-autonomous-package-loop.mjs",
     "validate:all": "npm run validate:mcp-tools && npm run validate:factory && npm run validate:autonomous-control-plane && npm run validate:hardening && npm run validate:package-loop && npm run typecheck",
+    "secret-scan:lite": "node scripts/secret-scan-lite.mjs",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "typecheck": "tsc --noEmit"
