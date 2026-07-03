@@ -14,8 +14,11 @@ Mode: branch-safe implementation, dry-run-first, no production mutation
 - Added nightly repair/hardening/package drain route at `/api/cron/auto-builder-nightly`.
 - Updated `vercel.json` with the 5-minute, 15-minute, twice-daily, and nightly cron family.
 - Added Supabase migration draft for automation queue, runs, jobs, scorecards, repair queue, hardening queue, package candidates, approvals, and receipts.
+- Added Supabase rollback migration draft for the automation control-plane tables.
 - Added static validator `scripts/validate-autonomous-package-loop.mjs`.
 - Added operating guide `docs/AUTO_BUILDER_AUTONOMOUS_PACKAGE_LOOP.md`.
+- Added placeholder-aware secret scan `scripts/secret-scan-lite.mjs`.
+- Added `AUTO_BUILDER_CRON_TOKEN` as an accepted cron auth alias alongside `CRON_SECRET`, `CRON_API_TOKEN`, and `EPOXY_CRON_SECRET`.
 
 ## Safety Status
 
@@ -46,6 +49,7 @@ Worker execution is disabled by default and becomes available only through expli
 - Merge PR #75 before or alongside this stacked branch.
 - Run final GitHub Actions on PR #75 and this loop branch.
 - Review Supabase migration draft before applying anywhere.
+- Review rollback migration draft before staging application.
 - Configure cron/operator/bridge tokens.
 - Approve preview deploy if needed.
 - Approve production deploy separately.
@@ -55,6 +59,8 @@ Worker execution is disabled by default and becomes available only through expli
 ## Validation Evidence
 
 - Static validator added: `npm run validate:package-loop`.
+- Static hardening validator checks the cron token alias.
+- Package-loop validator checks the forward migration, rollback migration, cron routes, Vercel schedule, docs, and package scripts.
 - Local clone/build was not available from this workspace because GitHub network cloning was blocked earlier by CONNECT tunnel policy.
 - Executable validation must run through GitHub Actions or an approved local checkout.
 
@@ -62,6 +68,12 @@ Worker execution is disabled by default and becomes available only through expli
 
 Because this is branch-scoped, rollback is to close the draft PR or delete the branch. If merged later, rollback is a normal revert of the PR, plus reverting the `vercel.json` cron additions if cron behavior needs to be disabled.
 
+Supabase rollback draft:
+
+`supabase/migrations/20260703110001_autonomous_package_loop_rollback.sql`
+
+Apply the rollback migration only in staging first, with a backup/restore receipt and explicit approval.
+
 ## Next Gate
 
-Open draft PR, run GitHub Actions, then fix any branch-safe validation failures until package-loop validation, hardening validation, lint, typecheck, build, and Vercel preview are green.
+Run GitHub Actions on the updated draft PR head, then fix any branch-safe validation failures until package-loop validation, hardening validation, lint, typecheck, build, secret scan, and Vercel preview are green.
