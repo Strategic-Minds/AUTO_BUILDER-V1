@@ -43,6 +43,15 @@
       "phase": "package",
       "status": "active",
       "tags": ["leadership", "handoff", "resume", "release"]
+    },
+    {
+      "prompt_id": "ab-gap-closure-001",
+      "title": "Gap Closure Prompt",
+      "path": "docs/prompt-library/prompts/ab-gap-closure-001.md",
+      "type": "maintenance_prompt",
+      "phase": "resume",
+      "status": "active",
+      "tags": ["gaps", "repo-grounded", "closure", "missing-pieces"]
     }
   ]
 }
