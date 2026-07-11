@@ -8,6 +8,7 @@
     "start": "next start",
     "validate:factory": "node scripts/validate-factory.mjs",
     "validate:mcp-tools": "node scripts/validate-mcp-tools.mjs",
+    "validate:mcp-operational": "node scripts/validate-mcp-operational.mjs",
     "validate:autonomous-control-plane": "node scripts/validate-autonomous-control-plane.mjs",
     "validate:epoxy-discover-engine": "node scripts/validate-epoxy-discover-engine.mjs",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs",
