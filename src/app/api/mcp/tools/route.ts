@@ -4,6 +4,7 @@ import { ALL_TOOLS } from '@/lib/mcp/tools';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  // Returns all tools including Reality OS tools (intel domain)
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   const tools = domain ? ALL_TOOLS.filter(t => t.name.startsWith(domain + '.')) : ALL_TOOLS;
