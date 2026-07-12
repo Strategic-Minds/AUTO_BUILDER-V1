@@ -2,81 +2,167 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Strategic Minds Enterprise MCP Gateway",
-    "version": "2.0.0",
-    "description": "Universal MCP gateway for GPT Agent Builder. Routes to all connected providers. Every action is receipted and audited."
+    "version": "1.0.0-reality-os",
+    "description": "Governed MCP gateway for ChatGPT + Base44 bidirectional bridge. Operator: Jeremy Bensen / Strategic Minds. Deny-by-default. Every action receipted."
   },
   "servers": [
-    { "url": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/gateway" }
+    {
+      "url": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp"
+    }
   ],
   "paths": {
-    "/discover": {
+    "/": {
+      "post": {
+        "operationId": "mcpStreamableHTTP",
+        "summary": "MCP Streamable HTTP endpoint (JSON-RPC 2.0)",
+        "description": "Primary MCP entry point. Send JSON-RPC 2.0 messages: initialize, tools/list, tools/call.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "jsonrpc": {
+                    "type": "string",
+                    "enum": [
+                      "2.0"
+                    ]
+                  },
+                  "method": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "object"
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC 2.0 response or SSE stream"
+          }
+        }
+      }
+    },
+    "/gateway/discover": {
       "get": {
         "operationId": "discoverTools",
         "summary": "List all available MCP tools",
         "parameters": [
-          {"name":"namespace","in":"query","schema":{"type":"string"}},
-          {"name":"provider","in":"query","schema":{"type":"string"}},
-          {"name":"enabled_only","in":"query","schema":{"type":"boolean"}}
-        ],
-        "responses": {"200":{"description":"Tool list with schemas and availability"}}
-      }
-    },
-    "/execute": {
-      "post": {
-        "operationId": "executeTool",
-        "summary": "Execute any registered MCP tool",
-        "requestBody": {
-          "required": true,
-          "content": {"application/json": {"schema": {
-            "type": "object",
-            "required": ["tool_id"],
-            "properties": {
-              "tool_id": {"type":"string","description":"Fully qualified tool ID e.g. ops.drive.create_folder"},
-              "namespace_id": {"type":"string"},
-              "execution_mode": {"type":"string","enum":["OBSERVE_ONLY","DRAFT_ONLY","APPROVAL_REQUIRED","FULL_AUTONOMOUS","SUPERADMIN_EXECUTE"]},
-              "caller_agent": {"type":"string"},
-              "input": {"type":"object","additionalProperties":true}
+          {
+            "name": "namespace",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
-          }}}
-        },
+          },
+          {
+            "name": "enabled_only",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
-          "200": {"description":"Tool execution result with run_id, receipt_id, rollback_id"},
-          "202": {"description":"Queued for approval — returns approval_request_id"},
-          "403": {"description":"Blocked — execution_mode insufficient or approval required"}
+          "200": {
+            "description": "Tool list with schemas and availability"
+          }
         }
       }
     },
-    "/status/{run_id}": {
-      "get": {
-        "operationId": "getRunStatus",
-        "summary": "Get status of a tool run",
-        "parameters": [{"name":"run_id","in":"path","required":true,"schema":{"type":"string"}}],
-        "responses": {"200":{"description":"Run status, receipt, output"}}
-      }
-    },
-    "/receipt/{receipt_id}": {
-      "get": {
-        "operationId": "getReceipt",
-        "summary": "Get MCP receipt",
-        "parameters": [{"name":"receipt_id","in":"path","required":true,"schema":{"type":"string"}}],
-        "responses": {"200":{"description":"Full receipt including rollback data"}}
-      }
-    },
-    "/webhook": {
+    "/gateway/execute": {
       "post": {
-        "operationId": "receiveWebhook",
-        "summary": "Receive and route webhook events from any provider",
+        "operationId": "executeTool",
+        "summary": "Execute any registered MCP tool (governance enforced)",
         "requestBody": {
-          "content": {"application/json": {"schema": {"type":"object","additionalProperties":true}}}
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tool_id"
+                ],
+                "properties": {
+                  "tool_id": {
+                    "type": "string",
+                    "description": "e.g. system.health, base44.list_apps, ops.drive.create_folder"
+                  },
+                  "execution_mode": {
+                    "type": "string",
+                    "enum": [
+                      "OBSERVE_ONLY",
+                      "DRAFT_ONLY",
+                      "APPROVAL_REQUIRED",
+                      "FULL_AUTONOMOUS"
+                    ]
+                  },
+                  "caller_agent": {
+                    "type": "string",
+                    "description": "e.g. chatgpt, base44, orchestrator"
+                  },
+                  "input": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
         },
-        "responses": {"200":{"description":"Event queued"},"202":{"description":"Event routed"}}
+        "responses": {
+          "200": {
+            "description": "Tool result with run_id, receipt_id, rollback metadata"
+          },
+          "202": {
+            "description": "Queued for approval"
+          },
+          "403": {
+            "description": "Blocked \u2014 approval required or mode insufficient"
+          }
+        }
       }
     },
-    "/health": {
+    "/manifest": {
       "get": {
-        "operationId": "gatewayHealth",
-        "summary": "MCP gateway health + provider status",
-        "responses": {"200":{"description":"Provider health map"}}
+        "operationId": "getManifest",
+        "summary": "Get MCP server manifest, tool list, and governance rules",
+        "responses": {
+          "200": {
+            "description": "Full manifest with tools, operating map, and governance"
+          }
+        }
+      }
+    },
+    "/tools": {
+      "get": {
+        "operationId": "listTools",
+        "summary": "List all tools with descriptions and groups",
+        "responses": {
+          "200": {
+            "description": "Tool registry with groups and governance"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Use AUTO_BUILDER_BRIDGE_TOKEN as Bearer token"
       }
     }
   }
