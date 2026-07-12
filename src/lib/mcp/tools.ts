@@ -236,10 +236,48 @@ export const intelligenceTools: MCPTool[] = [
   }
 ];
 
-export const ALL_TOOLS: MCPTool[] = [
+
   ...systemTools,
   ...base44Tools,
   ...githubTools,
   ...workflowTools,
   ...intelligenceTools
+];
+
+// DOMAIN: ChatGPT Connector required tools (search + fetch)
+// ChatGPT's MCP connector REQUIRES these two tools to accept the connection
+export const chatgptConnectorTools: MCPTool[] = [
+  {
+    name: 'search',
+    description: 'Search the AUTO BUILDER intelligence system — repos, projects, validation records, scoring, audit logs, and system registry',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query — e.g. "repair queue", "scoring summary", "open PRs", "system health"' }
+      },
+      required: ['query']
+    },
+    scope: 'system:read', risk: 'LOW', requiresApproval: false, receiptBehavior: 'TRACE'
+  },
+  {
+    name: 'fetch',
+    description: 'Fetch a specific document or record from the AUTO BUILDER intelligence system by ID or URL',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Document or record ID to fetch — e.g. a receipt ID, PR number, validation ID, or repo file path' }
+      },
+      required: ['id']
+    },
+    scope: 'system:read', risk: 'LOW', requiresApproval: false, receiptBehavior: 'TRACE'
+  }
+];
+
+export const ALL_TOOLS: MCPTool[] = [
+  ...systemTools,
+  ...base44Tools,
+  ...githubTools,
+  ...workflowTools,
+  ...intelligenceTools,
+  ...chatgptConnectorTools
 ];
