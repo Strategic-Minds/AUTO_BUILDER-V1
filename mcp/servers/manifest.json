@@ -5,35 +5,41 @@
   "kernel": "auto_builder_mcp",
   "created": "2026-06-28",
   "updated": "2026-06-28",
-  "execution_modes": ["OBSERVE_ONLY","DRAFT_ONLY","APPROVAL_REQUIRED","FULL_AUTONOMOUS","SUPERADMIN_EXECUTE"],
+  "execution_modes": [
+    "OBSERVE_ONLY",
+    "DRAFT_ONLY",
+    "APPROVAL_REQUIRED",
+    "FULL_AUTONOMOUS",
+    "SUPERADMIN_EXECUTE"
+  ],
   "default_mode": "APPROVAL_REQUIRED",
   "servers": [
     {
       "server_id": "auto_builder_mcp",
       "name": "AUTO_BUILDER MCP",
       "role": "master_kernel",
-      "endpoint": "https://www.autobuilderos.com/api/mcp",
-      "description": "Master kernel — all other MCP servers registered here"
+      "endpoint": "https://www.autobuilderos.com/api/mcp-minimal/mcp",
+      "description": "Master kernel \u2014 all other MCP servers registered here"
     },
     {
       "server_id": "strategic_minds_universal_ops_mcp",
       "name": "Strategic Minds Universal Ops MCP",
       "role": "enterprise_connector_layer",
-      "endpoint": "https://www.autobuilderos.com/api/mcp/universal-ops",
+      "endpoint": "https://www.autobuilderos.com/api/mcp-minimal/mcp/universal-ops",
       "description": "Full read/write/execute connector for all connected accounts and APIs"
     },
     {
       "server_id": "xps_website_factory_mcp",
       "name": "XPS Website Factory MCP",
       "role": "business_workflow_layer",
-      "endpoint": "https://www.autobuilderos.com/api/mcp/xps-factory",
+      "endpoint": "https://www.autobuilderos.com/api/mcp-minimal/mcp/xps-factory",
       "description": "XPS-specific business workflows: intake, build, QA, deploy, handoff"
     },
     {
       "server_id": "mcp_gateway_router",
       "name": "MCP Gateway Router",
       "role": "unified_gateway",
-      "endpoint": "https://www.autobuilderos.com/api/mcp/gateway",
+      "endpoint": "https://www.autobuilderos.com/api/mcp-minimal/mcp/gateway",
       "description": "Unified entry point for GPT Agent Builder, Base44, Vercel agents, crons, webhooks"
     }
   ],
@@ -51,13 +57,17 @@
       "columns": 22,
       "description": "Inbound/outbound WhatsApp messages with parsed commands, gate_id, provider receipt, error state",
       "rls": true,
-      "indexes": ["project_id","from_number","status"]
+      "indexes": [
+        "project_id",
+        "from_number",
+        "status"
+      ]
     },
     "factory_image_assets": {
       "status": "EXISTS_AUDITED",
       "type": "BASE TABLE",
       "columns": 35,
-      "description": "All project images — source, generated, Drive-hosted. Includes license, permission, alt_text, crop_instructions, approval_status, usage_restrictions",
+      "description": "All project images \u2014 source, generated, Drive-hosted. Includes license, permission, alt_text, crop_instructions, approval_status, usage_restrictions",
       "rls": true
     },
     "factory_receipts": {
@@ -67,7 +77,7 @@
       "description": "XPS-scoped receipt ledger. factory_receipts_full VIEW unions XPS-tagged mcp_receipts + factory_receipts for complete audit trail",
       "rls": true,
       "view": "factory_receipts_full",
-      "view_description": "UNION of mcp_receipts (xps-tagged) + factory_receipts — use for complete XPS receipt audit"
+      "view_description": "UNION of mcp_receipts (xps-tagged) + factory_receipts \u2014 use for complete XPS receipt audit"
     }
   },
   "governance": {
@@ -77,5 +87,6 @@
     "production_gate_required": true,
     "max_retries": 5,
     "deadletter_after_max": true
-  }
+  },
+  "chatgpt_connector_url": "https://www.autobuilderos.com/api/mcp-minimal/mcp"
 }
