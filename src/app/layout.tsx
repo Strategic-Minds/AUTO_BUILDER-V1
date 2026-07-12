@@ -1,28 +1,34 @@
-import "./globals.css";
-import type { ReactNode } from "react";
-import type { Metadata, Viewport } from "next";
-import { PwaRegister } from "@/components/pwa-register";
+import './globals.css';
+import type { ReactNode } from 'react';
+import type { Metadata, Viewport } from 'next';
+import { PwaRegister } from '@/components/pwa-register';
+import { ThemeProvider } from '@/components/theme-provider';
+import { EditorPanelProvider } from '@/components/editor-panel-context';
 
 export const metadata: Metadata = {
-  title: "AUTO BUILDER Bridge",
-  description: "Universal GPT Business Operations Bridge",
-  manifest: "/manifest.webmanifest"
+  title: 'XAB — Xtreme Auto Builder',
+  description: 'Autonomous App & System Factory',
+  manifest: '/manifest.webmanifest',
 };
+export const viewport: Viewport = { width:'device-width', initialScale:1, themeColor:'#000000' };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  themeColor: "#090b11"
-};
-
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({children}:{children:ReactNode}) {
   return (
-    <html lang="en">
+    <html lang='en'>
+      <head>
+        <meta name='apple-mobile-web-app-capable' content='yes' />
+        <meta name='apple-mobile-web-app-status-bar-style' content='black-translucent' />
+        <link rel='apple-touch-icon' href='/icon-192.png' />
+      </head>
       <body>
         <PwaRegister />
-        {children}
+        <ThemeProvider>
+          <EditorPanelProvider>
+            {children}
+          </EditorPanelProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
 }
+
