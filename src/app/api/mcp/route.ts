@@ -130,7 +130,7 @@ async function executeTool(name: string, args: Record<string, unknown>, receiptI
         results.push({ id: 'repos.list', title: 'Strategic Minds Repositories', text: 'Active repos: AUTO_BUILDER-V1 (MCP gateway), AUTOBUILDER-2.0 (NCP+XPS intelligence), national-epoxy-pros (NEP PWA), XTREME-TAKEOFFS (takeoff system).', url: 'https://github.com/Strategic-Minds' });
       }
       if (query.includes('tool') || query.includes('mcp') || query.includes('capability')) {
-        results.push({ id: 'tools.manifest', title: 'MCP Tool Manifest', text: `38 tools available across 5 domains: system (6), base44 (8), github (6), workflow (8), intel (8), connector (2 — search+fetch).`, url: 'https://www.autobuilderos.com/api/mcp/manifest' });
+        results.push({ id: 'tools.manifest', title: 'MCP Tool Manifest', text: `38 tools available across 5 domains: system (6), base44 (8), github (6), workflow (8), intel (8), connector (2 - search+fetch).`, url: 'https://www.autobuilderos.com/api/mcp/manifest' });
       }
       if (results.length === 0) {
         results.push({ id: 'system.general', title: 'AUTO BUILDER Intelligence System', text: 'Strategic Minds AUTO BUILDER — Reality OS autonomous ceiling system. MCP gateway live at autobuilderos.com. 38 tools for system orchestration, GitHub, Base44, and workflow management.', url: 'https://www.autobuilderos.com' });
