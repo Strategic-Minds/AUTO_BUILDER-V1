@@ -5,6 +5,18 @@ import { evaluatePolicy } from '@/lib/policy/engine';
 
 export const dynamic = 'force-dynamic';
 
+// CORS headers required for ChatGPT Business MCP connector
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id, Accept',
+  'Access-Control-Expose-Headers': 'Mcp-Session-Id',
+};
+
+function getMcpSessionId(req: NextRequest): string {
+  return req.headers.get('mcp-session-id') ?? `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 async function handleMethod(method: string, params: Record<string, unknown> = {}, id: string | number) {
   switch (method) {
     case 'initialize':
@@ -13,6 +25,9 @@ async function handleMethod(method: string, params: Record<string, unknown> = {}
         capabilities: { tools: { listChanged: false }, logging: {} },
         serverInfo: { name: 'reality-os-mcp-gateway', version: GATEWAY_VERSION }
       });
+
+    case 'notifications/initialized':
+      return createMCPResponse(id, {});
 
     case 'tools/list':
       return createMCPResponse(id, {
@@ -38,7 +53,10 @@ async function handleMethod(method: string, params: Record<string, unknown> = {}
       if (!policy.allow) return createMCPError(id, -32603, `Policy denied: ${policy.reason}`);
       const receiptId = createReceiptId(toolName, toolArgs);
       const result = await executeTool(toolName, toolArgs, receiptId);
-      return createMCPResponse(id, { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], receipt_id: receiptId });
+      return createMCPResponse(id, {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        receipt_id: receiptId
+      });
     }
 
     case 'ping':
@@ -103,18 +121,88 @@ async function executeTool(name: string, args: Record<string, unknown>, receiptI
   }
 }
 
+// POST — handles all JSON-RPC MCP requests
 export async function POST(req: NextRequest) {
+  const sessionId = getMcpSessionId(req);
   try {
     const body = await req.json() as { jsonrpc: string; id: string | number; method: string; params?: Record<string, unknown> };
-    if (body.jsonrpc !== '2.0') return NextResponse.json(createMCPError(body.id ?? 0, -32600, 'Invalid JSON-RPC version'), { status: 400 });
+    if (body.jsonrpc !== '2.0') {
+      return NextResponse.json(
+        createMCPError(body.id ?? 0, -32600, 'Invalid JSON-RPC version'),
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
     const response = await handleMethod(body.method, body.params ?? {}, body.id);
-    return NextResponse.json(response, { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
+    return NextResponse.json(response, {
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'application/json',
+        'Mcp-Session-Id': sessionId,
+      }
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
-    return NextResponse.json(createMCPError(0, -32700, 'Parse error', msg), { status: 400 });
+    return NextResponse.json(
+      createMCPError(0, -32700, 'Parse error', msg),
+      { status: 400, headers: { ...CORS_HEADERS, 'Mcp-Session-Id': sessionId } }
+    );
   }
 }
 
+// GET — required by MCP 2025-11-05 spec for SSE streaming / capability ping
+export async function GET(req: NextRequest) {
+  const sessionId = getMcpSessionId(req);
+  const accept = req.headers.get('accept') ?? '';
+
+  // ChatGPT uses GET to probe the endpoint before connecting
+  if (accept.includes('text/event-stream')) {
+    // Return a minimal SSE stream that identifies this as an MCP server
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(
+          `data: ${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/message', params: { level: 'info', data: 'REALITY OS MCP Gateway ready' } })}\n\n`
+        ));
+        controller.close();
+      }
+    });
+    return new NextResponse(stream, {
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Mcp-Session-Id': sessionId,
+      }
+    });
+  }
+
+  // Plain GET — return server info
+  return NextResponse.json({
+    jsonrpc: '2.0',
+    result: {
+      server: 'reality-os-mcp-gateway',
+      version: GATEWAY_VERSION,
+      protocol: MCP_VERSION,
+      tools: ALL_TOOLS.length,
+      status: 'ready',
+      endpoint: 'https://www.autobuilderos.com/api/mcp',
+      discovery: 'https://www.autobuilderos.com/.well-known/mcp.json',
+    }
+  }, {
+    headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'application/json',
+      'Mcp-Session-Id': sessionId,
+    }
+  });
+}
+
+// OPTIONS — preflight for ChatGPT CORS
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id' } });
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      ...CORS_HEADERS,
+      'Access-Control-Max-Age': '86400',
+    }
+  });
 }
