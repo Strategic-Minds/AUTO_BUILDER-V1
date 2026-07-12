@@ -263,6 +263,84 @@ const handler = createMcpHandler(
     server.registerTool('create_vercel_workflow', { title: 'Create Vercel Workflow', description: 'Dry-run-first Vercel workflow or cron planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(await runPlatformProvisioningJobTool({ ...(input as Record<string, unknown>), actions: ['create_vercel_workflow'] } as never)));
     server.registerTool('create_vercel_agent', { title: 'Create Vercel Agent', description: 'Dry-run-first Vercel agent planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createVercelAgentTool(input as never)));
     server.registerTool('create_ai_gateway', { title: 'Create AI Gateway', description: 'Dry-run-first AI Gateway planner.', inputSchema: platformProvisioningSchema }, async (input) => mcpText(createAiGatewayTool(input as never)));
+
+    // ── REALITY OS WAVE 1 TOOLS ──────────────────────────────────────────
+
+    server.registerTool(
+      'system.health',
+      { title: 'System Health', description: 'Return gateway health, version, operating map, and dependency status. First call from any client.', inputSchema: {} },
+      async () => mcpText({
+        status: 'ok', version: '1.0.0-reality-os', timestamp: new Date().toISOString(),
+        operator: 'Jeremy Bensen / Strategic Minds',
+        mcp_endpoint: 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp',
+        operating_map: {
+          primary_repo: 'Strategic-Minds/AUTO_BUILDER-V1',
+          intelligence_system: 'Strategic-Minds/AUTOBUILDER-2.0',
+          reality_os_primary: 'Strategic-Minds/AUTOBUILDER-V2',
+          base44_app_id: '6a4ae522852a5e08bfa42450',
+          base44_app_name: 'AUTO BUILDER ORCHESTRATOR',
+          primary_domain: 'autobuilderos.com',
+        },
+        governance: { default_mode: 'APPROVAL_REQUIRED', deny_by_default: true, receipts: true, wave: 'wave1-reality-os' },
+      })
+    );
+
+    server.registerTool(
+      'system.capabilities',
+      { title: 'System Capabilities', description: 'List all registered MCP tools, groups, and governance mode.', inputSchema: {} },
+      async () => mcpText({
+        total_tools: 26,
+        tool_groups: {
+          system: ['system.health', 'system.capabilities', 'system.audit_trail'],
+          base44: ['base44.list_apps', 'base44.read_entity'],
+          inspection: ['health_check', 'get_repo_summary', 'list_repo_files', 'read_bootstrap_status', 'read_text_file'],
+          execution: ['run_job', 'run_universal_job', 'run_drive_job', 'drive_list_tree', 'drive_create_folder', 'drive_move_folder', 'drive_move_file', 'drive_write_receipt', 'run_platform_provisioning_job', 'create_github_repo', 'create_vercel_project', 'create_vercel_workflow', 'create_vercel_agent', 'create_ai_gateway', 'rollback', 'create_google_form'],
+        },
+        governance: { default_mode: 'dry_run', execute_requires: 'mode=execute plus provider approval gate', wave2_pending: ['system.audit_trail persistence', 'workflow.*', 'base44.write_entity', 'supabase schema', '5-min cron'] },
+      })
+    );
+
+    server.registerTool(
+      'system.audit_trail',
+      { title: 'System Audit Trail', description: 'Return recent audit trail entries. Full persistence requires Wave 2 Supabase schema.', inputSchema: { limit: { type: 'number' } } },
+      async ({ limit }: { limit?: number }) => mcpText({
+        note: 'Full persistence requires Supabase mcp_receipts table — Wave 2.',
+        status: 'WAVE_2_PENDING', limit: limit ?? 10,
+        wave2_tables: ['mcp_receipts', 'job_queue', 'approval_queue', 'mcp_sessions'],
+      })
+    );
+
+    server.registerTool(
+      'base44.list_apps',
+      { title: 'Base44 List Apps', description: 'List Base44 apps. Verify app IDs before operations. Authoritative app: 6a4ae522852a5e08bfa42450', inputSchema: {} },
+      async () => {
+        const key = process.env.BASE44_API_KEY ?? '';
+        if (!key) return mcpText({ error: 'BASE44_API_KEY not configured', action: 'Add to Vercel env vars' });
+        try {
+          const res = await fetch('https://app.base44.com/api/apps', { headers: { api_key: key } });
+          const data = await res.json();
+          const apps = Array.isArray(data) ? data.map((a: Record<string,unknown>) => ({ id: a.id, name: a.name, type: a.type })) : data;
+          return mcpText({ apps, count: Array.isArray(apps) ? apps.length : 0 });
+        } catch(e: unknown) { return mcpText({ error: e instanceof Error ? e.message : String(e) }); }
+      }
+    );
+
+    server.registerTool(
+      'base44.read_entity',
+      { title: 'Base44 Read Entity', description: 'Read entity records from Base44 app. Use app_id=6a4ae522852a5e08bfa42450 for AUTO BUILDER ORCHESTRATOR.', inputSchema: { app_id: { type: 'string' }, entity_name: { type: 'string' }, limit: { type: 'number' } } },
+      async ({ app_id, entity_name, limit }: { app_id: string; entity_name: string; limit?: number }) => {
+        const key = process.env.BASE44_API_KEY ?? '';
+        if (!key) return mcpText({ error: 'BASE44_API_KEY not configured' });
+        try {
+          const res = await fetch(
+            `https://app.base44.com/api/apps/${app_id}/entities/${entity_name}?limit=${limit ?? 50}`,
+            { headers: { api_key: key } }
+          );
+          return mcpText(await res.json());
+        } catch(e: unknown) { return mcpText({ error: e instanceof Error ? e.message : String(e) }); }
+      }
+    );
+
     server.registerTool('rollback', { title: 'Rollback', description: 'Dry-run rollback planner. Live rollback requires explicit rollback mode.', inputSchema: rollbackSchema }, async (input) => mcpText(rollbackTool(input as never)));
   },
   { instructions: 'AUTO BUILDER 2 strict ChatGPT MCP route. Exposes the strict-21 required tools including create_google_form. Write-capable tools are dry-run-first and require explicit execute or rollback mode. Platform provisioning tools accept approved_actions so guarded adapters can execute only approved operations.' },
