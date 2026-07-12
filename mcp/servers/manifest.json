@@ -12,28 +12,28 @@
       "server_id": "auto_builder_mcp",
       "name": "AUTO_BUILDER MCP",
       "role": "master_kernel",
-      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp",
+      "endpoint": "https://www.autobuilderos.com/api/mcp",
       "description": "Master kernel — all other MCP servers registered here"
     },
     {
       "server_id": "strategic_minds_universal_ops_mcp",
       "name": "Strategic Minds Universal Ops MCP",
       "role": "enterprise_connector_layer",
-      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/universal-ops",
+      "endpoint": "https://www.autobuilderos.com/api/mcp/universal-ops",
       "description": "Full read/write/execute connector for all connected accounts and APIs"
     },
     {
       "server_id": "xps_website_factory_mcp",
       "name": "XPS Website Factory MCP",
       "role": "business_workflow_layer",
-      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/xps-factory",
+      "endpoint": "https://www.autobuilderos.com/api/mcp/xps-factory",
       "description": "XPS-specific business workflows: intake, build, QA, deploy, handoff"
     },
     {
       "server_id": "mcp_gateway_router",
       "name": "MCP Gateway Router",
       "role": "unified_gateway",
-      "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/gateway",
+      "endpoint": "https://www.autobuilderos.com/api/mcp/gateway",
       "description": "Unified entry point for GPT Agent Builder, Base44, Vercel agents, crons, webhooks"
     }
   ],
