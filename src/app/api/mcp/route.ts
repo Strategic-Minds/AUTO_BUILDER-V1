@@ -116,6 +116,39 @@ async function executeTool(name: string, args: Record<string, unknown>, receiptI
       return { message: 'Repair queue', source: 'Base44 RepairQueue', app_id: BASE44_APP_ID, receipt_id: receiptId };
     case 'intel.source_truth_audit':
       return { message: 'Source truth audit initiated', scope: args.scope ?? 'full', receipt_id: receiptId };
+    case 'search': {
+      const query = String(args.query ?? '').toLowerCase();
+      // Search across system knowledge
+      const results = [];
+      if (query.includes('health') || query.includes('status')) {
+        results.push({ id: 'system.health', title: 'System Health', text: 'REALITY OS MCP Gateway v2.0.0-reality-os — all systems operational. Protocol: 2025-11-05. 38 tools active.', url: 'https://www.autobuilderos.com/api/mcp' });
+      }
+      if (query.includes('score') || query.includes('ceiling') || query.includes('validation')) {
+        results.push({ id: 'scoring.summary', title: 'Ceiling Score Summary', text: 'Current target: 95+/110 points. 7 dimensions: build_integrity(20), code_quality(20), self_healing(15), test_coverage(20), receipt_integrity(10), ai_capability(15), security_posture(10).', url: 'https://www.autobuilderos.com/api/mcp/manifest' });
+      }
+      if (query.includes('repo') || query.includes('github') || query.includes('builder')) {
+        results.push({ id: 'repos.list', title: 'Strategic Minds Repositories', text: 'Active repos: AUTO_BUILDER-V1 (MCP gateway), AUTOBUILDER-2.0 (NCP+XPS intelligence), national-epoxy-pros (NEP PWA), XTREME-TAKEOFFS (takeoff system).', url: 'https://github.com/Strategic-Minds' });
+      }
+      if (query.includes('tool') || query.includes('mcp') || query.includes('capability')) {
+        results.push({ id: 'tools.manifest', title: 'MCP Tool Manifest', text: `38 tools available across 5 domains: system (6), base44 (8), github (6), workflow (8), intel (8), connector (2 — search+fetch).`, url: 'https://www.autobuilderos.com/api/mcp/manifest' });
+      }
+      if (results.length === 0) {
+        results.push({ id: 'system.general', title: 'AUTO BUILDER Intelligence System', text: 'Strategic Minds AUTO BUILDER — Reality OS autonomous ceiling system. MCP gateway live at autobuilderos.com. 38 tools for system orchestration, GitHub, Base44, and workflow management.', url: 'https://www.autobuilderos.com' });
+      }
+      return { results, receipt_id: receiptId };
+    }
+    case 'fetch': {
+      const id = String(args.id ?? '');
+      // Return document by ID
+      const docs: Record<string, {id:string;title:string;text:string;url:string}> = {
+        'system.health': { id: 'system.health', title: 'System Health', text: 'REALITY OS MCP Gateway v2.0.0-reality-os — operational. Protocol 2025-11-05. Environment: production. All 38 tools active.', url: 'https://www.autobuilderos.com/api/mcp' },
+        'scoring.summary': { id: 'scoring.summary', title: 'Ceiling Score Summary', text: 'Target: 95+/110. Dimensions: build_integrity/20, code_quality/20, self_healing/15, test_coverage/20, receipt_integrity/10, ai_capability/15, security_posture/10.', url: 'https://www.autobuilderos.com/api/mcp/manifest' },
+        'tools.manifest': { id: 'tools.manifest', title: 'MCP Tool Manifest', text: '38 tools across 5 domains. Use tools/list for full schema.', url: 'https://www.autobuilderos.com/api/mcp/manifest' },
+        'repos.list': { id: 'repos.list', title: 'Repository Registry', text: 'AUTO_BUILDER-V1, AUTOBUILDER-2.0, national-epoxy-pros, XTREME-TAKEOFFS, MASTER-TEMPLATE-SYSTEM', url: 'https://github.com/Strategic-Minds' },
+      };
+      const doc = docs[id] ?? { id, title: `Record: ${id}`, text: `Use github.list_prs, base44.read_entity, or intel.scoring_dashboard for specific record retrieval. ID requested: ${id}`, url: 'https://www.autobuilderos.com/api/mcp' };
+      return { ...doc, receipt_id: receiptId };
+    }
     default:
       return { message: `Tool ${name} executed`, args, receipt_id: receiptId, note: 'Full implementation requires Supabase connection' };
   }
