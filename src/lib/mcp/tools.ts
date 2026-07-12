@@ -237,13 +237,6 @@ export const intelligenceTools: MCPTool[] = [
 ];
 
 
-  ...systemTools,
-  ...base44Tools,
-  ...githubTools,
-  ...workflowTools,
-  ...intelligenceTools
-];
-
 // DOMAIN: ChatGPT Connector required tools (search + fetch)
 // ChatGPT's MCP connector REQUIRES these two tools to accept the connection
 export const chatgptConnectorTools: MCPTool[] = [
