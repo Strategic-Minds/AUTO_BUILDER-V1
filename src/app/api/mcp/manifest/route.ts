@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { ALL_TOOLS, GATEWAY_VERSION, MCP_VERSION } from '@/lib/mcp/server';
+import { GATEWAY_VERSION, MCP_VERSION } from '@/lib/mcp/server';
+import { ALL_TOOLS } from '@/lib/mcp/tools';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,7 @@ export async function GET() {
     gateway_version: GATEWAY_VERSION,
     mcp_protocol_version: MCP_VERSION,
     name: 'REALITY OS MCP Gateway',
-    description: 'Strategic Minds autonomous ceiling system — Base44 + ChatGPT persistent MCP bridge',
+    description: 'Strategic Minds AUTO BUILDER — persistent MCP bridge for Base44 and ChatGPT Business',
     transport: 'streamable-http',
     endpoint: '/api/mcp',
     domains: [
