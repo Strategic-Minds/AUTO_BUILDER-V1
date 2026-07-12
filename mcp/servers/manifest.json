@@ -1,19 +1,20 @@
 {
-  "version": "2.0.1",
+  "version": "1.0.0",
   "name": "Strategic Minds Enterprise MCP",
-  "description": "Full autonomous enterprise MCP kernel for Strategic Minds AI operations across all accounts, providers, and platforms.",
+  "description": "Governed autonomous MCP kernel for Strategic Minds / XPS operations. Base44 + ChatGPT bidirectional bridge.",
   "kernel": "auto_builder_mcp",
+  "operator": "Jeremy Bensen / Strategic Minds",
   "created": "2026-06-28",
-  "updated": "2026-06-28",
+  "updated": "2026-07-12",
   "execution_modes": ["OBSERVE_ONLY","DRAFT_ONLY","APPROVAL_REQUIRED","FULL_AUTONOMOUS","SUPERADMIN_EXECUTE"],
   "default_mode": "APPROVAL_REQUIRED",
   "servers": [
     {
       "server_id": "auto_builder_mcp",
-      "name": "AUTO_BUILDER MCP",
+      "name": "AUTO BUILDER MCP",
       "role": "master_kernel",
       "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp",
-      "description": "Master kernel — all other MCP servers registered here"
+      "description": "Master kernel — all MCP servers registered here"
     },
     {
       "server_id": "strategic_minds_universal_ops_mcp",
@@ -27,48 +28,26 @@
       "name": "XPS Website Factory MCP",
       "role": "business_workflow_layer",
       "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/xps-factory",
-      "description": "XPS-specific business workflows: intake, build, QA, deploy, handoff"
+      "description": "XPS-specific workflows: intake, build, QA, deploy, handoff"
     },
     {
       "server_id": "mcp_gateway_router",
       "name": "MCP Gateway Router",
       "role": "unified_gateway",
       "endpoint": "https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/gateway",
-      "description": "Unified entry point for GPT Agent Builder, Base44, Vercel agents, crons, webhooks"
+      "description": "Unified entry point for GPT, Base44, Vercel agents, crons, webhooks"
     }
   ],
-  "xps_schema": {
-    "factory_projects": {
-      "status": "EXISTS",
-      "type": "BASE TABLE",
-      "columns": 23,
-      "description": "Canonical XPS project record linking client, queue, gates, payments, files, handoff, receipts",
-      "rls": true
-    },
-    "factory_whatsapp_messages": {
-      "status": "CREATED_2026-06-28",
-      "type": "BASE TABLE",
-      "columns": 22,
-      "description": "Inbound/outbound WhatsApp messages with parsed commands, gate_id, provider receipt, error state",
-      "rls": true,
-      "indexes": ["project_id","from_number","status"]
-    },
-    "factory_image_assets": {
-      "status": "EXISTS_AUDITED",
-      "type": "BASE TABLE",
-      "columns": 35,
-      "description": "All project images — source, generated, Drive-hosted. Includes license, permission, alt_text, crop_instructions, approval_status, usage_restrictions",
-      "rls": true
-    },
-    "factory_receipts": {
-      "status": "CREATED_2026-06-28",
-      "type": "BASE TABLE",
-      "columns": 16,
-      "description": "XPS-scoped receipt ledger. factory_receipts_full VIEW unions XPS-tagged mcp_receipts + factory_receipts for complete audit trail",
-      "rls": true,
-      "view": "factory_receipts_full",
-      "view_description": "UNION of mcp_receipts (xps-tagged) + factory_receipts — use for complete XPS receipt audit"
-    }
+  "base44_bridge": {
+    "app_id": "6a4ae522852a5e08bfa42450",
+    "app_name": "AUTO BUILDER ORCHESTRATOR",
+    "note": "Use exact app ID — duplicate display name exists"
+  },
+  "primary_repos": {
+    "mcp_kernel": "Strategic-Minds/AUTO_BUILDER-V1",
+    "intelligence_system": "Strategic-Minds/AUTOBUILDER-2.0",
+    "reality_os_primary": "Strategic-Minds/AUTOBUILDER-V2",
+    "website_factory": "Strategic-Minds/xps-website-factory"
   },
   "governance": {
     "every_run_receipt": true,
@@ -76,6 +55,7 @@
     "audit_log": true,
     "production_gate_required": true,
     "max_retries": 5,
-    "deadletter_after_max": true
+    "deadletter_after_max": true,
+    "deny_by_default": true
   }
 }
