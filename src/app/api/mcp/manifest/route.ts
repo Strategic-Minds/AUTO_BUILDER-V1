@@ -11,8 +11,8 @@ export async function GET() {
     mcp_protocol_version: MCP_VERSION,
     name: 'REALITY OS MCP Gateway',
     description: 'Strategic Minds AUTO BUILDER — persistent MCP bridge for Base44 and ChatGPT Business',
-    transport: 'streamable-http',
-    endpoint: '/api/mcp',
+    transport: 'sse-streamable',
+    endpoint: '/api/mcp-minimal/mcp',
     domains: [
       { name: 'system', tool_count: 6, description: 'Health, capabilities, policy, cost' },
       { name: 'base44', tool_count: 8, description: 'Base44 app operations and entity access' },
@@ -20,6 +20,10 @@ export async function GET() {
       { name: 'workflow', tool_count: 8, description: 'Pipeline runs, approvals, receipts' },
       { name: 'intel', tool_count: 6, description: 'REALITY OS scoring, validation, self-reflection' }
     ],
+    production_url: 'https://www.autobuilderos.com',
+    chatgpt_live: true,
+    reality_os_version: '2.0.0-ceiling',
+    target_score: '95+/110',
     total_tools: ALL_TOOLS.length,
     governance: {
       mode: 'preview_first',
