@@ -11,7 +11,8 @@
     "validate:autonomous-control-plane": "node scripts/validate-autonomous-control-plane.mjs",
     "validate:epoxy-discover-engine": "node scripts/validate-epoxy-discover-engine.mjs",
     "browser:worker:nrw": "node scripts/nrw-browser-task-worker.mjs",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx"
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "validate:mcp-protocol": "node scripts/validate-mcp-protocol.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
