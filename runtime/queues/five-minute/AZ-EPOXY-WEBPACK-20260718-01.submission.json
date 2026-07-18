@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "jobId": "AZ-EPOXY-WEBPACK-20260718-01",
+  "queue": "vercel-workflow-five-minute",
+  "queueRunId": "wrun_01KXVA42EZWYYH2FSJVW1D1VJ8",
+  "runStatusUrl": "/api/workflows/approved-webpack-five-minute-queue/run/wrun_01KXVA42EZWYYH2FSJVW1D1VJ8",
+  "eventsUrl": "/api/workflows/approved-webpack-five-minute-queue/readable/wrun_01KXVA42EZWYYH2FSJVW1D1VJ8",
+  "submittedAt": "2026-07-18T19:09:19.192Z",
+  "branch": "auto-builder/image-ingestion-repair-20260718",
+  "approvedAssetSha256": "63c678127e2382f7985c2f6b71bbe2c7a9e2b7855168c926577d53e2e0189e00",
+  "productionTouched": false,
+  "legacyBrowserWorkerTouched": false,
+  "replacementJobCreated": false
+}
