@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MCP_VERSION, GATEWAY_VERSION, createMCPResponse, createMCPError, createReceiptId } from '@/lib/mcp/server';
+import { MCP_VERSION, GATEWAY_VERSION, negotiateMcpVersion, createMCPResponse, createMCPError, createReceiptId } from '@/lib/mcp/server';
 import { ALL_TOOLS } from '@/lib/mcp/tools';
 import { evaluatePolicy } from '@/lib/policy/engine';
 
@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id, Accept',
-  'Access-Control-Expose-Headers': 'Mcp-Session-Id',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version, Last-Event-ID, Accept',
+  'Access-Control-Expose-Headers': 'Mcp-Session-Id, MCP-Protocol-Version',
 };
 
 function getMcpSessionId(req: NextRequest): string {
@@ -21,7 +21,7 @@ async function handleMethod(method: string, params: Record<string, unknown> = {}
   switch (method) {
     case 'initialize':
       return createMCPResponse(id, {
-        protocolVersion: MCP_VERSION,
+        protocolVersion: negotiateMcpVersion(params.protocolVersion),
         capabilities: { tools: { listChanged: false }, logging: {} },
         serverInfo: { name: 'reality-os-mcp-gateway', version: GATEWAY_VERSION }
       });
@@ -121,7 +121,7 @@ async function executeTool(name: string, args: Record<string, unknown>, receiptI
       // Search across system knowledge
       const results = [];
       if (query.includes('health') || query.includes('status')) {
-        results.push({ id: 'system.health', title: 'System Health', text: 'REALITY OS MCP Gateway v2.0.0-reality-os — all systems operational. Protocol: 2025-11-05. 38 tools active.', url: 'https://www.autobuilderos.com/api/mcp' });
+        results.push({ id: 'system.health', title: 'System Health', text: 'REALITY OS MCP Gateway v2.0.0-reality-os — all systems operational. Protocol: 2024-11-05. 38 tools active.', url: 'https://www.autobuilderos.com/api/mcp' });
       }
       if (query.includes('score') || query.includes('ceiling') || query.includes('validation')) {
         results.push({ id: 'scoring.summary', title: 'Ceiling Score Summary', text: 'Current target: 95+/110 points. 7 dimensions: build_integrity(20), code_quality(20), self_healing(15), test_coverage(20), receipt_integrity(10), ai_capability(15), security_posture(10).', url: 'https://www.autobuilderos.com/api/mcp/manifest' });
@@ -141,7 +141,7 @@ async function executeTool(name: string, args: Record<string, unknown>, receiptI
       const id = String(args.id ?? '');
       // Return document by ID
       const docs: Record<string, {id:string;title:string;text:string;url:string}> = {
-        'system.health': { id: 'system.health', title: 'System Health', text: 'REALITY OS MCP Gateway v2.0.0-reality-os — operational. Protocol 2025-11-05. Environment: production. All 38 tools active.', url: 'https://www.autobuilderos.com/api/mcp' },
+        'system.health': { id: 'system.health', title: 'System Health', text: 'REALITY OS MCP Gateway v2.0.0-reality-os — operational. Protocol 2024-11-05. Environment: production. All 38 tools active.', url: 'https://www.autobuilderos.com/api/mcp' },
         'scoring.summary': { id: 'scoring.summary', title: 'Ceiling Score Summary', text: 'Target: 95+/110. Dimensions: build_integrity/20, code_quality/20, self_healing/15, test_coverage/20, receipt_integrity/10, ai_capability/15, security_posture/10.', url: 'https://www.autobuilderos.com/api/mcp/manifest' },
         'tools.manifest': { id: 'tools.manifest', title: 'MCP Tool Manifest', text: '38 tools across 5 domains. Use tools/list for full schema.', url: 'https://www.autobuilderos.com/api/mcp/manifest' },
         'repos.list': { id: 'repos.list', title: 'Repository Registry', text: 'AUTO_BUILDER-V1, AUTOBUILDER-2.0, national-epoxy-pros, XTREME-TAKEOFFS, MASTER-TEMPLATE-SYSTEM', url: 'https://github.com/Strategic-Minds' },
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET — required by MCP 2025-11-05 spec for SSE streaming / capability ping
+// GET — required by MCP 2024-11-05 spec for SSE streaming / capability ping
 export async function GET(req: NextRequest) {
   const sessionId = getMcpSessionId(req);
   const accept = req.headers.get('accept') ?? '';
