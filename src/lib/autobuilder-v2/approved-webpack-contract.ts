@@ -1,0 +1,15 @@
+export const APPROVED_WEBPACK = {
+  jobId: "AZ-EPOXY-WEBPACK-20260718-01",
+  projectName: "Arizona Epoxy Pros",
+  assetLabel: "ARIZONA_EPOXY_PROS_APPROVED_WEBPACK_2026-07-18",
+  expectedSha256: "63c678127e2382f7985c2f6b71bbe2c7a9e2b7855168c926577d53e2e0189e00",
+  expectedWidth: 935,
+  expectedHeight: 1683,
+  mimeType: "image/png",
+  carrierDriveFileId: "1Jpkb0TC1a88K_JymxMs8dRNB1m3aE_3zplls7jPTs1M",
+  repository: "Strategic-Minds/AUTO_BUILDER-V1",
+  branch: "auto-builder/image-ingestion-repair-20260718",
+  assetPath: "runtime/source-truth/AZ-EPOXY-WEBPACK-20260718-01/approved-web-pack.png",
+  manifestPath: "runtime/source-truth/AZ-EPOXY-WEBPACK-20260718-01/manifest.json",
+  queuePath: "runtime/queues/five-minute/AZ-EPOXY-WEBPACK-20260718-01.json",
+} as const;
