@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "jobId": "AZ-EPOXY-WEBPACK-20260718-01",
+  "idempotencyKey": "AZ-EPOXY-WEBPACK-20260718-01",
+  "queue": "vercel-workflow-five-minute",
+  "state": "queued",
+  "projectName": "Arizona Epoxy Pros",
+  "sourceManifestPath": "runtime/source-truth/AZ-EPOXY-WEBPACK-20260718-01/manifest.json",
+  "approvedAssetPath": "runtime/source-truth/AZ-EPOXY-WEBPACK-20260718-01/approved-web-pack.png",
+  "approvedAssetSha256": "63c678127e2382f7985c2f6b71bbe2c7a9e2b7855168c926577d53e2e0189e00",
+  "targetBranch": "auto-builder/image-ingestion-repair-20260718",
+  "deploymentMode": "preview",
+  "maxRepairAttempts": 5,
+  "visualParityTarget": 99,
+  "operationalParityTarget": 100,
+  "blockedActions": [
+    "production_deploy",
+    "production_domain_change",
+    "legacy_browserworker_change",
+    "secret_change",
+    "payment_or_spend",
+    "customer_message",
+    "destructive_action"
+  ]
+}
