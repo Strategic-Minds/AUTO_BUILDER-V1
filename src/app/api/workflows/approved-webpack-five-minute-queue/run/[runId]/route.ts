@@ -12,12 +12,13 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   const { runId } = await params;
   try {
     const run = await getRun(runId);
-    const [status, workflowName, createdAt, startedAt, completedAt] = await Promise.all([
+    const [status, workflowName, createdAt, startedAt, completedAt, returnValue] = await Promise.all([
       run.status,
       run.workflowName,
       run.createdAt,
       run.startedAt,
       run.completedAt,
+      run.returnValue,
     ]);
     return NextResponse.json({
       ok: true,
@@ -27,6 +28,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       createdAt: createdAt.toISOString(),
       startedAt: startedAt?.toISOString() ?? null,
       completedAt: completedAt?.toISOString() ?? null,
+      returnValue,
       eventsUrl: `/api/workflows/approved-webpack-five-minute-queue/readable/${runId}`,
     });
   } catch {
