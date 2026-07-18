@@ -1,6 +1,6 @@
 import { getWritable, sleep } from "workflow";
 
-import { APPROVED_WEBPACK } from "@/lib/autobuilder-v2/approved-webpack-ingestion";
+import { APPROVED_WEBPACK } from "@/lib/autobuilder-v2/approved-webpack-contract";
 
 export type ApprovedWebpackQueueInput = {
   jobId: typeof APPROVED_WEBPACK.jobId;
