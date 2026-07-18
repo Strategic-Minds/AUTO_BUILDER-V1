@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "jobId": "AZ-EPOXY-WEBPACK-20260718-01",
+  "projectName": "Arizona Epoxy Pros",
+  "assetLabel": "ARIZONA_EPOXY_PROS_APPROVED_WEBPACK_2026-07-18",
+  "approvalState": "operator_approved",
+  "sourceType": "google_slides_binary_carrier",
+  "carrierDriveFileId": "1Jpkb0TC1a88K_JymxMs8dRNB1m3aE_3zplls7jPTs1M",
+  "assetPath": "runtime/source-truth/AZ-EPOXY-WEBPACK-20260718-01/approved-web-pack.png",
+  "sha256": "63c678127e2382f7985c2f6b71bbe2c7a9e2b7855168c926577d53e2e0189e00",
+  "mimeType": "image/png",
+  "width": 935,
+  "height": 1683,
+  "byteSize": 2611725,
+  "previewOnly": true,
+  "productionAllowed": false,
+  "legacyBrowserWorkerMutable": false,
+  "approvedBy": "Jeremy",
+  "approvalPhrase": "PUT THIS IN THE PIPELINE"
+}
