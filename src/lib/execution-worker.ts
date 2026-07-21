@@ -5,6 +5,7 @@ export type WorkerAction =
   | "vercel.removeProjectDomain"
   | "drive.uploadFileToFolder"
   | "drive.copyFileToFolder"
+  | "drive.runDriveJob"
   | "playwright.screenshotQA"
   | "playwright.submitLeadFormAndVerifySupabase";
 
@@ -20,6 +21,33 @@ type WorkerResult = {
   action?: WorkerAction;
   receipt: Record<string, unknown>;
 };
+
+type DriveJobMode = "dry_run" | "approved_write";
+
+type DriveJobUpload = {
+  filename: string;
+  mimeType: string;
+  base64Content: string;
+  targetPath?: string;
+  folderId?: string;
+};
+
+type DriveJobPayload = {
+  job_id: string;
+  mode: DriveJobMode;
+  root_folder_id: string;
+  root_folder_name: string;
+  create_missing_folders?: boolean;
+  folder_manifest?: string[];
+  upload_files?: DriveJobUpload[];
+  move_files?: unknown[];
+  move_folders?: unknown[];
+  write_receipts?: boolean;
+  validate_tree?: boolean;
+  blocked_actions?: string[];
+};
+
+const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
 function parseJsonIfPossible(text: string) {
   if (!text) return null;
@@ -61,7 +89,7 @@ function normalizeSecretString(value: string) {
   } catch {
     // Not JSON; continue with the raw value.
   }
-  return trimmed.replace(/^['"]|['"]$/g, "");
+  return trimmed.replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
 }
 
 function getGooglePrivateKey() {
@@ -231,6 +259,213 @@ async function copyFileToFolder(payload: Record<string, unknown>) {
   return { sourceFileId, folderId, filename, mimeType, bytesCopied: bytes.byteLength, ...result };
 }
 
+function escapeDriveQueryValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function normalizeDrivePath(path: string) {
+  return path.split("/").map((part) => part.trim()).filter(Boolean).join("/");
+}
+
+function parseDriveJobPayload(payload: Record<string, unknown>): DriveJobPayload {
+  const jobId = requireString(payload, "job_id");
+  const mode = requireString(payload, "mode");
+  const rootFolderId = requireString(payload, "root_folder_id");
+  const rootFolderName = requireString(payload, "root_folder_name");
+  if (mode !== "dry_run" && mode !== "approved_write") {
+    throw new Error("payload.mode must be dry_run or approved_write");
+  }
+
+  const folderManifest = Array.isArray(payload.folder_manifest)
+    ? payload.folder_manifest.map((item) => String(item)).map(normalizeDrivePath).filter(Boolean)
+    : [];
+  const uploadFiles = Array.isArray(payload.upload_files) ? payload.upload_files : [];
+  const moveFiles = Array.isArray(payload.move_files) ? payload.move_files : [];
+  const moveFolders = Array.isArray(payload.move_folders) ? payload.move_folders : [];
+  const blockedActions = Array.isArray(payload.blocked_actions) ? payload.blocked_actions.map((item) => String(item)) : [];
+
+  return {
+    job_id: jobId,
+    mode,
+    root_folder_id: rootFolderId,
+    root_folder_name: rootFolderName,
+    create_missing_folders: payload.create_missing_folders !== false,
+    folder_manifest: folderManifest,
+    upload_files: uploadFiles as DriveJobUpload[],
+    move_files: moveFiles,
+    move_folders: moveFolders,
+    write_receipts: payload.write_receipts === true,
+    validate_tree: payload.validate_tree !== false,
+    blocked_actions: blockedActions
+  };
+}
+
+async function findDriveFolderChild(token: string, parentId: string, name: string) {
+  const query = [
+    `'${escapeDriveQueryValue(parentId)}' in parents`,
+    `name='${escapeDriveQueryValue(name)}'`,
+    `mimeType='${DRIVE_FOLDER_MIME_TYPE}'`,
+    "trashed=false"
+  ].join(" and ");
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set("q", query);
+  url.searchParams.set("fields", "files(id,name,mimeType,parents)");
+  url.searchParams.set("pageSize", "10");
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const body = parseJsonIfPossible(await response.text()) as { files?: Array<{ id: string; name: string }> } | string | null;
+  if (!response.ok || !body || typeof body === "string") {
+    throw new Error(`Drive folder lookup failed for ${name}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  }
+  return body.files?.[0] ?? null;
+}
+
+async function createDriveFolder(token: string, parentId: string, name: string) {
+  const response = await fetch("https://www.googleapis.com/drive/v3/files?fields=id,name,mimeType,parents,webViewLink", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name, mimeType: DRIVE_FOLDER_MIME_TYPE, parents: [parentId] })
+  });
+  const body = parseJsonIfPossible(await response.text());
+  if (!response.ok || !body || typeof body === "string") {
+    throw new Error(`Drive folder create failed for ${name}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  }
+  return body as { id: string; name: string; webViewLink?: string };
+}
+
+async function ensureDriveFolderPath(params: { token: string; rootFolderId: string; path: string; dryRun: boolean; createMissing: boolean }) {
+  const parts = normalizeDrivePath(params.path).split("/").filter(Boolean);
+  let parentId = params.rootFolderId;
+  let parentIsSynthetic = false;
+  const steps: Array<Record<string, unknown>> = [];
+
+  for (const name of parts) {
+    if (params.dryRun && parentIsSynthetic) {
+      steps.push({ pathPart: name, status: "would_create", parentId });
+      parentId = `dry-run:${parts.slice(0, steps.length).join("/")}`;
+      continue;
+    }
+
+    const existing = await findDriveFolderChild(params.token, parentId, name);
+    if (existing) {
+      steps.push({ pathPart: name, status: "exists", folderId: existing.id, parentId });
+      parentId = existing.id;
+      continue;
+    }
+
+    if (!params.createMissing) {
+      steps.push({ pathPart: name, status: "missing", parentId });
+      break;
+    }
+
+    if (params.dryRun) {
+      steps.push({ pathPart: name, status: "would_create", parentId });
+      parentId = `dry-run:${parts.slice(0, steps.length).join("/")}`;
+      parentIsSynthetic = true;
+      continue;
+    }
+
+    const created = await createDriveFolder(params.token, parentId, name);
+    steps.push({ pathPart: name, status: "created", folderId: created.id, parentId, webViewLink: created.webViewLink });
+    parentId = created.id;
+  }
+
+  return { path: params.path, folderId: parentId, steps };
+}
+
+function validateDriveJobSafety(job: DriveJobPayload, approved?: boolean) {
+  const blockedActions = new Set([...(job.blocked_actions ?? []), "delete", "rename_existing", "publish", "deploy", "payment", "live_social"]);
+  const blocked: Array<Record<string, unknown>> = [];
+
+  if ((job.move_files?.length ?? 0) > 0) blocked.push({ action: "move_files", reason: "Moving existing files requires separate exact approval." });
+  if ((job.move_folders?.length ?? 0) > 0) blocked.push({ action: "move_folders", reason: "Moving existing folders requires separate exact approval." });
+  for (const action of blockedActions) blocked.push({ action, reason: "Blocked by Drive job governance policy." });
+
+  if (job.mode === "approved_write" && approved !== true) {
+    blocked.push({ action: "approved_write", reason: "Explicit approval is required for approved_write mode.", requiredField: "approved: true" });
+  }
+
+  return blocked;
+}
+
+async function runDriveJob(payload: Record<string, unknown>, approved?: boolean) {
+  const job = parseDriveJobPayload(payload);
+  const blocked = validateDriveJobSafety(job, approved);
+  const dryRun = job.mode === "dry_run";
+  const hardBlocked = blocked.filter((item) => item.action === "approved_write" || item.action === "move_files" || item.action === "move_folders");
+
+  if (hardBlocked.length > 0) {
+    return {
+      job_id: job.job_id,
+      mode: job.mode,
+      status: "blocked",
+      root_folder_id: job.root_folder_id,
+      root_folder_name: job.root_folder_name,
+      blocked
+    };
+  }
+
+  const token = await getGoogleDriveToken();
+  const folderResults = [];
+  const folderIdByPath = new Map<string, string>();
+
+  for (const path of job.folder_manifest ?? []) {
+    const result = await ensureDriveFolderPath({
+      token,
+      rootFolderId: job.root_folder_id,
+      path,
+      dryRun,
+      createMissing: job.create_missing_folders !== false
+    });
+    folderResults.push(result);
+    folderIdByPath.set(path, result.folderId);
+  }
+
+  const uploadResults = [];
+  for (const upload of job.upload_files ?? []) {
+    const folderId = upload.folderId ?? (upload.targetPath ? folderIdByPath.get(normalizeDrivePath(upload.targetPath)) : undefined);
+    if (!folderId) {
+      uploadResults.push({ filename: upload.filename, status: "blocked", reason: "Missing upload folderId or resolvable targetPath" });
+      continue;
+    }
+    if (dryRun) {
+      uploadResults.push({ filename: upload.filename, mimeType: upload.mimeType, folderId, status: "would_upload" });
+      continue;
+    }
+    const bytes = Buffer.from(upload.base64Content, "base64");
+    uploadResults.push({ filename: upload.filename, folderId, ...(await uploadBytesToFolder({ folderId, filename: upload.filename, mimeType: upload.mimeType, bytes, token })) });
+  }
+
+  const receipt = {
+    job_id: job.job_id,
+    mode: job.mode,
+    status: dryRun ? "dry_run_complete" : "approved_write_complete",
+    root_folder_id: job.root_folder_id,
+    root_folder_name: job.root_folder_name,
+    folder_manifest_count: job.folder_manifest?.length ?? 0,
+    upload_file_count: job.upload_files?.length ?? 0,
+    folder_results: folderResults,
+    upload_results: uploadResults,
+    blocked,
+    validate_tree: job.validate_tree,
+    write_receipts: job.write_receipts,
+    timestamp: new Date().toISOString()
+  };
+
+  if (!dryRun && job.write_receipts) {
+    const receiptBytes = Buffer.from(JSON.stringify(receipt, null, 2), "utf8");
+    const writeResult = await uploadBytesToFolder({
+      folderId: job.root_folder_id,
+      filename: `${job.job_id}-receipt.json`,
+      mimeType: "application/json",
+      bytes: receiptBytes,
+      token
+    });
+    return { ...receipt, receipt_write_result: writeResult };
+  }
+
+  return receipt;
+}
+
 async function launchBrowser() {
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
   if (executablePath) {
@@ -321,6 +556,7 @@ export async function runExecutionWorker(request: WorkerRequest): Promise<Worker
       action === "vercel.removeProjectDomain" ? await removeProjectDomain(payload)
       : action === "drive.uploadFileToFolder" ? await uploadFileToFolder(payload)
       : action === "drive.copyFileToFolder" ? await copyFileToFolder(payload)
+      : action === "drive.runDriveJob" ? await runDriveJob(payload, request.approved)
       : action === "playwright.screenshotQA" ? await screenshotQA(payload)
       : action === "playwright.submitLeadFormAndVerifySupabase" ? await submitLeadFormAndVerifySupabase(payload)
       : { reason: `Unknown action ${action}` };
