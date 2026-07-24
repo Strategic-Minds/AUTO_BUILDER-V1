@@ -1,6 +1,13 @@
 import { canonicalHash } from '../pipeline/idempotency';
 
-export const MCP_VERSION = '2025-11-05';
+export const MCP_VERSION = '2024-11-05';
+export const SUPPORTED_MCP_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'] as const;
+
+export function negotiateMcpVersion(requested: unknown): string {
+  return typeof requested === 'string' && (SUPPORTED_MCP_VERSIONS as readonly string[]).includes(requested)
+    ? requested
+    : MCP_VERSION;
+}
 export const GATEWAY_VERSION = '2.0.0-reality-os';
 
 export interface MCPTool {

@@ -12,7 +12,7 @@ export async function GET() {
     mcp_endpoint: 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp',
     manifest_url: 'https://auto-builder-strategic-minds-advisory.vercel.app/api/mcp/manifest',
     transport: 'streamable-http',
-    protocol_version: '2025-11-05',
+    protocol_version: '2024-11-05',
     operator: 'Strategic Minds / Jeremy Bensen',
     app_id: '6a4ae522852a5e08bfa42450',
     governance: 'preview_first',
