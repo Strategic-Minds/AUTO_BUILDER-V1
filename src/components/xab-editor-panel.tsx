@@ -18,7 +18,7 @@ function GenericView({title,endpoint}:{title:string;endpoint:string}) {
 
 function AgentsView() {
   const [agents, setAgents] = useState<{name:string;handle:string;system_prompt:string;status:string}[]>([]);
-  useEffect(()=>{ fetch('/api/agents/xab').then(r=>r.json()).then(d=>setAgents(d.agents||d||[])).catch(()=>{}); },[]);
+  useEffect(()=>{ fetch('/api/agents/xab').then(r=>r.json()).then(d=>setAgents(d.agents||d||[])).catch(()=>setAgents([])); },[]);
   const emojis: Record<string,string> = {'@xab':'⬡','@juno':'🔨','@scout':'🔍','@mira':'📊','@rex':'🚀','@aria':'💬','@kai':'✅'};
   const colors: Record<string,string> = {'@xab':'#6366f1','@juno':'#10B981','@scout':'#F59E0B','@mira':'#8B5CF6','@rex':'#EF4444','@aria':'#EC4899','@kai':'#06B6D4'};
   return (
@@ -84,7 +84,7 @@ export function XABEditorPanel() {
   const { panel, closePanel } = useEditorPanel();
 
   useEffect(()=>{
-    const h=(e:Event)=>{ const ce=e as CustomEvent; if(ce.detail?.view) {} };
+    const h=(event:Event)=>{ void (event as CustomEvent<{view?:string}>).detail?.view; };
     window.addEventListener('xab:open-panel',h);
     return ()=>window.removeEventListener('xab:open-panel',h);
   },[]);
@@ -103,9 +103,8 @@ export function XABEditorPanel() {
         <button onClick={closePanel} style={{background:'none',border:'none',cursor:'pointer',fontSize:16,color:'var(--color-muted-foreground)',padding:'4px 8px'}}>✕</button>
       </div>
       <div style={{flex:1,overflow:'hidden'}}>
-        {ViewComponent ? <ViewComponent/> : <GenericView title={panel.title} endpoint={}/>}
+        {ViewComponent ? <ViewComponent/> : <GenericView title={panel.title} endpoint={`/api/${panel.view}`}/>} 
       </div>
     </div>
   );
 }
-
