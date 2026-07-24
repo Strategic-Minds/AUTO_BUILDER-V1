@@ -1,0 +1,28 @@
+{
+  "scorecard_id": "ABOS-PROFIT-BROWSERWORKER-SANDBOX-100",
+  "version": "2026-07-24",
+  "target_score": 100,
+  "scope": "AUTO BUILDER operating-directive implementation compliance. This is not a website visual-parity score.",
+  "checks": [
+    {"id":"C01","points":5,"description":"Full authority directive exists"},
+    {"id":"C02","points":5,"description":"Master invocation reads full authority first"},
+    {"id":"C03","points":5,"description":"Startup instruction reads full authority"},
+    {"id":"C04","points":5,"description":"Compact custom instruction reads full authority"},
+    {"id":"C05","points":5,"description":"Canonical BrowserWorker is Strategic-Minds/BROWSERWORKER"},
+    {"id":"C06","points":5,"description":"Alternate BrowserWorker substitution is explicitly blocked"},
+    {"id":"C07","points":5,"description":"Drive, GitHub, Vercel, and Supabase boot sequence exists"},
+    {"id":"C08","points":5,"description":"Profit-first autonomous build mode exists"},
+    {"id":"C09","points":5,"description":"Approved-source fast lane exists"},
+    {"id":"C10","points":5,"description":"Existing-preview fast lane starts BrowserWorker immediately"},
+    {"id":"C11","points":5,"description":"Visual parity gate is 99.00 percent"},
+    {"id":"C12","points":5,"description":"Operational parity is 100 percent of approved matrix"},
+    {"id":"C13","points":5,"description":"Desktop, tablet, and mobile evidence is mandatory"},
+    {"id":"C14","points":5,"description":"Recursive repair loop supports five cycles"},
+    {"id":"C15","points":5,"description":"Vercel Workflow five-minute heartbeat exists"},
+    {"id":"C16","points":5,"description":"Production release requires explicit operator approval"},
+    {"id":"C17","points":5,"description":"No-simulation evidence labels are required"},
+    {"id":"C18","points":5,"description":"Implementation receipt exists"},
+    {"id":"C19","points":5,"description":"Rollback receipt exists"},
+    {"id":"C20","points":5,"description":"Independent sandbox CI gate exists"}
+  ]
+}
