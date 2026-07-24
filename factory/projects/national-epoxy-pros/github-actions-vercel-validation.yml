@@ -1,0 +1,108 @@
+name: National Epoxy Pros Vercel Cron Validation
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "public/**"
+      - "vercel.json"
+      - ".env.example"
+      - "package.json"
+      - "package-lock.json"
+      - "pnpm-lock.yaml"
+      - "yarn.lock"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      CRON_SECRET: test-cron-secret
+      AUTO_BUILDER_EXECUTION_MODE: dry_run
+      NEXT_PUBLIC_SITE_NAME: National Epoxy Pros
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_SUPPORT_PHONE: "(877) 958-6408"
+      NEXT_PUBLIC_SUPPORT_EMAIL: support@nationalepoxypros.com
+      NEXT_PUBLIC_LEADS_EMAIL: leads@nationalepoxypros.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Validate Vercel cron config
+        run: node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('vercel.json','utf8')); if(!Array.isArray(j.crons)||j.crons.length!==6) throw new Error('Expected 6 Vercel crons'); for (const c of j.crons) { if (!c.path || !c.schedule) throw new Error('Invalid cron entry'); }"
+
+      - name: Build
+        run: npm run build
+
+      - name: Start preview server
+        run: npm run start -- --hostname 127.0.0.1 --port 3000 &
+
+      - name: Wait for preview
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Smoke test required routes
+        run: |
+          node --input-type=module <<'NODE'
+          const routes = [
+            "/", "/digital-bid", "/visualizer", "/design-center", "/locations",
+            "/flake-epoxy", "/metallic-epoxy", "/polished-concrete",
+            "/stained-concrete", "/concrete-countertops", "/training",
+            "/business-packages", "/products", "/about", "/contact",
+            "/dashboard/customer", "/dashboard/crew", "/dashboard/supervisor",
+            "/dashboard/owner", "/dashboard/admin", "/install"
+          ];
+          const base = "http://127.0.0.1:3000";
+          const failures = [];
+          for (const route of routes) {
+            const res = await fetch(base + route);
+            if (!res.ok) failures.push(`${route} -> ${res.status}`);
+          }
+          if (failures.length) throw new Error(failures.join("\n"));
+          NODE
+
+      - name: Cron auth checks
+        run: |
+          node --input-type=module <<'NODE'
+          const cronRoutes = [
+            "/api/cron/nep/factory-readiness",
+            "/api/cron/nep/source-sync",
+            "/api/cron/nep/seo-observation",
+            "/api/cron/nep/validation-sweep",
+            "/api/cron/nep/receipt-rollup",
+            "/api/cron/nep/open-gap-review"
+          ];
+          const base = "http://127.0.0.1:3000";
+          const failures = [];
+          for (const route of cronRoutes) {
+            const denied = await fetch(base + route);
+            if (denied.status !== 401) failures.push(`${route} expected 401 without auth, got ${denied.status}`);
+            const allowed = await fetch(base + route, { headers: { authorization: "Bearer test-cron-secret" } });
+            if (!allowed.ok) failures.push(`${route} expected ok with auth, got ${allowed.status}`);
+            const body = await allowed.json();
+            if (!body.ok || !body.receipt) failures.push(`${route} missing ok receipt JSON`);
+          }
+          if (failures.length) throw new Error(failures.join("\n"));
+          NODE
