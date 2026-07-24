@@ -1,0 +1,55 @@
+schema_version: 1
+library: AUTO_BUILDER
+purpose: governed autonomous build prompt system
+
+phases:
+  - name: source_truth
+    description: inspect canonical docs and repo contracts before action
+  - name: audit
+    description: identify existing state, gaps, overlaps, and blockers
+  - name: design
+    description: define completion, master spec, and execution contracts
+  - name: implement
+    description: create or update docs, scripts, workflows, and routes
+  - name: validate
+    description: run deterministic checks and record receipts
+  - name: package
+    description: produce leadership-ready handoff materials
+  - name: resume
+    description: preserve next-step continuity and restart state
+
+prompt_types:
+  - id: audit_prompt
+    name: Forensic Audit Prompt
+    intent: define current state and missing pieces
+    safety: read_only
+  - id: master_spec_prompt
+    name: Master Spec Prompt
+    intent: produce the canonical execution contract
+    safety: branch_safe
+  - id: implementation_prompt
+    name: Implementation Prompt
+    intent: create missing files and automation assets
+    safety: branch_safe
+  - id: validation_prompt
+    name: Validation Prompt
+    intent: run build, route, cron, browser, and receipt checks
+    safety: branch_safe
+  - id: packaging_prompt
+    name: Packaging Prompt
+    intent: produce the leadership handoff bundle
+    safety: branch_safe
+  - id: maintenance_prompt
+    name: Maintenance Prompt
+    intent: evolve prompt library taxonomy and index
+    safety: branch_safe
+
+trigger_classes:
+  - current_state_inspection
+  - gap_analysis
+  - system_design
+  - file_creation
+  - workflow_wiring
+  - validation_execution
+  - handoff_packaging
+  - prompt_library_governance
