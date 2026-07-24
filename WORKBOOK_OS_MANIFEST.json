@@ -1,0 +1,27 @@
+{
+  "manifest_version": "1.0",
+  "repo": "Strategic-Minds/AUTO_BUILDER-V1",
+  "repo_alias_requested": "Strategic-Minds/AUTO_BUILDER",
+  "updated_by": "ChatGPT branch-safe workbook installer",
+  "production_ready": false,
+  "production_lock": true,
+  "workbooks": [
+    {
+      "workbook_id": "HIGHEST-REPO-CEILING-ONE-SHOT",
+      "workbook_name": "AUTO_BUILDER_HIGHEST_REPO_CEILING_ONE_SHOT_WORKBOOK.xlsx",
+      "workbook_type": "HIGHEST_REPO_CEILING_ONE_SHOT_WORKBOOK",
+      "repo_path": "01_Builder_Docs/highest-repo-ceiling-one-shot/AUTO_BUILDER_HIGHEST_REPO_CEILING_ONE_SHOT_WORKBOOK.xlsx",
+      "package_path": "01_Builder_Docs/highest-repo-ceiling-one-shot/AUTO_BUILDER_HIGHEST_REPO_CEILING_ONE_SHOT_PACKAGE.zip",
+      "status": "pending_binary_upload",
+      "source_of_truth_rank": "support/repo_ceiling_primary",
+      "branch": "codex/install-highest-repo-ceiling-workbook",
+      "validation_result": "uploaded_package_audit_passed_text_scaffold_installed_binary_pending",
+      "required_sheets": 29,
+      "visual_parity_rules": "excluded",
+      "visual_drift_rules": "excluded",
+      "screenshot_comparison_rules": "excluded",
+      "website_design_parity_rules": "excluded",
+      "production_readiness": "locked_until_live_receipts_exist"
+    }
+  ]
+}
