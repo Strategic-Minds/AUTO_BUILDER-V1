@@ -1,0 +1,48 @@
+schema_version: "2026-07-03"
+system: AUTO_BUILDER-V1
+role: governed_prompt_family_registry
+required_fields:
+  - role
+  - phase
+  - source_truth
+  - allowed_actions
+  - protected_actions
+  - required_artifacts
+  - validation_gates
+  - receipt_requirements
+  - rehydrate_inputs
+  - dehydrate_outputs
+  - escalation_rules
+families:
+  - id: intake
+    purpose: collect business, system, workflow, agent, website, and approval context
+  - id: source_truth_discovery
+    purpose: inspect repo, Drive, Supabase, Vercel, memory, and open PR state before planning or mutation
+  - id: architecture_planning
+    purpose: map dependencies, queues, registries, routes, data, approvals, and rollback
+  - id: builder_doc_generation
+    purpose: generate implementation-ready docs without claiming production readiness
+  - id: template_selection
+    purpose: select factory templates using source truth and validation baselines
+  - id: mockup_translation
+    purpose: convert approved visual references into deterministic builder docs and validation rubrics
+  - id: validation
+    purpose: run and summarize route, build, browser, scorecard, security, and receipt checks
+  - id: scoring
+    purpose: evaluate MVP, production, and enterprise readiness thresholds
+  - id: repair
+    purpose: create branch-safe repair work from failed checks
+  - id: hardening
+    purpose: convert repeated failures into durable safeguards and tests
+  - id: release_readiness
+    purpose: confirm approvals, rollback, smoke tests, scorecard, and evidence before release
+  - id: registry_updates
+    purpose: keep machine-readable registries aligned with V1 source truth
+  - id: sync_operations
+    purpose: coordinate GitHub, Drive, Supabase, Vercel, and memory without overwriting canon
+  - id: operator_escalation
+    purpose: ask Jeremy only for blocked protected actions or missing decisions
+  - id: overnight_execution
+    purpose: continue low-risk branch, draft, validation, and receipt work without production mutation
+  - id: drift_detection
+    purpose: find repo, Drive, Supabase, Vercel, memory, and PR drift before it becomes a collision

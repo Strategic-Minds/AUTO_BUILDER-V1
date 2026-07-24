@@ -1,0 +1,54 @@
+schema_version: "2026-07-03"
+system: AUTO_BUILDER-V1
+role: task_queue_lifecycle_contract
+canonical_tables:
+  queue: task_queue
+  receipts: bridge_receipts
+  approvals: approval_gate
+  task_history: agent_task_log
+queue_states:
+  - on_deck
+  - active
+  - waiting_approval
+  - validating
+  - fixing
+  - hardening
+  - ready_for_next_step
+  - maintenance
+  - blocked
+  - complete
+  - archived
+lifecycle:
+  - intake
+  - source_truth_discovery
+  - strategy
+  - package_approval
+  - branch_build
+  - validation
+  - revision
+  - preview_release_prep
+  - maintenance
+  - optimization
+transition_rules:
+  require_receipt: true
+  require_next_action: true
+  require_source_truth_check_before_active: true
+  require_validation_for:
+    - validating
+    - ready_for_next_step
+    - complete
+  protected_transitions:
+    - preview_release_prep_to_production
+    - destructive_database_change
+    - dns_change
+    - payment_action
+    - secret_creation
+    - live_customer_message
+  idempotency_key_format: "<agent_id>-<action_type>-<YYYYMMDD>-<HHmm>"
+  receipt_provider_table: bridge_receipts
+blocked_state_requirements:
+  - blocker_reason
+  - workaround
+  - owner
+  - next_check
+  - evidence_link
