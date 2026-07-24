@@ -1,0 +1,33 @@
+name: Sandbox Profit BrowserWorker 100
+
+on:
+  pull_request:
+    paths:
+      - "sandbox/profit-browserworker-100/**"
+      - "docs/gpt/PROFIT_FIRST_BROWSERWORKER_PARITY_DIRECTIVE.md"
+      - "docs/gpt/MASTER_INVOCATION_PROMPT.md"
+      - "docs/gpt-business-account/START_EVERY_REQUEST_HERE.md"
+      - "docs/gpt-business-account/MANDATORY_READ_CUSTOM_INSTRUCTIONS_UNDER_1499.md"
+      - "03_Bridge_Receipts/mcp/RECEIPT_PROFIT_BROWSERWORKER_DIRECTIVE_20260724.md"
+      - "03_Bridge_Receipts/rollback/ROLLBACK_PROFIT_BROWSERWORKER_DIRECTIVE_20260724.md"
+      - "vercel.json"
+      - ".github/workflows/sandbox-profit-browserworker-100.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  score-100:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sandbox
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run isolated 100-point scorecard
+        run: node sandbox/profit-browserworker-100/validate.mjs

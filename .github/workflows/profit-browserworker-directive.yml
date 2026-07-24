@@ -1,0 +1,46 @@
+name: Profit BrowserWorker Directive Validate
+
+on:
+  pull_request:
+    paths:
+      - "docs/gpt/PROFIT_FIRST_BROWSERWORKER_PARITY_DIRECTIVE.md"
+      - "docs/gpt/MASTER_INVOCATION_PROMPT.md"
+      - "docs/gpt-business-account/START_EVERY_REQUEST_HERE.md"
+      - "docs/gpt-business-account/MANDATORY_READ_CUSTOM_INSTRUCTIONS_UNDER_1499.md"
+      - "docs/gpt-business-account/README.md"
+      - "scripts/validate-profit-browserworker-directive.mjs"
+      - "package.json"
+      - "vercel.json"
+      - ".github/workflows/profit-browserworker-directive.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/gpt/PROFIT_FIRST_BROWSERWORKER_PARITY_DIRECTIVE.md"
+      - "docs/gpt/MASTER_INVOCATION_PROMPT.md"
+      - "docs/gpt-business-account/START_EVERY_REQUEST_HERE.md"
+      - "docs/gpt-business-account/MANDATORY_READ_CUSTOM_INSTRUCTIONS_UNDER_1499.md"
+      - "docs/gpt-business-account/README.md"
+      - "scripts/validate-profit-browserworker-directive.mjs"
+      - "package.json"
+      - "vercel.json"
+      - ".github/workflows/profit-browserworker-directive.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-directive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate profit and BrowserWorker authority
+        run: node scripts/validate-profit-browserworker-directive.mjs

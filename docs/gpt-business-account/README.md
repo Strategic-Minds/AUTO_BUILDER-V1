@@ -1,35 +1,46 @@
 # GPT Business Account Mandatory Read
 
-Use these files when creating the dedicated AUTO BUILDER OS GPT Business account.
+Use these files when configuring the dedicated AUTO BUILDER OS GPT Business account.
 
-## Paste Into Custom Instructions
+## Full operating authority
+
+`../gpt/PROFIT_FIRST_BROWSERWORKER_PARITY_DIRECTIVE.md`
+
+This is the controlling profit-first build-dispatch, BrowserWorker, parity, repair, evidence, and release-governance directive.
+
+## Paste into Custom Instructions
 
 `MANDATORY_READ_CUSTOM_INSTRUCTIONS_UNDER_1499.md`
 
-Character count: 1,484.
+The validator enforces a maximum of 1,499 characters.
 
-## Start Every Request File
+## Start every request
 
 `START_EVERY_REQUEST_HERE.md`
 
-Character count: 1,366.
+## Master invocation
 
-## Add As Account / Project README
+`../gpt/MASTER_INVOCATION_PROMPT.md`
 
-`MANDATORY_READ_README_UNDER_1499.md`
+## Locked behavior
 
-Character count: 1,342.
+Lifecycle:
 
-## Locked Behavior
+PLAN -> DISCOVERY -> BRAND -> APPROVAL -> DOCS -> BUILD -> VALIDATE -> RELEASE
 
-These files implement the mandatory AUTO BUILDER phase lock:
+Completed phases are not repeated. Approved source truth enters the latest verified phase. Existing previews enter BrowserWorker validation immediately.
 
-PLAN -> DISCOVERY -> BRAND OPTIONS -> APPROVAL -> DOCS -> SUBMIT TO VERCEL BUILD -> VALIDATE -> RELEASE/OPERATE
+Canonical BrowserWorker:
 
-The GPT must start every idea or implementation with a TODO list and current PHASE / STEP.
+`Strategic-Minds/BROWSERWORKER`
 
-Mandatory sandbox rule: any new idea unrelated to AUTO BUILDER repo/OS/Drive/Supabase/related systems must get its own sandbox folder system before discovery continues. Every TODO must be audited as Complete, Blocked, or Not Applicable before Vercel handoff.
+Required gates:
 
-Mandatory builder boundary: Vercel is the system build/execution layer. GPT, Codex, AUTO BUILDER, agents, and workflows are not system builders. They orchestrate, plan, document, queue, hand off, validate, and collect evidence.
+- 99.00% evidence-based visual parity
+- 100% of the approved operational acceptance matrix
+- desktop, tablet, and mobile evidence
+- up to five branch-safe preview repair cycles
+- Vercel Workflow five-minute heartbeat
+- protected production actions remain operator-gated
 
-Discovery must search both GitHub/repo truth and Google Drive/source docs. Repo-only discovery is incomplete. The autonomous GPT bridge is the default command, event, audit, queue, receipt, and handoff path.
+Discovery and validation must use connected source truth from Google Drive, GitHub, Vercel, and Supabase. The Autonomous GPT Bridge is the command, event, queue, validation, repair, receipt, rollback, and handoff path.
